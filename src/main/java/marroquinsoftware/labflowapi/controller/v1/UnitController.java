@@ -3,6 +3,7 @@ package marroquinsoftware.labflowapi.controller.v1;
 import java.util.List;
 
 import jakarta.validation.Valid;
+import marroquinsoftware.labflowapi.payload.UnitResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -19,9 +20,9 @@ public class UnitController {
     private UnitService unitService;
 
     @GetMapping("/public/units")
-    public ResponseEntity<List<Unit>> getAllUnits() {
-        List<Unit> units = unitService.getAllUnits();
-        return new ResponseEntity<>(units, HttpStatus.OK);
+    public ResponseEntity<UnitResponse> getAllUnits() {
+        UnitResponse unitResponse = unitService.getAllUnits();
+        return new ResponseEntity<>(unitResponse, HttpStatus.OK);
     }
 
     @PostMapping("/public/units")

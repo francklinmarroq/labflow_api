@@ -3,9 +3,10 @@ package marroquinsoftware.labflowapi.service;
 import java.util.List;
 
 import marroquinsoftware.labflowapi.model.Unit;
+import marroquinsoftware.labflowapi.payload.UnitResponse;
 
 public interface UnitService {
-    List<Unit> getAllUnits();
+    UnitResponse getAllUnits();
 
     void createUnit(Unit unit);
 

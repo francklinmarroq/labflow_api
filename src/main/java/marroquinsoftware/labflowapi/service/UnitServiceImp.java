@@ -2,10 +2,14 @@ package marroquinsoftware.labflowapi.service;
 
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
+import marroquinsoftware.labflowapi.payload.UnitDTO;
+import marroquinsoftware.labflowapi.payload.UnitResponse;
 import marroquinsoftware.labflowapi.repositories.UnitRepository;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -17,13 +21,20 @@ public class UnitServiceImp implements UnitService {
     @Autowired
     private UnitRepository unitRepository;
 
+    @Autowired
+    private ModelMapper modelMapper;
+
     @Override
-    public List<Unit> getAllUnits() {
+    public UnitResponse getAllUnits() {
         List<Unit> savedUnits = unitRepository.findAll();
         if (savedUnits.isEmpty()){
             throw new APIException("There are no units saved.");
         }
-        return savedUnits;
+        List<UnitDTO> unitDTOS = savedUnits.stream().map(unit -> modelMapper.map(unit, UnitDTO.class)).toList();
+        UnitResponse unitResponse = new UnitResponse();
+        unitResponse.setContent(unitDTOS);
+
+        return unitResponse;
     }
 
     @Override

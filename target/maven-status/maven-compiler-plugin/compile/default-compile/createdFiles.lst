@@ -1,9 +1,12 @@
 marroquinsoftware/labflowapi/exceptions/MyGlobalExceptionHandler.class
-marroquinsoftware/labflowapi/model/Unit.class
+marroquinsoftware/labflowapi/payload/UnitDTO.class
 marroquinsoftware/labflowapi/controller/v1/UnitController.class
-marroquinsoftware/labflowapi/service/UnitService.class
 marroquinsoftware/labflowapi/exceptions/ResourceNotFoundException.class
-marroquinsoftware/labflowapi/service/UnitServiceImp.class
 marroquinsoftware/labflowapi/exceptions/APIException.class
+marroquinsoftware/labflowapi/config/AppConfig.class
+marroquinsoftware/labflowapi/model/Unit.class
+marroquinsoftware/labflowapi/service/UnitService.class
+marroquinsoftware/labflowapi/service/UnitServiceImp.class
 marroquinsoftware/labflowapi/repositories/UnitRepository.class
 marroquinsoftware/labflowapi/LabflowapiApplication.class
+marroquinsoftware/labflowapi/payload/UnitResponse.class
