@@ -1,51 +1,60 @@
 package marroquinsoftware.labflowapi.service;
 
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
-import org.springframework.http.HttpStatus;
+import marroquinsoftware.labflowapi.exceptions.APIException;
+import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
+import marroquinsoftware.labflowapi.repositories.UnitRepository;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.web.server.ResponseStatusException;
 
 import marroquinsoftware.labflowapi.model.Unit;
 
 @Service
 public class UnitServiceImp implements UnitService {
-    private List<Unit> units = new ArrayList<>();
+
+    @Autowired
+    private UnitRepository unitRepository;
 
     @Override
     public List<Unit> getAllUnits() {
-        return units;
+        List<Unit> savedUnits = unitRepository.findAll();
+        if (savedUnits.isEmpty()){
+            throw new APIException("There are no units saved.");
+        }
+        return savedUnits;
     }
 
     @Override
     public void createUnit(Unit unit) {
-        unit.setUnitId((long) (units.size() + 1));
-        units.add(unit);
+        Unit savedUnit = unitRepository.findByUnitSymbol(unit.getUnitSymbol());
+        if (savedUnit != null){
+            throw new APIException("Unit with symbol: " + unit.getUnitSymbol() + " already exists.");
+        }
+        unitRepository.save(unit);
     }
 
     @Override
     public String deleteUnit(Long unitId) {
-        Unit unit = units.stream()
-                .filter(c -> c.getUnitId().equals(unitId))
-                .findFirst()
-                .orElseThrow(() -> new ResponseStatusException(HttpStatus.NOT_FOUND, "Resource not found."));
-        units.remove(unit);
+        Optional<Unit> unitOptional = unitRepository.findById(unitId);
+        Unit unit = unitOptional.orElseThrow(() -> new ResourceNotFoundException("Unit","unitId", unitId));
+        unitRepository.delete(unit);
 
         return "Unit with id: " + unitId + " deleted successfully.";
     }
 
     @Override
     public Unit updateUnit(Unit unit, Long unitId) {
+        List<Unit> units = unitRepository.findAll();
         Optional<Unit> optionalUnit = units.stream().filter(c -> c.getUnitId().equals(unitId)).findFirst();
 
         if (optionalUnit.isPresent()) {
             Unit existingUnit = optionalUnit.get();
             existingUnit.setUnitSymbol(unit.getUnitSymbol());
-            return existingUnit;
+            return unitRepository.save(existingUnit);
         } else {
-            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "Resourse not found.");
+            throw  new ResourceNotFoundException("Unit","unitId", unitId);
         }
 
     }

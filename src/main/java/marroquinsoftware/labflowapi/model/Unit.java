@@ -1,18 +1,26 @@
 package marroquinsoftware.labflowapi.model;
 
-import lombok.AllArgsConstructor;
+import jakarta.persistence.Entity;
+import jakarta.persistence.GeneratedValue;
+import jakarta.persistence.GenerationType;
+import jakarta.persistence.Id;
+import jakarta.validation.constraints.NotBlank;
+import lombok.NoArgsConstructor;
 
-@AllArgsConstructor
+@Entity
+@NoArgsConstructor
 public class Unit {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long unitId;
+    @NotBlank
     private String unitSymbol;
 
-    public Long getUnitId() {
-        return unitId;
-    }
 
-    public void setUnitId(Long unitId) {
+    public Unit(Long unitId, String unitSymbol) {
         this.unitId = unitId;
+        this.unitSymbol = unitSymbol;
     }
 
     public String getUnitSymbol() {
@@ -21,5 +29,13 @@ public class Unit {
 
     public void setUnitSymbol(String unitSymbol) {
         this.unitSymbol = unitSymbol;
+    }
+
+    public Long getUnitId() {
+        return unitId;
+    }
+
+    public void setUnitId(Long unitId) {
+        this.unitId = unitId;
     }
 }
