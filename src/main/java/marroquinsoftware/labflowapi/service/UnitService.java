@@ -3,15 +3,16 @@ package marroquinsoftware.labflowapi.service;
 import java.util.List;
 
 import marroquinsoftware.labflowapi.model.Unit;
+import marroquinsoftware.labflowapi.payload.UnitDTO;
 import marroquinsoftware.labflowapi.payload.UnitResponse;
 
 public interface UnitService {
-    UnitResponse getAllUnits();
+    UnitResponse getAllUnits(Integer pageNumber, Integer pageSize, String sortBy, String sortDir);
 
-    void createUnit(Unit unit);
+    UnitDTO createUnit(UnitDTO unitDTO);
 
-    String deleteUnit(Long unitId);
+    UnitDTO deleteUnit(Long unitId);
 
-    Unit updateUnit(Unit unit, Long unitId);
+    UnitDTO updateUnit(UnitDTO unitDTO, Long unitId);
 
 }

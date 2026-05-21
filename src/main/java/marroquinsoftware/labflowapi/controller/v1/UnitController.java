@@ -3,6 +3,8 @@ package marroquinsoftware.labflowapi.controller.v1;
 import java.util.List;
 
 import jakarta.validation.Valid;
+import marroquinsoftware.labflowapi.config.AppConstants;
+import marroquinsoftware.labflowapi.payload.UnitDTO;
 import marroquinsoftware.labflowapi.payload.UnitResponse;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -20,27 +22,31 @@ public class UnitController {
     private UnitService unitService;
 
     @GetMapping("/public/units")
-    public ResponseEntity<UnitResponse> getAllUnits() {
-        UnitResponse unitResponse = unitService.getAllUnits();
+    public ResponseEntity<UnitResponse> getAllUnits(
+            @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
+            @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
+            @RequestParam(defaultValue = AppConstants.SORT_UNITS_BY) String sortBy,
+            @RequestParam(defaultValue = AppConstants.SORT_DIR) String sortOrder) {
+        UnitResponse unitResponse = unitService.getAllUnits(pageNumber, pageSize, sortBy, sortOrder);
         return new ResponseEntity<>(unitResponse, HttpStatus.OK);
     }
 
     @PostMapping("/public/units")
-    public ResponseEntity<String> createUnit(@Valid @RequestBody Unit unit) {
-        unitService.createUnit(unit);
-        return new ResponseEntity<String>("Unit addded successfully.", HttpStatus.CREATED);
-    }
-
-    @DeleteMapping("/public/units/{unitId}")
-    public ResponseEntity<String> deleteUnit(@PathVariable Long unitId) {
-        String status = unitService.deleteUnit(unitId);
-        return new ResponseEntity<>(status, HttpStatus.OK);
+    public ResponseEntity<UnitDTO> createUnit(@Valid @RequestBody UnitDTO unitDTO) {
+        return new ResponseEntity<UnitDTO>(unitService.createUnit(unitDTO), HttpStatus.CREATED);
     }
 
     @PutMapping("/public/units/{unitId}")
-    public ResponseEntity<String> updateUnit(@Valid @RequestBody Unit unit, @PathVariable Long unitId) {
-        Unit savedUnit = unitService.updateUnit(unit, unitId);
-        return new ResponseEntity<>("Category with id " + unitId, HttpStatus.OK);
+    public ResponseEntity<UnitDTO> updateUnit(@Valid @RequestBody UnitDTO unitDTO, @PathVariable Long unitId) {
+        UnitDTO savedUnit = unitService.updateUnit(unitDTO, unitId);
+        return new ResponseEntity<>(savedUnit, HttpStatus.OK);
 
     }
+
+    @DeleteMapping("/public/units/{unitId}")
+    public ResponseEntity<UnitDTO> deleteUnit(@PathVariable Long unitId) {
+        UnitDTO status = unitService.deleteUnit(unitId);
+        return new ResponseEntity<>(status, HttpStatus.OK);
+    }
+
 }
