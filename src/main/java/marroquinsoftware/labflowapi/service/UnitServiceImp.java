@@ -61,9 +61,9 @@ public class UnitServiceImp implements UnitService {
     }
 
     @Override
-    public UnitDTO updateUnit(UnitDTO unitDTO, Long unitId) {
+    public UnitDTO updateUnit(UnitDTO unitDTO, Long id) {
         Unit unit = modelMapper.map(unitDTO, Unit.class);
-        Optional<Unit> optionalUnit = unitRepository.findById(unitId);
+        Optional<Unit> optionalUnit = unitRepository.findById(id);
 
         if (optionalUnit.isPresent()) {
             Unit existingUnit = optionalUnit.get();
@@ -71,15 +71,15 @@ public class UnitServiceImp implements UnitService {
             Unit savedUnit = unitRepository.save(existingUnit);
             return modelMapper.map(savedUnit, UnitDTO.class);
         } else {
-            throw  new ResourceNotFoundException("Unit","unitId", unitId);
+            throw  new ResourceNotFoundException("Unit","unitId", id);
         }
 
     }
 
     @Override
-    public UnitDTO deleteUnit(Long unitId) {
-        Optional<Unit> unitOptional = unitRepository.findById(unitId);
-        Unit unit = unitOptional.orElseThrow(() -> new ResourceNotFoundException("Unit","unitId", unitId));
+    public UnitDTO deleteUnit(Long id) {
+        Optional<Unit> unitOptional = unitRepository.findById(id);
+        Unit unit = unitOptional.orElseThrow(() -> new ResourceNotFoundException("Unit","unitId", id));
         unitRepository.delete(unit);
 
         return modelMapper.map(unit, UnitDTO.class);

@@ -1,0 +1,36 @@
+package marroquinsoftware.labflowapi.model;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.math.BigDecimal;
+
+@Entity
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class ReferenceRange {
+
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+
+    @ManyToOne
+    @JoinColumn(name = "parameter_id", nullable = false)
+    private Parameter parameter;
+
+    @Enumerated(EnumType.STRING)
+    private Sex sex; // null = applies to both sexes
+
+    @ManyToOne
+    @JoinColumn(name = "age_range_id")
+    private AgeRange ageRange; // null = applies to all ages
+
+    private BigDecimal lowerLimit;
+    private BigDecimal upperLimit;
+    private BigDecimal criticalLow;
+    private BigDecimal criticalHigh;
+    private String interpretationText;
+}

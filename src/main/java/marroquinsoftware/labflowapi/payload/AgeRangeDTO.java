@@ -1,5 +1,6 @@
 package marroquinsoftware.labflowapi.payload;
 
+import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -7,7 +8,12 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class UnitDTO {
+public class AgeRangeDTO {
     private Long id;
-    private String unitSymbol;
+
+    @NotBlank
+    private String name;
+
+    private Integer minAgeDays;
+    private Integer maxAgeDays;
 }

@@ -11,8 +11,8 @@ public interface UnitService {
 
     UnitDTO createUnit(UnitDTO unitDTO);
 
-    UnitDTO deleteUnit(Long unitId);
+    UnitDTO deleteUnit(Long id);
 
-    UnitDTO updateUnit(UnitDTO unitDTO, Long unitId);
+    UnitDTO updateUnit(UnitDTO unitDTO, Long id);
 
 }

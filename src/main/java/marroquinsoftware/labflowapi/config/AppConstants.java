@@ -5,4 +5,7 @@ public class AppConstants {
     public static final String PAGE_SIZE = "50";
     public static final String SORT_DIR = "ASC";
     public static final String SORT_UNITS_BY = "unitSymbol";
+    public static final String SORT_PARAMETERS_BY = "name";
+    public static final String SORT_REFERENCE_RANGES_BY = "id";
+    public static final String SORT_AGE_RANGES_BY = "name";
 }

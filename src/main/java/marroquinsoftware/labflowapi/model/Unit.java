@@ -13,13 +13,13 @@ public class Unit {
 
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long unitId;
+    private Long id;
     @NotBlank
     private String unitSymbol;
 
 
-    public Unit(Long unitId, String unitSymbol) {
-        this.unitId = unitId;
+    public Unit(Long id, String unitSymbol) {
+        this.id = id;
         this.unitSymbol = unitSymbol;
     }
 
@@ -31,11 +31,11 @@ public class Unit {
         this.unitSymbol = unitSymbol;
     }
 
-    public Long getUnitId() {
-        return unitId;
+    public Long getId() {
+        return id;
     }
 
-    public void setUnitId(Long unitId) {
-        this.unitId = unitId;
+    public void setId(Long id) {
+        this.id = id;
     }
 }
