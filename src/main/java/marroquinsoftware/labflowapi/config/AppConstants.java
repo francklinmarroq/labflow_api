@@ -9,4 +9,6 @@ public class AppConstants {
     public static final String SORT_REFERENCE_RANGES_BY = "id";
     public static final String SORT_AGE_RANGES_BY = "name";
     public static final String SORT_TEST_CONFIGS_BY = "testName";
+    public static final String SORT_PATHOLOGIES_BY = "name";
+    public static final String SORT_CUSTOMERS_BY = "name";
 }
