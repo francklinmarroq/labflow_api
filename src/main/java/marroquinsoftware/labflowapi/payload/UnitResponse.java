@@ -14,7 +14,7 @@ public class UnitResponse {
     private List<UnitDTO> content;
     private Integer pageNumber;
     private Integer pageSize;
-    private Integer totalElements;
+    private Long totalElements;
     private Integer totalPages;
     private boolean lastPage;
 }

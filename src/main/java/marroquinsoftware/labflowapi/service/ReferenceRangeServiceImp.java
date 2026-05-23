@@ -57,7 +57,7 @@ public class ReferenceRangeServiceImp implements ReferenceRangeService {
         response.setContent(dtos);
         response.setPageNumber(page.getNumber());
         response.setPageSize(page.getSize());
-        response.setTotalElements(page.getNumberOfElements());
+        response.setTotalElements(page.getTotalElements());
         response.setTotalPages(page.getTotalPages());
         response.setLastPage(page.isLast());
         return response;

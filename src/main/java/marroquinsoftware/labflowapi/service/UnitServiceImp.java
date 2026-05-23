@@ -41,7 +41,7 @@ public class UnitServiceImp implements UnitService {
         UnitResponse unitResponse = new UnitResponse();
         unitResponse.setPageNumber(unitPage.getNumber());
         unitResponse.setPageSize(unitPage.getSize());
-        unitResponse.setTotalElements(unitPage.getNumberOfElements());
+        unitResponse.setTotalElements(unitPage.getTotalElements());
         unitResponse.setTotalPages(unitPage.getTotalPages());
         unitResponse.setLastPage(unitPage.isLast());
         unitResponse.setContent(unitDTOS);

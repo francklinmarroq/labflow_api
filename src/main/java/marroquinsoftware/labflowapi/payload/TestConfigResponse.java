@@ -9,8 +9,8 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class AgeRangeResponse {
-    private List<AgeRangeDTO> content;
+public class TestConfigResponse {
+    private List<TestConfigDTO> content;
     private Integer pageNumber;
     private Integer pageSize;
     private Long totalElements;

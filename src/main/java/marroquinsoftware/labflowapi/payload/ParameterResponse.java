@@ -13,7 +13,7 @@ public class ParameterResponse {
     private List<ParameterDTO> content;
     private Integer pageNumber;
     private Integer pageSize;
-    private Integer totalElements;
+    private Long totalElements;
     private Integer totalPages;
     private boolean lastPage;
 }

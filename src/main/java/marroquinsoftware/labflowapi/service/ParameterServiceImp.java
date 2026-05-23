@@ -45,7 +45,7 @@ public class ParameterServiceImp implements ParameterService {
         ParameterResponse parameterResponse = new ParameterResponse();
         parameterResponse.setPageNumber(parameterPage.getNumber());
         parameterResponse.setPageSize(parameterPage.getSize());
-        parameterResponse.setTotalElements(parameterPage.getNumberOfElements());
+        parameterResponse.setTotalElements(parameterPage.getTotalElements());
         parameterResponse.setTotalPages(parameterPage.getTotalPages());
         parameterResponse.setLastPage(parameterPage.isLast());
         parameterResponse.setContent(parameterDTOs);
