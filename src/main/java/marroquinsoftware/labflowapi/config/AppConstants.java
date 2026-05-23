@@ -11,4 +11,5 @@ public class AppConstants {
     public static final String SORT_TEST_CONFIGS_BY = "testName";
     public static final String SORT_PATHOLOGIES_BY = "name";
     public static final String SORT_CUSTOMERS_BY = "name";
+    public static final String SORT_ORDERS_BY = "requestedAt";
 }
