@@ -11,6 +11,9 @@ import lombok.NoArgsConstructor;
 public class LabTestDTO {
     private Long id;
     private Long orderId;
+
     @NotNull
+    private Long testId;
+
     private Long testConfigId;
 }

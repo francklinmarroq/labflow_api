@@ -15,6 +15,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
@@ -96,12 +97,12 @@ public class CustomerServiceImp implements CustomerService {
 
     private List<Pathology> resolvePathologies(List<Long> pathologyIds) {
         if (pathologyIds == null || pathologyIds.isEmpty()) {
-            return Collections.emptyList();
+            return new ArrayList<>();
         }
         return pathologyIds.stream()
                 .map(pid -> pathologyRepository.findById(pid)
                         .orElseThrow(() -> new ResourceNotFoundException("Pathology", "pathologyId", pid)))
-                .toList();
+                .collect(java.util.stream.Collectors.toCollection(ArrayList::new));
     }
 
     private CustomerDTO toDTO(Customer customer) {

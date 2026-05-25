@@ -25,7 +25,11 @@ public class LabTest {
     private LabOrder order;
 
     @ManyToOne
-    @JoinColumn(name = "test_config_id", nullable = false)
+    @JoinColumn(name = "test_id", nullable = false)
+    private Test test;
+
+    @ManyToOne
+    @JoinColumn(name = "test_config_id", nullable = true)
     private TestConfig testConfig;
 
     @OneToMany(mappedBy = "test", cascade = CascadeType.ALL, orphanRemoval = true)

@@ -1,28 +1,22 @@
 package marroquinsoftware.labflowapi.payload;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotEmpty;
-import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
+import java.math.BigDecimal;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class TestConfigDTO {
+public class TestDTO {
     private Long id;
-
-    @NotNull
-    private Long testId;
 
     @NotBlank
     private String name;
 
-    @NotEmpty
-    private List<Long> parameterIds;
+    private BigDecimal price;
 
-    private boolean active;
+    private BigDecimal cost;
 }

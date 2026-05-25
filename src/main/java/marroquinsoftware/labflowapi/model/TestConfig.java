@@ -18,12 +18,13 @@ public class TestConfig {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @NotBlank
-    private String testTitle;
+    @ManyToOne
+    @JoinColumn(name = "test_id", nullable = false)
+    private Test test;
 
     @NotBlank
     @Column(unique = true)
-    private String testName;
+    private String name;
 
     @ManyToMany
     @JoinTable(

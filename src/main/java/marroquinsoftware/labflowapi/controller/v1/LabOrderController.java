@@ -14,6 +14,7 @@ import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
 
+@CrossOrigin(origins = "http://localhost:3000")
 @RestController
 @RequestMapping("/api/v1/orders")
 public class LabOrderController {
@@ -56,6 +57,14 @@ public class LabOrderController {
     @PostMapping("/{orderId}/tests")
     public ResponseEntity<LabTestDTO> addTestToOrder(@PathVariable Long orderId, @Valid @RequestBody LabTestDTO dto) {
         return new ResponseEntity<>(labTestService.addTestToOrder(orderId, dto), HttpStatus.CREATED);
+    }
+
+    @PatchMapping("/{orderId}/tests/{labTestId}/assign")
+    public ResponseEntity<LabTestDTO> assignTestConfig(
+            @PathVariable Long orderId,
+            @PathVariable Long labTestId,
+            @RequestParam Long testConfigId) {
+        return new ResponseEntity<>(labTestService.assignTestConfig(orderId, labTestId, testConfigId), HttpStatus.OK);
     }
 
     @DeleteMapping("/{orderId}/tests/{testId}")

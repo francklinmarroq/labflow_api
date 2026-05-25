@@ -4,11 +4,14 @@ import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.LabOrder;
 import marroquinsoftware.labflowapi.model.LabTest;
+import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.model.TestConfig;
 import marroquinsoftware.labflowapi.payload.LabTestDTO;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabTestRepository;
 import marroquinsoftware.labflowapi.repositories.TestConfigRepository;
+import marroquinsoftware.labflowapi.repositories.TestRepository;
+import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -24,7 +27,13 @@ public class LabTestServiceImp implements LabTestService {
     private LabTestRepository labTestRepository;
 
     @Autowired
+    private TestRepository testRepository;
+
+    @Autowired
     private TestConfigRepository testConfigRepository;
+
+    @Autowired
+    private ModelMapper modelMapper;
 
     @Override
     public List<LabTestDTO> getTestsByOrder(Long orderId) {
@@ -38,30 +47,47 @@ public class LabTestServiceImp implements LabTestService {
     public LabTestDTO addTestToOrder(Long orderId, LabTestDTO dto) {
         LabOrder order = labOrderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", orderId));
-        TestConfig testConfig = testConfigRepository.findById(dto.getTestConfigId())
-                .orElseThrow(() -> new ResourceNotFoundException("TestConfig", "testConfigId", dto.getTestConfigId()));
-        LabTest test = new LabTest();
-        test.setOrder(order);
-        test.setTestConfig(testConfig);
-        return toDTO(labTestRepository.save(test));
+        Test test = testRepository.findById(dto.getTestId())
+                .orElseThrow(() -> new ResourceNotFoundException("Test", "testId", dto.getTestId()));
+        LabTest labTest = new LabTest();
+        labTest.setOrder(order);
+        labTest.setTest(test);
+        labTest.setTestConfig(null);
+        return toDTO(labTestRepository.save(labTest));
+    }
+
+    @Override
+    public LabTestDTO assignTestConfig(Long orderId, Long labTestId, Long testConfigId) {
+        LabTest labTest = labTestRepository.findById(labTestId)
+                .orElseThrow(() -> new ResourceNotFoundException("LabTest", "labTestId", labTestId));
+        if (!labTest.getOrder().getId().equals(orderId)) {
+            throw new APIException("LabTest with id: " + labTestId + " does not belong to order with id: " + orderId);
+        }
+        TestConfig testConfig = testConfigRepository.findById(testConfigId)
+                .orElseThrow(() -> new ResourceNotFoundException("TestConfig", "testConfigId", testConfigId));
+        if (!testConfig.getTest().getId().equals(labTest.getTest().getId())) {
+            throw new APIException("TestConfig '" + testConfig.getName() + "' is not a template for test '" + labTest.getTest().getName() + "'");
+        }
+        labTest.setTestConfig(testConfig);
+        return toDTO(labTestRepository.save(labTest));
     }
 
     @Override
     public LabTestDTO removeTestFromOrder(Long orderId, Long testId) {
-        LabTest test = labTestRepository.findById(testId)
+        LabTest labTest = labTestRepository.findById(testId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "testId", testId));
-        if (!test.getOrder().getId().equals(orderId)) {
-            throw new APIException("Test with id: " + testId + " does not belong to order with id: " + orderId);
+        if (!labTest.getOrder().getId().equals(orderId)) {
+            throw new APIException("LabTest with id: " + testId + " does not belong to order with id: " + orderId);
         }
-        labTestRepository.delete(test);
-        return toDTO(test);
+        labTestRepository.delete(labTest);
+        return toDTO(labTest);
     }
 
-    private LabTestDTO toDTO(LabTest test) {
-        LabTestDTO dto = new LabTestDTO();
-        dto.setId(test.getId());
-        dto.setOrderId(test.getOrder().getId());
-        dto.setTestConfigId(test.getTestConfig().getId());
+    private LabTestDTO toDTO(LabTest labTest) {
+        LabTestDTO dto = modelMapper.map(labTest, LabTestDTO.class);
+        dto.setOrderId(labTest.getOrder().getId());
+        dto.setTestId(labTest.getTest().getId());
+        dto.setTestConfigId(labTest.getTestConfig() != null ? labTest.getTestConfig().getId() : null);
         return dto;
     }
 }

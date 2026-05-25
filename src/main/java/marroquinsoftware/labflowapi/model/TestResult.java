@@ -24,5 +24,6 @@ public class TestResult {
     @JoinColumn(name = "parameter_id", nullable = false)
     private Parameter parameter;
 
+    @Column(name = "result_value")
     private String value;
 }
