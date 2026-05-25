@@ -21,6 +21,10 @@ public class Parameter {
 
     @NotBlank
     private String name;
-    private String section;
-    private String valueType;
+
+    @Enumerated(EnumType.STRING)
+    private ParameterSection section;
+
+    @Enumerated(EnumType.STRING)
+    private ParameterValueType valueType;
 }

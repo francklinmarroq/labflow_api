@@ -30,9 +30,6 @@ public class PathologyServiceImp implements PathologyService {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         Page<Pathology> page = pathologyRepository.findAll(pageable);
-        if (page.isEmpty()) {
-            throw new APIException("There are no pathologies saved.");
-        }
         List<PathologyDTO> dtos = page.getContent().stream()
                 .map(p -> modelMapper.map(p, PathologyDTO.class))
                 .toList();

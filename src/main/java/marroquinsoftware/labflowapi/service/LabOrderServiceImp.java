@@ -33,9 +33,6 @@ public class LabOrderServiceImp implements LabOrderService {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         Page<LabOrder> page = labOrderRepository.findAll(pageable);
-        if (page.isEmpty()) {
-            throw new APIException("There are no orders saved.");
-        }
         List<LabOrderDTO> dtos = page.getContent().stream().map(this::toDTO).toList();
         LabOrderResponse response = new LabOrderResponse();
         response.setContent(dtos);

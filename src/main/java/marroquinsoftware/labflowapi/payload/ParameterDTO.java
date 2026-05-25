@@ -4,6 +4,8 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import marroquinsoftware.labflowapi.model.ParameterSection;
+import marroquinsoftware.labflowapi.model.ParameterValueType;
 
 @Data
 @NoArgsConstructor
@@ -13,6 +15,6 @@ public class ParameterDTO {
     private Long unitId;
     @NotBlank
     private String name;
-    private String section;
-    private String valueType;
+    private ParameterSection section;
+    private ParameterValueType valueType;
 }

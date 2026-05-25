@@ -15,6 +15,7 @@ import org.springframework.web.server.ResponseStatusException;
 import marroquinsoftware.labflowapi.model.Unit;
 import marroquinsoftware.labflowapi.service.UnitService;
 
+@CrossOrigin(origins = "http://localhost:3000", maxAge = 3600)
 @RestController
 @RequestMapping("/api/v1/units")
 public class UnitController {

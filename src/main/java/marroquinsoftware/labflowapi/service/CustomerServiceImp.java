@@ -32,9 +32,6 @@ public class CustomerServiceImp implements CustomerService {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         Page<Customer> page = customerRepository.findAll(pageable);
-        if (page.isEmpty()) {
-            throw new APIException("There are no customers saved.");
-        }
         List<CustomerDTO> dtos = page.getContent().stream().map(this::toDTO).toList();
         CustomerResponse response = new CustomerResponse();
         response.setContent(dtos);

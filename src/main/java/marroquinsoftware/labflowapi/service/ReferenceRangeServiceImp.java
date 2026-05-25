@@ -45,10 +45,6 @@ public class ReferenceRangeServiceImp implements ReferenceRangeService {
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         Page<ReferenceRange> page = referenceRangeRepository.findByParameterId(parameterId, pageable);
 
-        if (page.isEmpty()) {
-            throw new APIException("No reference ranges found for parameter with id: " + parameterId);
-        }
-
         List<ReferenceRangeDTO> dtos = page.getContent().stream()
                 .map(this::toDTO)
                 .toList();

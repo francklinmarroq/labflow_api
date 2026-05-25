@@ -87,9 +87,6 @@ public class TestConfigServiceImp implements TestConfigService {
     }
 
     private TestConfigResponse buildPagedResponse(Page<TestConfig> page) {
-        if (page.isEmpty()) {
-            throw new APIException("No test configurations found.");
-        }
         List<TestConfigDTO> dtos = page.getContent().stream().map(this::toDTO).toList();
         TestConfigResponse response = new TestConfigResponse();
         response.setContent(dtos);

@@ -31,9 +31,6 @@ public class AgeRangeServiceImp implements AgeRangeService {
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         Page<AgeRange> page = ageRangeRepository.findAll(pageable);
 
-        if (page.isEmpty()) {
-            throw new APIException("There are no age ranges saved.");
-        }
 
         List<AgeRangeDTO> dtos = page.getContent().stream()
                 .map(ar -> modelMapper.map(ar, AgeRangeDTO.class))
