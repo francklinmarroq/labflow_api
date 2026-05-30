@@ -24,7 +24,7 @@ public class LaboratoryServiceImp implements LaboratoryService {
     public LaboratoryDTO getLaboratory() {
         List<Laboratory> labs = laboratoryRepository.findAll();
         if (labs.isEmpty()) {
-            throw new ResourceNotFoundException("Laboratory", "id", 0);
+            throw new ResourceNotFoundException("Laboratory", "id", 0L);
         }
         return modelMapper.map(labs.get(0), LaboratoryDTO.class);
     }
