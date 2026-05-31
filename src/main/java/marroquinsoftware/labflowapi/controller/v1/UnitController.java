@@ -1,19 +1,15 @@
 package marroquinsoftware.labflowapi.controller.v1;
 
-import java.util.List;
-
 import jakarta.validation.Valid;
 import marroquinsoftware.labflowapi.config.AppConstants;
 import marroquinsoftware.labflowapi.payload.UnitDTO;
 import marroquinsoftware.labflowapi.payload.UnitResponse;
+import marroquinsoftware.labflowapi.service.UnitService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
-import org.springframework.web.server.ResponseStatusException;
-
-import marroquinsoftware.labflowapi.model.Unit;
-import marroquinsoftware.labflowapi.service.UnitService;
 
 @RestController
 @RequestMapping("/api/v1/units")
@@ -31,6 +27,7 @@ public class UnitController {
         return new ResponseEntity<>(unitResponse, HttpStatus.OK);
     }
 
+    @PreAuthorize("hasRole('user')")
     @PostMapping
     public ResponseEntity<UnitDTO> createUnit(@Valid @RequestBody UnitDTO unitDTO) {
         return new ResponseEntity<UnitDTO>(unitService.createUnit(unitDTO), HttpStatus.CREATED);
