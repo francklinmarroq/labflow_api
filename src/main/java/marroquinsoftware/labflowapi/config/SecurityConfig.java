@@ -39,7 +39,7 @@ public class SecurityConfig {
     private AuthEntryPoint unauthorizedHandler;
 
     @Bean
-    private AuthTokenFilter authenticationJwtTokenFilter(){
+    public AuthTokenFilter authenticationJwtTokenFilter(){
         return new AuthTokenFilter();
     }
 
