@@ -15,6 +15,8 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
+import org.springframework.security.provisioning.JdbcUserDetailsManager;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -31,6 +33,10 @@ public class AuthController {
     private AuthenticationManager authenticationManager;
     @Autowired
     private JwtUtils jwtUtils;
+    @Autowired
+    private JdbcUserDetailsManager jdbcUserDetailsManager;
+    @Autowired
+    private BCryptPasswordEncoder bCryptPasswordEncoder;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
@@ -54,6 +60,30 @@ public class AuthController {
         }
 
         return null;
+    }
+
+    @PostMapping("/register")
+    public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
+        if (jdbcUserDetailsManager.userExists(request.getUsername())) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("message", "Username already taken");
+            map.put("status", false);
+            return new ResponseEntity<>(map, HttpStatus.CONFLICT);
+        }
+
+        UserDetails newUser = User.withUsername(request.getUsername())
+                .password(bCryptPasswordEncoder.encode(request.getPassword()))
+                .roles("USER")
+                .build();
+        jdbcUserDetailsManager.createUser(newUser);
+
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        UserDetails userDetails = (UserDetails) authentication.getPrincipal();
+        String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
+        return new ResponseEntity<>(new JwtResponse(userDetails.getUsername(), jwtToken), HttpStatus.CREATED);
     }
 
 }
