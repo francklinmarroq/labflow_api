@@ -52,7 +52,7 @@ public class SecurityConfig {
         if (!jdbcUserDetailsManager.userExists("user")) {
             UserDetails user = User.withUsername("user")
                     .password(bCryptPasswordEncoder().encode("password"))
-                    .roles("user")
+                    .roles("USER")
                     .build();
             jdbcUserDetailsManager.createUser(user);
         }

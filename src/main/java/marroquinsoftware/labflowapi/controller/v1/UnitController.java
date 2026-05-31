@@ -27,7 +27,7 @@ public class UnitController {
         return new ResponseEntity<>(unitResponse, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('user')")
+    @PreAuthorize("hasRole('USER')")
     @PostMapping
     public ResponseEntity<UnitDTO> createUnit(@Valid @RequestBody UnitDTO unitDTO) {
         return new ResponseEntity<UnitDTO>(unitService.createUnit(unitDTO), HttpStatus.CREATED);
