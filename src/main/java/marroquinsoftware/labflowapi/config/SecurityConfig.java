@@ -1,6 +1,5 @@
 package marroquinsoftware.labflowapi.config;
 
-import marroquinsoftware.labflowapi.security.JwtAuthenticationFilter;
 import marroquinsoftware.labflowapi.security.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
