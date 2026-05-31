@@ -53,19 +53,7 @@ public class AuthController {
             return new ResponseEntity<>(jwtResponse, HttpStatus.OK);
         }
 
+        return null;
     }
 
-    @PostMapping("/register")
-    public ResponseEntity<JwtResponse> register(@Valid @RequestBody RegisterRequest request) {
-        if (userDetailsManager.userExists(request.getUsername())) {
-            return ResponseEntity.status(HttpStatus.CONFLICT).build();
-        }
-        UserDetails newUser = User.withUsername(request.getUsername())
-                .password(passwordEncoder.encode(request.getPassword()))
-                .roles("user")
-                .build();
-        userDetailsManager.createUser(newUser);
-        String token = jwtUtils.generateTokenFromUsername(newUser);
-        return ResponseEntity.status(HttpStatus.CREATED).body(new JwtResponse(token, newUser.getUsername()));
-    }
 }

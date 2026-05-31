@@ -1,5 +1,7 @@
 package marroquinsoftware.labflowapi.config;
 
+import marroquinsoftware.labflowapi.security.AuthEntryPoint;
+import marroquinsoftware.labflowapi.security.AuthTokenFilter;
 import marroquinsoftware.labflowapi.security.JwtUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
@@ -34,6 +36,11 @@ public class SecurityConfig {
     @Autowired
     DataSource dataSource;
 
+    @Bean
+    private AuthTokenFilter authenticationJwtTokenFilter(){
+        return new AuthTokenFilter();
+    }
+
     @Autowired
     JwtUtils jwtUtils;
 
@@ -50,10 +57,6 @@ public class SecurityConfig {
         return jdbcUserDetailsManager;
     }
 
-    @Bean
-    public JwtAuthenticationFilter jwtAuthenticationFilter(UserDetailsService userDetailsService) {
-        return new JwtAuthenticationFilter(jwtUtils, userDetailsService);
-    }
 
     @Bean
     public AuthenticationManager authenticationManager(AuthenticationConfiguration config) throws Exception {
@@ -75,7 +78,7 @@ public class SecurityConfig {
     @Bean
     SecurityFilterChain defaultSecurityFilterChain(
             HttpSecurity http,
-            JwtAuthenticationFilter jwtAuthenticationFilter
+            AuthTokenFilter jwtAuthenticationFilter
     ) throws Exception {
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
