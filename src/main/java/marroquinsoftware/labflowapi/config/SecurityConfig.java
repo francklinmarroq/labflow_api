@@ -38,11 +38,6 @@ public class SecurityConfig {
     @Autowired
     private AuthEntryPoint unauthorizedHandler;
 
-    @Bean
-    public AuthTokenFilter authenticationJwtTokenFilter(){
-        return new AuthTokenFilter();
-    }
-
     @Autowired
     JwtUtils jwtUtils;
 
