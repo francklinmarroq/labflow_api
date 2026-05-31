@@ -55,7 +55,7 @@ public class AuthController {
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         if (userDetails != null) {
             String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
-            JwtResponse jwtResponse = new JwtResponse(userDetails.getUsername(), jwtToken);
+            JwtResponse jwtResponse = new JwtResponse(jwtToken, userDetails.getUsername());
             return new ResponseEntity<>(jwtResponse, HttpStatus.OK);
         }
 
@@ -83,7 +83,7 @@ public class AuthController {
         SecurityContextHolder.getContext().setAuthentication(authentication);
         UserDetails userDetails = (UserDetails) authentication.getPrincipal();
         String jwtToken = jwtUtils.generateTokenFromUsername(userDetails);
-        return new ResponseEntity<>(new JwtResponse(userDetails.getUsername(), jwtToken), HttpStatus.CREATED);
+        return new ResponseEntity<>(new JwtResponse(jwtToken, userDetails.getUsername()), HttpStatus.CREATED);
     }
 
 }

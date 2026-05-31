@@ -42,6 +42,11 @@ public class SecurityConfig {
     JwtUtils jwtUtils;
 
     @Bean
+    public AuthTokenFilter authTokenFilter() {
+        return new AuthTokenFilter();
+    }
+
+    @Bean
     public UserDetailsService userDetailsService() {
         JdbcUserDetailsManager jdbcUserDetailsManager = new JdbcUserDetailsManager(dataSource);
         if (!jdbcUserDetailsManager.userExists("user")) {
@@ -73,10 +78,8 @@ public class SecurityConfig {
     }
 
     @Bean
-    SecurityFilterChain defaultSecurityFilterChain(
-            HttpSecurity http,
-            AuthTokenFilter jwtAuthenticationFilter
-    ) throws Exception {
+    SecurityFilterChain defaultSecurityFilterChain(HttpSecurity http) throws Exception {
+        AuthTokenFilter jwtAuthenticationFilter = authTokenFilter();
         http
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
