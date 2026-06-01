@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Entity
@@ -26,7 +26,7 @@ public class TestRun {
     private LabTest test;
 
     private Integer runNumber;
-    private LocalDateTime performedAt;
+    private Instant performedAt;
     private Boolean isVerified;
 
     @OneToMany(mappedBy = "testRun", cascade = CascadeType.ALL, orphanRemoval = true)

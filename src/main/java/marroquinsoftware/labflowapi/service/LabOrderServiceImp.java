@@ -16,7 +16,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Service
@@ -50,7 +50,7 @@ public class LabOrderServiceImp implements LabOrderService {
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerId", dto.getCustomerId()));
         LabOrder order = new LabOrder();
         order.setCustomer(customer);
-        order.setRequestedAt(dto.getRequestedAt() != null ? dto.getRequestedAt() : LocalDateTime.now());
+        order.setRequestedAt(dto.getRequestedAt() != null ? dto.getRequestedAt() : Instant.now());
         order.setStatus(dto.getStatus() != null ? dto.getStatus() : OrderStatus.PENDING);
         order.setNotes(dto.getNotes());
         return toDTO(labOrderRepository.save(order));

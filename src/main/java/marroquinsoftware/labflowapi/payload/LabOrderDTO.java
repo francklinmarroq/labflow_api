@@ -6,7 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import marroquinsoftware.labflowapi.model.OrderStatus;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 
 @Data
 @NoArgsConstructor
@@ -15,7 +15,7 @@ public class LabOrderDTO {
     private Long id;
     @NotNull
     private Long customerId;
-    private LocalDateTime requestedAt;
+    private Instant requestedAt;
     private OrderStatus status;
     private String notes;
 }

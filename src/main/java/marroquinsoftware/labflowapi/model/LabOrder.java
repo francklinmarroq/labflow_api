@@ -7,7 +7,7 @@ import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.List;
 
 @Entity
@@ -25,7 +25,7 @@ public class LabOrder {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    private LocalDateTime requestedAt;
+    private Instant requestedAt;
 
     @Enumerated(EnumType.STRING)
     private OrderStatus status;

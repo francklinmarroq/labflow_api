@@ -15,7 +15,7 @@ import marroquinsoftware.labflowapi.repositories.TestRunRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import java.time.LocalDateTime;
+import java.time.Instant;
 import java.util.Collections;
 import java.util.List;
 
@@ -54,7 +54,7 @@ public class TestRunServiceImp implements TestRunService {
         TestRun run = new TestRun();
         run.setTest(test);
         run.setRunNumber(nextRunNumber);
-        run.setPerformedAt(dto.getPerformedAt() != null ? dto.getPerformedAt() : LocalDateTime.now());
+        run.setPerformedAt(dto.getPerformedAt() != null ? dto.getPerformedAt() : Instant.now());
         run.setIsVerified(false);
         TestRun savedRun = testRunRepository.save(run);
 
