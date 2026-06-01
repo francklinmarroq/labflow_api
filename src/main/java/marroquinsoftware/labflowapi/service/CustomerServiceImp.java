@@ -88,6 +88,7 @@ public class CustomerServiceImp implements CustomerService {
     private void mapDtoToEntity(CustomerDTO dto, Customer customer) {
         customer.setName(dto.getName());
         customer.setAgeInDays(dto.getAgeInDays());
+        customer.setSex(dto.getSex());
         customer.setNationalIdNumber(dto.getNationalIdNumber());
         customer.setTaxNumber(dto.getTaxNumber());
         customer.setPhone(dto.getPhone());
@@ -110,6 +111,7 @@ public class CustomerServiceImp implements CustomerService {
         dto.setId(customer.getId());
         dto.setName(customer.getName());
         dto.setAgeInDays(customer.getAgeInDays());
+        dto.setSex(customer.getSex());
         dto.setNationalIdNumber(customer.getNationalIdNumber());
         dto.setTaxNumber(customer.getTaxNumber());
         dto.setPhone(customer.getPhone());
