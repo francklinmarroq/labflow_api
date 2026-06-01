@@ -19,6 +19,8 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 @Service
 public class TestConfigServiceImp implements TestConfigService {
@@ -88,11 +90,11 @@ public class TestConfigServiceImp implements TestConfigService {
                 .orElseThrow(() -> new ResourceNotFoundException("Test", "testId", testId));
     }
 
-    private List<Parameter> resolveParameters(List<Long> parameterIds) {
+    private Set<Parameter> resolveParameters(List<Long> parameterIds) {
         return parameterIds.stream()
                 .map(pid -> parameterRepository.findById(pid)
                         .orElseThrow(() -> new ResourceNotFoundException("Parameter", "parameterId", pid)))
-                .toList();
+                .collect(Collectors.toSet());
     }
 
     private Pageable buildPageable(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
@@ -115,7 +117,7 @@ public class TestConfigServiceImp implements TestConfigService {
     private TestConfigDTO toDTO(TestConfig config) {
         TestConfigDTO dto = modelMapper.map(config, TestConfigDTO.class);
         dto.setTestId(config.getTest().getId());
-        dto.setParameterIds(config.getParameters().stream().map(Parameter::getId).toList());
+        dto.setParameterIds(config.getParameters().stream().map(Parameter::getId).collect(Collectors.toList()));
         return dto;
     }
 }

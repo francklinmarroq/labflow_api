@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import marroquinsoftware.labflowapi.model.Sex;
 
 import java.util.List;
 
@@ -15,6 +16,7 @@ public class CustomerDTO {
     @NotBlank
     private String name;
     private Integer ageInDays;
+    private Sex sex;
     private String nationalIdNumber;
     private String taxNumber;
     private String phone;

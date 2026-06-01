@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.List;
+import java.util.Set;
 
 @Entity
 @Data
@@ -32,7 +32,7 @@ public class TestConfig {
             joinColumns = @JoinColumn(name = "test_config_id"),
             inverseJoinColumns = @JoinColumn(name = "parameter_id")
     )
-    private List<Parameter> parameters;
+    private Set<Parameter> parameters;
 
     private boolean active;
 }

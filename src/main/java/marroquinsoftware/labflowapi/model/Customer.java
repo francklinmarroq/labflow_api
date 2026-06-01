@@ -22,6 +22,9 @@ public class Customer {
 
     private Integer ageInDays;
 
+    @Enumerated(EnumType.STRING)
+    private Sex sex;
+
     @Column(unique = true)
     private String nationalIdNumber;
 
