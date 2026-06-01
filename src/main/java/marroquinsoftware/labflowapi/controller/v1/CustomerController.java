@@ -4,11 +4,17 @@ import jakarta.validation.Valid;
 import marroquinsoftware.labflowapi.config.AppConstants;
 import marroquinsoftware.labflowapi.payload.CustomerDTO;
 import marroquinsoftware.labflowapi.payload.CustomerResponse;
+import marroquinsoftware.labflowapi.payload.PatientTestHistoryDTO;
 import marroquinsoftware.labflowapi.service.CustomerService;
+import marroquinsoftware.labflowapi.service.PatientHistoryService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.time.Instant;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/customers")
@@ -16,6 +22,9 @@ public class CustomerController {
 
     @Autowired
     private CustomerService customerService;
+
+    @Autowired
+    private PatientHistoryService patientHistoryService;
 
     @GetMapping
     public ResponseEntity<CustomerResponse> getAllCustomers(
@@ -39,5 +48,14 @@ public class CustomerController {
     @DeleteMapping("/{customerId}")
     public ResponseEntity<CustomerDTO> deleteCustomer(@PathVariable Long customerId) {
         return new ResponseEntity<>(customerService.deleteCustomer(customerId), HttpStatus.OK);
+    }
+
+    @GetMapping("/{customerId}/history")
+    public ResponseEntity<List<PatientTestHistoryDTO>> getPatientHistory(
+            @PathVariable Long customerId,
+            @RequestParam(required = false) String testName,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant dateFrom,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant dateTo) {
+        return new ResponseEntity<>(patientHistoryService.getPatientHistory(customerId, testName, dateFrom, dateTo), HttpStatus.OK);
     }
 }

@@ -29,7 +29,9 @@ public class ReferenceRange {
     private AgeRange ageRange; // null = applies to all ages
 
     private BigDecimal lowerLimit;
+    private boolean lowerExclusive; // true = >, false = >=
     private BigDecimal upperLimit;
+    private boolean upperExclusive; // true = <, false = <=
     private BigDecimal criticalLow;
     private BigDecimal criticalHigh;
     private String interpretationText;

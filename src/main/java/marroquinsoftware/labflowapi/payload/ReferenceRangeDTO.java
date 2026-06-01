@@ -20,7 +20,9 @@ public class ReferenceRangeDTO {
     private Sex sex;
     private Long ageRangeId; // null = applies to all ages
     private BigDecimal lowerLimit;
+    private boolean lowerExclusive;
     private BigDecimal upperLimit;
+    private boolean upperExclusive;
     private BigDecimal criticalLow;
     private BigDecimal criticalHigh;
     private String interpretationText;
