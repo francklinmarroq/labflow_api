@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.ColumnDefault;
 
 import java.math.BigDecimal;
 
@@ -29,9 +30,13 @@ public class ReferenceRange {
     private AgeRange ageRange; // null = applies to all ages
 
     private BigDecimal lowerLimit;
-    private boolean lowerExclusive; // true = >, false = >=
+    @ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean lowerExclusive;
     private BigDecimal upperLimit;
-    private boolean upperExclusive; // true = <, false = <=
+    @ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean upperExclusive;
     private BigDecimal criticalLow;
     private BigDecimal criticalHigh;
     private String interpretationText;
