@@ -72,8 +72,9 @@ public class ParameterServiceImp implements ParameterService {
     public ParameterDTO updateParameter(ParameterDTO parameterDTO, Long id) {
         Parameter parameter = parameterRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Parameter", "parameterId", id));
-        modelMapper.map(parameterDTO, parameter);
-        parameter.setId(id);
+        parameter.setName(parameterDTO.getName());
+        parameter.setSection(parameterDTO.getSection());
+        parameter.setValueType(parameterDTO.getValueType());
         if (parameterDTO.getUnitId() != null) {
             Unit unit = unitRepository.findById(parameterDTO.getUnitId())
                     .orElseThrow(() -> new ResourceNotFoundException("Unit", "unitId", parameterDTO.getUnitId()));
