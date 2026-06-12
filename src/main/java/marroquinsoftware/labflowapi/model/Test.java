@@ -26,4 +26,10 @@ public class Test {
     private BigDecimal price;
 
     private BigDecimal cost;
+
+    @Enumerated(EnumType.STRING)
+    private TestArea area;
+
+    @Column(length = 2000)
+    private String notes;
 }
