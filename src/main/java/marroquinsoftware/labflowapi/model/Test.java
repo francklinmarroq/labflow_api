@@ -29,7 +29,4 @@ public class Test {
 
     @Enumerated(EnumType.STRING)
     private TestArea area;
-
-    @Column(length = 2000)
-    private String notes;
 }

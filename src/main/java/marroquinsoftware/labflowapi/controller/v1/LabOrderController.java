@@ -66,6 +66,14 @@ public class LabOrderController {
         return new ResponseEntity<>(labTestService.assignTestConfig(orderId, labTestId, testConfigId), HttpStatus.OK);
     }
 
+    @PatchMapping("/{orderId}/tests/{labTestId}/notes")
+    public ResponseEntity<LabTestDTO> updateTestNotes(
+            @PathVariable Long orderId,
+            @PathVariable Long labTestId,
+            @RequestBody LabTestDTO dto) {
+        return new ResponseEntity<>(labTestService.updateNotes(orderId, labTestId, dto.getNotes()), HttpStatus.OK);
+    }
+
     @DeleteMapping("/{orderId}/tests/{testId}")
     public ResponseEntity<LabTestDTO> removeTestFromOrder(@PathVariable Long orderId, @PathVariable Long testId) {
         return new ResponseEntity<>(labTestService.removeTestFromOrder(orderId, testId), HttpStatus.OK);

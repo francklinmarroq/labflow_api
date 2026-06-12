@@ -32,6 +32,9 @@ public class LabTest {
     @JoinColumn(name = "test_config_id", nullable = true)
     private TestConfig testConfig;
 
+    @Column(length = 2000)
+    private String notes;
+
     @OneToMany(mappedBy = "test", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

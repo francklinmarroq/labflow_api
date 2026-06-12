@@ -16,4 +16,6 @@ public class LabTestDTO {
     private Long testId;
 
     private Long testConfigId;
+
+    private String notes;
 }

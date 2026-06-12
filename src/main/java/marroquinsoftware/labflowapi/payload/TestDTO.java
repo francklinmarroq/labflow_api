@@ -22,6 +22,4 @@ public class TestDTO {
     private BigDecimal cost;
 
     private TestArea area;
-
-    private String notes;
 }

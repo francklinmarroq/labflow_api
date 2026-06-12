@@ -73,6 +73,17 @@ public class LabTestServiceImp implements LabTestService {
     }
 
     @Override
+    public LabTestDTO updateNotes(Long orderId, Long labTestId, String notes) {
+        LabTest labTest = labTestRepository.findById(labTestId)
+                .orElseThrow(() -> new ResourceNotFoundException("LabTest", "labTestId", labTestId));
+        if (!labTest.getOrder().getId().equals(orderId)) {
+            throw new APIException("LabTest with id: " + labTestId + " does not belong to order with id: " + orderId);
+        }
+        labTest.setNotes(notes);
+        return toDTO(labTestRepository.save(labTest));
+    }
+
+    @Override
     public LabTestDTO removeTestFromOrder(Long orderId, Long testId) {
         LabTest labTest = labTestRepository.findById(testId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "testId", testId));
