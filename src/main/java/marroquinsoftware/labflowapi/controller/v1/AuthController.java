@@ -70,7 +70,6 @@ public class AuthController {
         }
     }
 
-    @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
         if (jdbcUserDetailsManager.userExists(request.getUsername())) {
             Map<String, Object> map = new HashMap<>();
