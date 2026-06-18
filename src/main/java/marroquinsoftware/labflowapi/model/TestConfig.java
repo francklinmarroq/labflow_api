@@ -6,7 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
-import java.util.Set;
+import java.util.List;
 
 @Entity
 @Data
@@ -26,13 +26,17 @@ public class TestConfig {
     @Column(unique = true)
     private String name;
 
+    // Los parámetros se guardan como lista ordenada. La columna display_order
+    // en la tabla de unión preserva la posición de cada parámetro, y es la que
+    // determina el orden en que se imprimen en el reporte.
     @ManyToMany
     @JoinTable(
             name = "test_config_parameters",
             joinColumns = @JoinColumn(name = "test_config_id"),
             inverseJoinColumns = @JoinColumn(name = "parameter_id")
     )
-    private Set<Parameter> parameters;
+    @OrderColumn(name = "display_order")
+    private List<Parameter> parameters;
 
     private boolean active;
 }

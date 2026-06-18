@@ -19,7 +19,6 @@ import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
-import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -90,11 +89,13 @@ public class TestConfigServiceImp implements TestConfigService {
                 .orElseThrow(() -> new ResourceNotFoundException("Test", "testId", testId));
     }
 
-    private Set<Parameter> resolveParameters(List<Long> parameterIds) {
+    // Mantiene el orden recibido desde el cliente: la posición en esta lista se
+    // persiste en la columna display_order y se respeta al imprimir el reporte.
+    private List<Parameter> resolveParameters(List<Long> parameterIds) {
         return parameterIds.stream()
                 .map(pid -> parameterRepository.findById(pid)
                         .orElseThrow(() -> new ResourceNotFoundException("Parameter", "parameterId", pid)))
-                .collect(Collectors.toSet());
+                .collect(Collectors.toList());
     }
 
     private Pageable buildPageable(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
