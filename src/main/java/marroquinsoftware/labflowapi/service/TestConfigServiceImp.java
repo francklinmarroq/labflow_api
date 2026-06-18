@@ -5,6 +5,7 @@ import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Parameter;
 import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.model.TestConfig;
+import marroquinsoftware.labflowapi.model.TestConfigParameter;
 import marroquinsoftware.labflowapi.payload.TestConfigDTO;
 import marroquinsoftware.labflowapi.payload.TestConfigResponse;
 import marroquinsoftware.labflowapi.repositories.ParameterRepository;
@@ -55,7 +56,7 @@ public class TestConfigServiceImp implements TestConfigService {
         config.setTest(resolveTest(dto.getTestId()));
         config.setName(dto.getName());
         config.setActive(dto.isActive());
-        config.setParameters(resolveParameters(dto.getParameterIds()));
+        applyParameters(config, dto.getParameterIds());
         return toDTO(testConfigRepository.save(config));
     }
 
@@ -72,7 +73,7 @@ public class TestConfigServiceImp implements TestConfigService {
         config.setTest(resolveTest(dto.getTestId()));
         config.setName(dto.getName());
         config.setActive(dto.isActive());
-        config.setParameters(resolveParameters(dto.getParameterIds()));
+        applyParameters(config, dto.getParameterIds());
         return toDTO(testConfigRepository.save(config));
     }
 
@@ -89,13 +90,18 @@ public class TestConfigServiceImp implements TestConfigService {
                 .orElseThrow(() -> new ResourceNotFoundException("Test", "testId", testId));
     }
 
-    // Mantiene el orden recibido desde el cliente: la posición en esta lista se
-    // persiste en la columna display_order y se respeta al imprimir el reporte.
-    private List<Parameter> resolveParameters(List<Long> parameterIds) {
-        return parameterIds.stream()
-                .map(pid -> parameterRepository.findById(pid)
-                        .orElseThrow(() -> new ResourceNotFoundException("Parameter", "parameterId", pid)))
-                .collect(Collectors.toList());
+    // Reemplaza los parámetros del perfil conservando el orden recibido desde el
+    // cliente: la posición de cada uno se guarda en display_order y es la que
+    // respeta el reporte al imprimir. Se muta la colección existente (en vez de
+    // reasignarla) para que orphanRemoval elimine las filas que ya no están.
+    private void applyParameters(TestConfig config, List<Long> parameterIds) {
+        config.getConfigParameters().clear();
+        int order = 0;
+        for (Long pid : parameterIds) {
+            Parameter parameter = parameterRepository.findById(pid)
+                    .orElseThrow(() -> new ResourceNotFoundException("Parameter", "parameterId", pid));
+            config.getConfigParameters().add(new TestConfigParameter(config, parameter, order++));
+        }
     }
 
     private Pageable buildPageable(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
@@ -118,7 +124,9 @@ public class TestConfigServiceImp implements TestConfigService {
     private TestConfigDTO toDTO(TestConfig config) {
         TestConfigDTO dto = modelMapper.map(config, TestConfigDTO.class);
         dto.setTestId(config.getTest().getId());
-        dto.setParameterIds(config.getParameters().stream().map(Parameter::getId).collect(Collectors.toList()));
+        dto.setParameterIds(config.getConfigParameters().stream()
+                .map(cp -> cp.getParameter().getId())
+                .collect(Collectors.toList()));
         return dto;
     }
 }

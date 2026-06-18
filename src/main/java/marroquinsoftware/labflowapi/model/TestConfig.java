@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.util.ArrayList;
 import java.util.List;
 
 @Entity
@@ -26,17 +27,12 @@ public class TestConfig {
     @Column(unique = true)
     private String name;
 
-    // Los parámetros se guardan como lista ordenada. La columna display_order
-    // en la tabla de unión preserva la posición de cada parámetro, y es la que
-    // determina el orden en que se imprimen en el reporte.
-    @ManyToMany
-    @JoinTable(
-            name = "test_config_parameters",
-            joinColumns = @JoinColumn(name = "test_config_id"),
-            inverseJoinColumns = @JoinColumn(name = "parameter_id")
-    )
-    @OrderColumn(name = "display_order")
-    private List<Parameter> parameters;
+    // Los parámetros del perfil con su orden. Cada fila guarda display_order en
+    // la tabla de unión; @OrderBy hace que se lean ya ordenados, que es el orden
+    // que respeta el reporte al imprimir.
+    @OneToMany(mappedBy = "testConfig", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("displayOrder")
+    private List<TestConfigParameter> configParameters = new ArrayList<>();
 
     private boolean active;
 }

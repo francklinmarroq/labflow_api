@@ -10,11 +10,12 @@ import org.springframework.stereotype.Component;
  * Rellena la columna display_order de la tabla de union test_config_parameters
  * para los perfiles que ya existian antes de introducir el ordenamiento.
  *
- * Esas filas se crearon sin orden (la relacion era un Set) y, tras agregar
- * @OrderColumn, quedan con display_order = NULL. Hibernate no puede materializar
- * una lista ordenada con indices nulos, por lo que sin este relleno la lectura
- * de perfiles falla. La sentencia es idempotente: solo toca filas con NULL, asi
- * que en arranques posteriores no actualiza nada.
+ * Esas filas se crearon sin orden (la relacion era un Set) y quedan con
+ * display_order = NULL. La lectura las tolera (ordenan al final), pero este
+ * relleno les asigna un orden 0..n-1 estable por perfil para que se vean
+ * ordenadas de entrada; el usuario puede luego reacomodarlas con arrastre. La
+ * sentencia es idempotente: solo toca filas con NULL, asi que en arranques
+ * posteriores no actualiza nada.
  */
 @Component
 public class TestConfigOrderBackfill implements CommandLineRunner {
