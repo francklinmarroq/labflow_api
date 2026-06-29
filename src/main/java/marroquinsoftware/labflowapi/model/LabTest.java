@@ -35,6 +35,10 @@ public class LabTest {
     @Column(length = 2000)
     private String notes;
 
+    // Datos opcionales del examen que solo se imprimen si se establecen (ej. en /ordenes/[id])
+    @Column(length = 255)
+    private String sampleType;
+
     @OneToMany(mappedBy = "test", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

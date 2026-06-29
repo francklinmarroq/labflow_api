@@ -18,4 +18,6 @@ public class LabTestDTO {
     private Long testConfigId;
 
     private String notes;
+
+    private String sampleType;
 }
