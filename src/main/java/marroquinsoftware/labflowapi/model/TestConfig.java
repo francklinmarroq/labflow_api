@@ -35,4 +35,15 @@ public class TestConfig {
     private List<TestConfigParameter> configParameters = new ArrayList<>();
 
     private boolean active;
+
+    // Presentacion del perfil en el reporte. NONE = solo tabla (por defecto).
+    // LINE = ademas se grafica una curva con los valores de los parametros, usando
+    // el chartXValue de cada uno como eje X (ej. curva de glucosa/insulina).
+    @Enumerated(EnumType.STRING)
+    @Column(name = "chart_type")
+    private ChartType chartType = ChartType.NONE;
+
+    // Etiqueta del eje X cuando chartType = LINE (ej. "Tiempo (min)").
+    @Column(name = "chart_x_axis_label")
+    private String chartXAxisLabel;
 }

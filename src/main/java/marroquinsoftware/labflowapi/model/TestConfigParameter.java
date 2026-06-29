@@ -5,6 +5,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
+
 /**
  * Fila de la tabla de union entre un perfil (TestConfig) y un parametro.
  *
@@ -37,9 +39,22 @@ public class TestConfigParameter {
     @Column(name = "display_order")
     private Integer displayOrder;
 
+    // Posicion del parametro en el eje X del grafico cuando el perfil es una curva
+    // (TestConfig.chartType = LINE). Ej. 0, 30, 60, 120 (minutos). nullable: solo
+    // tiene sentido en perfiles de curva; en el resto queda en NULL.
+    @Column(name = "chart_x_value")
+    private BigDecimal chartXValue;
+
     public TestConfigParameter(TestConfig testConfig, Parameter parameter, Integer displayOrder) {
         this.testConfig = testConfig;
         this.parameter = parameter;
         this.displayOrder = displayOrder;
+    }
+
+    public TestConfigParameter(TestConfig testConfig, Parameter parameter, Integer displayOrder, BigDecimal chartXValue) {
+        this.testConfig = testConfig;
+        this.parameter = parameter;
+        this.displayOrder = displayOrder;
+        this.chartXValue = chartXValue;
     }
 }

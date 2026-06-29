@@ -2,6 +2,7 @@ package marroquinsoftware.labflowapi.service;
 
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
+import marroquinsoftware.labflowapi.model.ChartType;
 import marroquinsoftware.labflowapi.model.Parameter;
 import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.model.TestConfig;
@@ -19,7 +20,10 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 
+import java.math.BigDecimal;
+import java.util.Collections;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Collectors;
 
 @Service
@@ -56,7 +60,8 @@ public class TestConfigServiceImp implements TestConfigService {
         config.setTest(resolveTest(dto.getTestId()));
         config.setName(dto.getName());
         config.setActive(dto.isActive());
-        applyParameters(config, dto.getParameterIds());
+        applyChartConfig(config, dto);
+        applyParameters(config, dto);
         return toDTO(testConfigRepository.save(config));
     }
 
@@ -73,7 +78,8 @@ public class TestConfigServiceImp implements TestConfigService {
         config.setTest(resolveTest(dto.getTestId()));
         config.setName(dto.getName());
         config.setActive(dto.isActive());
-        applyParameters(config, dto.getParameterIds());
+        applyChartConfig(config, dto);
+        applyParameters(config, dto);
         return toDTO(testConfigRepository.save(config));
     }
 
@@ -90,17 +96,28 @@ public class TestConfigServiceImp implements TestConfigService {
                 .orElseThrow(() -> new ResourceNotFoundException("Test", "testId", testId));
     }
 
+    // Copia la metadata de presentación del gráfico. chartType nulo se trata como
+    // NONE para no romper clientes que no envían el campo (alta normal de perfiles).
+    private void applyChartConfig(TestConfig config, TestConfigDTO dto) {
+        config.setChartType(dto.getChartType() != null ? dto.getChartType() : ChartType.NONE);
+        config.setChartXAxisLabel(dto.getChartXAxisLabel());
+    }
+
     // Reemplaza los parámetros del perfil conservando el orden recibido desde el
     // cliente: la posición de cada uno se guarda en display_order y es la que
     // respeta el reporte al imprimir. Se muta la colección existente (en vez de
     // reasignarla) para que orphanRemoval elimine las filas que ya no están.
-    private void applyParameters(TestConfig config, List<Long> parameterIds) {
+    // chartXValues (opcional) aporta la coordenada X de cada parámetro en la curva.
+    private void applyParameters(TestConfig config, TestConfigDTO dto) {
+        Map<Long, BigDecimal> chartXValues = dto.getChartXValues() != null
+                ? dto.getChartXValues() : Collections.emptyMap();
         config.getConfigParameters().clear();
         int order = 0;
-        for (Long pid : parameterIds) {
+        for (Long pid : dto.getParameterIds()) {
             Parameter parameter = parameterRepository.findById(pid)
                     .orElseThrow(() -> new ResourceNotFoundException("Parameter", "parameterId", pid));
-            config.getConfigParameters().add(new TestConfigParameter(config, parameter, order++));
+            config.getConfigParameters().add(
+                    new TestConfigParameter(config, parameter, order++, chartXValues.get(pid)));
         }
     }
 
@@ -127,6 +144,13 @@ public class TestConfigServiceImp implements TestConfigService {
         dto.setParameterIds(config.getConfigParameters().stream()
                 .map(cp -> cp.getParameter().getId())
                 .collect(Collectors.toList()));
+        dto.setChartType(config.getChartType() != null ? config.getChartType() : ChartType.NONE);
+        // Solo incluimos las X de los parámetros que la tengan definida, para no
+        // devolver un mapa lleno de nulls en perfiles que no son curva.
+        Map<Long, BigDecimal> chartXValues = config.getConfigParameters().stream()
+                .filter(cp -> cp.getChartXValue() != null)
+                .collect(Collectors.toMap(cp -> cp.getParameter().getId(), TestConfigParameter::getChartXValue));
+        dto.setChartXValues(chartXValues);
         return dto;
     }
 }

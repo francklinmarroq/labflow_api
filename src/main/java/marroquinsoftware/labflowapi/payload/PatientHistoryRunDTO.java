@@ -16,4 +16,7 @@ public class PatientHistoryRunDTO {
     private Instant performedAt;
     private Boolean isVerified;
     private List<PatientHistoryResultDTO> results;
+    // Solo presente cuando el perfil del examen es una curva (chartType = LINE);
+    // null en el resto, donde el reporte muestra unicamente la tabla de resultados.
+    private CurveChartDTO chart;
 }
