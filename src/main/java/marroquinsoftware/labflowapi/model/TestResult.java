@@ -26,4 +26,11 @@ public class TestResult {
 
     @Column(name = "result_value")
     private String value;
+
+    // Snapshot (JSON) de los rangos de referencia que aplicaban al paciente al
+    // momento de reportar este resultado. Se congela aquí para que la reimpresión
+    // muestre los valores con los que se reportó, aunque luego se editen los
+    // rangos del catálogo. Null en resultados creados antes de existir el snapshot.
+    @Column(name = "reference_ranges_snapshot", columnDefinition = "text")
+    private String referenceRangesSnapshot;
 }

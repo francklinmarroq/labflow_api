@@ -1,9 +1,13 @@
 package marroquinsoftware.labflowapi.service;
 
+import tools.jackson.core.JacksonException;
+import tools.jackson.core.type.TypeReference;
+import tools.jackson.databind.ObjectMapper;
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.TestResult;
 import marroquinsoftware.labflowapi.model.TestRun;
+import marroquinsoftware.labflowapi.payload.ReferenceRangeDTO;
 import marroquinsoftware.labflowapi.payload.TestResultDTO;
 import marroquinsoftware.labflowapi.repositories.TestResultRepository;
 import marroquinsoftware.labflowapi.repositories.TestRunRepository;
@@ -20,6 +24,9 @@ public class TestResultServiceImp implements TestResultService {
 
     @Autowired
     private TestResultRepository testResultRepository;
+
+    @Autowired
+    private ObjectMapper objectMapper;
 
     @Override
     public List<TestResultDTO> getResultsByRun(Long runId) {
@@ -57,6 +64,16 @@ public class TestResultServiceImp implements TestResultService {
         dto.setTestRunId(result.getTestRun().getId());
         dto.setParameterId(result.getParameter().getId());
         dto.setValue(result.getValue());
+        dto.setReferenceRanges(parseSnapshot(result.getReferenceRangesSnapshot()));
         return dto;
+    }
+
+    private List<ReferenceRangeDTO> parseSnapshot(String json) {
+        if (json == null || json.isBlank()) return null;
+        try {
+            return objectMapper.readValue(json, new TypeReference<List<ReferenceRangeDTO>>() {});
+        } catch (JacksonException e) {
+            return null;
+        }
     }
 }
