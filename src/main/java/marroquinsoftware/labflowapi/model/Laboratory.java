@@ -42,4 +42,7 @@ public class Laboratory {
     private String cai2RangeFrom;
     private String cai2RangeTo;
     private String cai2CurrentNumber;
+
+    @OneToOne
+    private User owner;
 }

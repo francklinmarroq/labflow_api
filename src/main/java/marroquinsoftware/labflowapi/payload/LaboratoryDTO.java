@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import marroquinsoftware.labflowapi.model.User;
 
 import java.time.LocalDate;
 
@@ -34,4 +35,6 @@ public class LaboratoryDTO {
     private String cai2RangeFrom;
     private String cai2RangeTo;
     private String cai2CurrentNumber;
+
+    private User owner;
 }
