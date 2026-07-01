@@ -13,6 +13,7 @@ import java.time.Instant;
 @AllArgsConstructor
 public class LabOrderDTO {
     private Long id;
+    private Long orderNumber;
     @NotNull
     private Long customerId;
     private Instant requestedAt;
