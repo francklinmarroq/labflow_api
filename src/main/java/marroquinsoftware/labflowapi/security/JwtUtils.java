@@ -45,6 +45,18 @@ public class JwtUtils {
                 .compact();
     }
 
+    public String generateToken(AppUserDetails userDetails) {
+        return Jwts.builder()
+                .subject(userDetails.getUsername())
+                .claim("labId", userDetails.getLaboratoryId())
+                .claim("role", userDetails.getAuthorities().stream().findFirst()
+                        .map(a -> a.getAuthority()).orElse(null))
+                .issuedAt(new Date())
+                .expiration(new Date(new Date().getTime() + jwtExpirationMs))
+                .signWith(key())
+                .compact();
+    }
+
     public String getUsernameFromJwtToken(String token) {
         return Jwts.parser().verifyWith((SecretKey) key()).build().parseSignedClaims(token).getPayload().getSubject();
     }
