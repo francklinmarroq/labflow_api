@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import org.hibernate.annotations.ColumnDefault;
+import org.hibernate.annotations.TenantId;
 
 import java.math.BigDecimal;
 
@@ -17,6 +18,10 @@ public class ReferenceRange {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @TenantId
+    @Column(name = "laboratory_id", updatable = false)
+    private Long laboratoryId;
 
     @ManyToOne
     @JoinColumn(name = "parameter_id", nullable = false)

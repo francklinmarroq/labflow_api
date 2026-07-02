@@ -11,5 +11,6 @@ import java.util.List;
 public interface LabOrderRepository extends JpaRepository<LabOrder, Long> {
     List<LabOrder> findByCustomer_Id(Long customerId);
 
-    Page<LabOrder> findByLaboratory_IdAndStatusNot(Long laboratoryId, OrderStatus status, Pageable pageable);
+    // El laboratorio (tenant) lo filtra Hibernate por @TenantId; solo excluimos canceladas.
+    Page<LabOrder> findByStatusNot(OrderStatus status, Pageable pageable);
 }

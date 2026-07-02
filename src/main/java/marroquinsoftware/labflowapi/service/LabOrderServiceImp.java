@@ -5,14 +5,12 @@ import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Customer;
 import marroquinsoftware.labflowapi.model.LabOrder;
 import marroquinsoftware.labflowapi.model.LabOrderCounter;
-import marroquinsoftware.labflowapi.model.Laboratory;
 import marroquinsoftware.labflowapi.model.OrderStatus;
 import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 import marroquinsoftware.labflowapi.repositories.CustomerRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderCounterRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
-import marroquinsoftware.labflowapi.repositories.LaboratoryRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -35,18 +33,15 @@ public class LabOrderServiceImp implements LabOrderService {
     private CustomerRepository customerRepository;
 
     @Autowired
-    private LaboratoryRepository laboratoryRepository;
-
-    @Autowired
     private LabOrderCounterRepository labOrderCounterRepository;
 
     @Override
     public LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
-        Long laboratoryId = requireLaboratoryId();
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
-        Page<LabOrder> page = labOrderRepository
-                .findByLaboratory_IdAndStatusNot(laboratoryId, OrderStatus.CANCELLED, pageable);
+        // El laboratorio (tenant) lo filtra Hibernate por @TenantId; aquí solo se
+        // excluyen las canceladas (borrado lógico).
+        Page<LabOrder> page = labOrderRepository.findByStatusNot(OrderStatus.CANCELLED, pageable);
         List<LabOrderDTO> dtos = page.getContent().stream().map(this::toDTO).toList();
         LabOrderResponse response = new LabOrderResponse();
         response.setContent(dtos);
@@ -62,12 +57,10 @@ public class LabOrderServiceImp implements LabOrderService {
     @Transactional
     public LabOrderDTO createOrder(LabOrderDTO dto) {
         Long laboratoryId = requireLaboratoryId();
-        Laboratory laboratory = laboratoryRepository.findById(laboratoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Laboratory", "laboratoryId", laboratoryId));
         Customer customer = customerRepository.findById(dto.getCustomerId())
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerId", dto.getCustomerId()));
         LabOrder order = new LabOrder();
-        order.setLaboratory(laboratory);
+        // El laboratorio (tenant) lo asigna Hibernate al persistir por @TenantId.
         order.setOrderNumber(nextOrderNumber(laboratoryId));
         order.setCustomer(customer);
         order.setRequestedAt(dto.getRequestedAt() != null ? dto.getRequestedAt() : Instant.now());

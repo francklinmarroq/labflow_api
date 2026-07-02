@@ -5,11 +5,14 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.TenantId;
 
 import java.util.ArrayList;
 import java.util.List;
 
 @Entity
+@Table(uniqueConstraints = @UniqueConstraint(
+        name = "uk_test_config_name_per_lab", columnNames = {"laboratory_id", "name"}))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -19,12 +22,15 @@ public class TestConfig {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
+    @TenantId
+    @Column(name = "laboratory_id", updatable = false)
+    private Long laboratoryId;
+
     @ManyToOne
     @JoinColumn(name = "test_id", nullable = false)
     private Test test;
 
     @NotBlank
-    @Column(unique = true)
     private String name;
 
     // Los parámetros del perfil con su orden. Cada fila guarda display_order en

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.TenantId;
 
 @Entity
 @Data
@@ -14,6 +15,10 @@ public class Parameter {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @TenantId
+    @Column(name = "laboratory_id", updatable = false)
+    private Long laboratoryId;
 
     @ManyToOne
     @JoinColumn(name="unit_id")

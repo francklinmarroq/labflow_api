@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.TenantId;
 
 import java.time.Instant;
 import java.util.List;
@@ -32,9 +33,9 @@ public class LabOrder {
     @Column(name = "order_number")
     private Long orderNumber;
 
-    @ManyToOne
-    @JoinColumn(name = "laboratory_id")
-    private Laboratory laboratory;
+    @TenantId
+    @Column(name = "laboratory_id", updatable = false)
+    private Long laboratoryId;
 
     @ManyToOne
     @JoinColumn(name = "customer_id", nullable = false)
