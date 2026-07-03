@@ -22,6 +22,11 @@ public class RoleDTO {
 
     private Set<Permission> permissions = new HashSet<>();
 
-    /** Cantidad de usuarios con este rol; solo lectura, para la UI. */
-    private long userCount;
+    /**
+     * Cantidad de usuarios con este rol; solo lectura, la calcula el servidor.
+     * Se usa Long (no long) para tolerar que el cliente lo mande como null en el
+     * body: Jackson 3 falla al mapear null en un primitivo (FAIL_ON_NULL_FOR_
+     * PRIMITIVES cambió a true), y este valor se recalcula en el servicio.
+     */
+    private Long userCount;
 }
