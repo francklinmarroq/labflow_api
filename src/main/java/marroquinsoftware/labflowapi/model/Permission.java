@@ -11,6 +11,7 @@ public enum Permission {
     ORDERS_CREATE("Órdenes", "Crear órdenes"),
     ORDERS_ENTER_RESULTS("Órdenes", "Ingresar resultados"),
     ORDERS_PRINT("Órdenes", "Imprimir órdenes"),
+    ORDERS_REFER("Órdenes", "Remitir exámenes"),
     ORDERS_DELETE("Órdenes", "Cancelar órdenes"),
 
     PATIENTS_VIEW("Pacientes", "Ver pacientes"),
