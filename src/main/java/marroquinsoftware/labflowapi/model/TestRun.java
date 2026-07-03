@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.TenantId;
 
 import java.time.Instant;
 import java.util.List;
@@ -20,6 +21,10 @@ public class TestRun {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    @TenantId
+    @Column(name = "laboratory_id", updatable = false)
+    private Long laboratoryId;
 
     @ManyToOne
     @JoinColumn(name = "test_id", nullable = false)
