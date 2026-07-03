@@ -17,7 +17,10 @@ public class UnitController {
     @Autowired
     private UnitService unitService;
 
+    // Lectura del catálogo: también la necesitan las vistas de órdenes (crear,
+    // ver, ingresar resultados e imprimir usan los listados del catálogo).
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('CATALOG_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_ENTER_RESULTS','ORDERS_PRINT')")
     public ResponseEntity<UnitResponse> getAllUnits(
             @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
             @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
@@ -27,13 +30,14 @@ public class UnitController {
         return new ResponseEntity<>(unitResponse, HttpStatus.OK);
     }
 
-    @PreAuthorize("hasRole('USER')")
     @PostMapping
+    @PreAuthorize("hasAuthority('CATALOG_CREATE')")
     public ResponseEntity<UnitDTO> createUnit(@Valid @RequestBody UnitDTO unitDTO) {
         return new ResponseEntity<UnitDTO>(unitService.createUnit(unitDTO), HttpStatus.CREATED);
     }
 
     @PutMapping("/{unitId}")
+    @PreAuthorize("hasAuthority('CATALOG_EDIT')")
     public ResponseEntity<UnitDTO> updateUnit(@Valid @RequestBody UnitDTO unitDTO, @PathVariable Long unitId) {
         UnitDTO savedUnit = unitService.updateUnit(unitDTO, unitId);
         return new ResponseEntity<>(savedUnit, HttpStatus.OK);
@@ -41,6 +45,7 @@ public class UnitController {
     }
 
     @DeleteMapping("/{unitId}")
+    @PreAuthorize("hasAuthority('CATALOG_DELETE')")
     public ResponseEntity<UnitDTO> deleteUnit(@PathVariable Long unitId) {
         UnitDTO status = unitService.deleteUnit(unitId);
         return new ResponseEntity<>(status, HttpStatus.OK);

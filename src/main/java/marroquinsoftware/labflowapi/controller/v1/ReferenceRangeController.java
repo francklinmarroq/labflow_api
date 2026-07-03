@@ -9,6 +9,7 @@ import marroquinsoftware.labflowapi.service.ReferenceRangeService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -21,6 +22,7 @@ public class ReferenceRangeController {
     private ReferenceRangeService referenceRangeService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('CATALOG_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_ENTER_RESULTS','ORDERS_PRINT')")
     public ResponseEntity<ReferenceRangeResponse> getRangesByParameter(
             @PathVariable Long parameterId,
             @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
@@ -33,6 +35,7 @@ public class ReferenceRangeController {
     }
 
     @GetMapping("/applicable")
+    @PreAuthorize("hasAnyAuthority('CATALOG_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_ENTER_RESULTS','ORDERS_PRINT')")
     public ResponseEntity<List<ReferenceRangeDTO>> findApplicable(
             @PathVariable Long parameterId,
             @RequestParam Sex sex,
@@ -43,6 +46,7 @@ public class ReferenceRangeController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('CATALOG_CREATE')")
     public ResponseEntity<ReferenceRangeDTO> createReferenceRange(
             @PathVariable Long parameterId,
             @Valid @RequestBody ReferenceRangeDTO dto) {
@@ -52,6 +56,7 @@ public class ReferenceRangeController {
     }
 
     @PutMapping("/{rangeId}")
+    @PreAuthorize("hasAuthority('CATALOG_EDIT')")
     public ResponseEntity<ReferenceRangeDTO> updateReferenceRange(
             @PathVariable Long parameterId,
             @PathVariable Long rangeId,
@@ -62,6 +67,7 @@ public class ReferenceRangeController {
     }
 
     @DeleteMapping("/{rangeId}")
+    @PreAuthorize("hasAuthority('CATALOG_DELETE')")
     public ResponseEntity<ReferenceRangeDTO> deleteReferenceRange(
             @PathVariable Long parameterId,
             @PathVariable Long rangeId) {

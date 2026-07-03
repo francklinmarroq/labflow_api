@@ -10,6 +10,7 @@ import marroquinsoftware.labflowapi.service.LabTestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -25,6 +26,7 @@ public class LabOrderController {
     private LabTestService labTestService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT')")
     public ResponseEntity<LabOrderResponse> getAllOrders(
             @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
             @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
@@ -34,31 +36,41 @@ public class LabOrderController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('ORDERS_CREATE')")
     public ResponseEntity<LabOrderDTO> createOrder(@Valid @RequestBody LabOrderDTO dto) {
         return new ResponseEntity<>(labOrderService.createOrder(dto), HttpStatus.CREATED);
     }
 
+    // Actualizar la orden incluye los cambios de estado, que también ocurren
+    // durante el flujo de resultados (en proceso, listos, verificada...).
     @PutMapping("/{orderId}")
+    @PreAuthorize("hasAnyAuthority('ORDERS_CREATE','ORDERS_ENTER_RESULTS')")
     public ResponseEntity<LabOrderDTO> updateOrder(@Valid @RequestBody LabOrderDTO dto, @PathVariable Long orderId) {
         return new ResponseEntity<>(labOrderService.updateOrder(dto, orderId), HttpStatus.OK);
     }
 
     @DeleteMapping("/{orderId}")
+    @PreAuthorize("hasAuthority('ORDERS_DELETE')")
     public ResponseEntity<LabOrderDTO> deleteOrder(@PathVariable Long orderId) {
         return new ResponseEntity<>(labOrderService.deleteOrder(orderId), HttpStatus.OK);
     }
 
     @GetMapping("/{orderId}/tests")
+    @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT','ORDERS_ENTER_RESULTS')")
     public ResponseEntity<List<LabTestDTO>> getTestsByOrder(@PathVariable Long orderId) {
         return new ResponseEntity<>(labTestService.getTestsByOrder(orderId), HttpStatus.OK);
     }
 
     @PostMapping("/{orderId}/tests")
+    @PreAuthorize("hasAuthority('ORDERS_CREATE')")
     public ResponseEntity<LabTestDTO> addTestToOrder(@PathVariable Long orderId, @Valid @RequestBody LabTestDTO dto) {
         return new ResponseEntity<>(labTestService.addTestToOrder(orderId, dto), HttpStatus.CREATED);
     }
 
+    // Asignar perfil y editar notas/muestra ocurre tanto al armar la orden
+    // como al ingresar resultados.
     @PatchMapping("/{orderId}/tests/{labTestId}/assign")
+    @PreAuthorize("hasAnyAuthority('ORDERS_CREATE','ORDERS_ENTER_RESULTS')")
     public ResponseEntity<LabTestDTO> assignTestConfig(
             @PathVariable Long orderId,
             @PathVariable Long labTestId,
@@ -67,6 +79,7 @@ public class LabOrderController {
     }
 
     @PatchMapping("/{orderId}/tests/{labTestId}/notes")
+    @PreAuthorize("hasAnyAuthority('ORDERS_CREATE','ORDERS_ENTER_RESULTS')")
     public ResponseEntity<LabTestDTO> updateTestNotes(
             @PathVariable Long orderId,
             @PathVariable Long labTestId,
@@ -75,6 +88,7 @@ public class LabOrderController {
     }
 
     @PatchMapping("/{orderId}/tests/{labTestId}/sample-type")
+    @PreAuthorize("hasAnyAuthority('ORDERS_CREATE','ORDERS_ENTER_RESULTS')")
     public ResponseEntity<LabTestDTO> updateTestSampleType(
             @PathVariable Long orderId,
             @PathVariable Long labTestId,
@@ -83,6 +97,7 @@ public class LabOrderController {
     }
 
     @DeleteMapping("/{orderId}/tests/{testId}")
+    @PreAuthorize("hasAnyAuthority('ORDERS_CREATE','ORDERS_DELETE')")
     public ResponseEntity<LabTestDTO> removeTestFromOrder(@PathVariable Long orderId, @PathVariable Long testId) {
         return new ResponseEntity<>(labTestService.removeTestFromOrder(orderId, testId), HttpStatus.OK);
     }
