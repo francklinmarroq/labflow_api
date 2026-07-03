@@ -8,6 +8,7 @@ import marroquinsoftware.labflowapi.service.ParameterService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,6 +19,7 @@ public class ParameterController {
     private ParameterService parameterService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('CATALOG_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_ENTER_RESULTS','ORDERS_PRINT')")
     public ResponseEntity<ParameterResponse> getAllParameters(
             @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
             @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
@@ -28,17 +30,20 @@ public class ParameterController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('CATALOG_CREATE')")
     public ResponseEntity<ParameterDTO> createParameter(@Valid @RequestBody ParameterDTO parameterDTO) {
         return new ResponseEntity<>(parameterService.createParameter(parameterDTO), HttpStatus.CREATED);
     }
 
     @PutMapping("/{parameterId}")
+    @PreAuthorize("hasAuthority('CATALOG_EDIT')")
     public ResponseEntity<ParameterDTO> updateParameter(@Valid @RequestBody ParameterDTO parameterDTO, @PathVariable Long parameterId) {
         ParameterDTO savedParameter = parameterService.updateParameter(parameterDTO, parameterId);
         return new ResponseEntity<>(savedParameter, HttpStatus.OK);
     }
 
     @DeleteMapping("/{parameterId}")
+    @PreAuthorize("hasAuthority('CATALOG_DELETE')")
     public ResponseEntity<ParameterDTO> deleteParameter(@PathVariable Long parameterId) {
         ParameterDTO deleted = parameterService.deleteParameter(parameterId);
         return new ResponseEntity<>(deleted, HttpStatus.OK);

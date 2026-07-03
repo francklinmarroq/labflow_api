@@ -5,6 +5,7 @@ import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.payload.JwtResponse;
 import marroquinsoftware.labflowapi.payload.LoginRequest;
 import marroquinsoftware.labflowapi.payload.RegisterRequest;
+import marroquinsoftware.labflowapi.payload.UserInfoResponse;
 import marroquinsoftware.labflowapi.security.AppUserDetails;
 import marroquinsoftware.labflowapi.security.JwtUtils;
 import marroquinsoftware.labflowapi.service.RegistrationService;
@@ -17,7 +18,9 @@ import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
+import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -56,7 +59,7 @@ public class AuthController {
         AppUserDetails userDetails = (AppUserDetails) authentication.getPrincipal();
         try {
             String jwtToken = jwtUtils.generateToken(userDetails);
-            JwtResponse jwtResponse = new JwtResponse(jwtToken, userDetails.getUsername());
+            JwtResponse jwtResponse = buildJwtResponse(jwtToken, userDetails);
             return new ResponseEntity<>(jwtResponse, HttpStatus.OK);
         } catch (Exception e) {
             LOGGER.error("Failed to generate JWT token", e);
@@ -86,7 +89,7 @@ public class AuthController {
             SecurityContextHolder.getContext().setAuthentication(authentication);
             AppUserDetails userDetails = (AppUserDetails) authentication.getPrincipal();
             String jwtToken = jwtUtils.generateToken(userDetails);
-            return new ResponseEntity<>(new JwtResponse(jwtToken, userDetails.getUsername()), HttpStatus.CREATED);
+            return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.CREATED);
         } catch (Exception e) {
             LOGGER.error("Failed to authenticate/generate token after registration", e);
             Map<String, Object> map = new HashMap<>();
@@ -96,4 +99,28 @@ public class AuthController {
         }
     }
 
+    /**
+     * Identidad y permisos del usuario en sesión. El frontend lo llama al
+     * cargar la app para refrescar permisos sin re-loguear.
+     */
+    @GetMapping("/me")
+    public ResponseEntity<UserInfoResponse> me(@AuthenticationPrincipal AppUserDetails userDetails) {
+        UserInfoResponse response = new UserInfoResponse(
+                userDetails.getUsername(),
+                userDetails.getRole().name(),
+                userDetails.getRoleName(),
+                userDetails.getPermissionNames()
+        );
+        return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    private JwtResponse buildJwtResponse(String jwtToken, AppUserDetails userDetails) {
+        return new JwtResponse(
+                jwtToken,
+                userDetails.getUsername(),
+                userDetails.getRole().name(),
+                userDetails.getRoleName(),
+                userDetails.getPermissionNames()
+        );
+    }
 }

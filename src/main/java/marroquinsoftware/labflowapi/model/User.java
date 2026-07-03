@@ -43,4 +43,12 @@ public class User {
     @ManyToOne(optional = false, fetch = FetchType.EAGER)
     @JoinColumn(name = "laboratory_id", nullable = false)
     private Laboratory laboratory;
+
+    /**
+     * Rol configurable que otorga los permisos (solo aplica a STAFF; el OWNER
+     * siempre tiene todos los permisos y no usa rol).
+     */
+    @ManyToOne(fetch = FetchType.EAGER)
+    @JoinColumn(name = "app_role_id")
+    private AppRole appRole;
 }

@@ -8,6 +8,7 @@ import marroquinsoftware.labflowapi.service.TestConfigService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 @RestController
@@ -18,6 +19,7 @@ public class TestConfigController {
     private TestConfigService testConfigService;
 
     @GetMapping
+    @PreAuthorize("hasAnyAuthority('CATALOG_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_ENTER_RESULTS','ORDERS_PRINT')")
     public ResponseEntity<TestConfigResponse> getAllTestConfigs(
             @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
             @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
@@ -29,6 +31,7 @@ public class TestConfigController {
     }
 
     @GetMapping("/active")
+    @PreAuthorize("hasAnyAuthority('CATALOG_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_ENTER_RESULTS','ORDERS_PRINT')")
     public ResponseEntity<TestConfigResponse> getActiveTestConfigs(
             @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
             @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
@@ -40,11 +43,13 @@ public class TestConfigController {
     }
 
     @PostMapping
+    @PreAuthorize("hasAuthority('CATALOG_CREATE')")
     public ResponseEntity<TestConfigDTO> createTestConfig(@Valid @RequestBody TestConfigDTO dto) {
         return new ResponseEntity<>(testConfigService.createTestConfig(dto), HttpStatus.CREATED);
     }
 
     @PutMapping("/{testConfigId}")
+    @PreAuthorize("hasAuthority('CATALOG_EDIT')")
     public ResponseEntity<TestConfigDTO> updateTestConfig(
             @Valid @RequestBody TestConfigDTO dto,
             @PathVariable Long testConfigId) {
@@ -52,6 +57,7 @@ public class TestConfigController {
     }
 
     @DeleteMapping("/{testConfigId}")
+    @PreAuthorize("hasAuthority('CATALOG_DELETE')")
     public ResponseEntity<TestConfigDTO> deleteTestConfig(@PathVariable Long testConfigId) {
         return new ResponseEntity<>(testConfigService.deleteTestConfig(testConfigId), HttpStatus.OK);
     }

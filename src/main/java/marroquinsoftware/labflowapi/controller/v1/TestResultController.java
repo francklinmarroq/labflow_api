@@ -5,6 +5,7 @@ import marroquinsoftware.labflowapi.service.TestResultService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.util.List;
@@ -17,11 +18,13 @@ public class TestResultController {
     private TestResultService testResultService;
 
     @GetMapping("/{runId}/results")
+    @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT','ORDERS_ENTER_RESULTS')")
     public ResponseEntity<List<TestResultDTO>> getResultsByRun(@PathVariable Long runId) {
         return new ResponseEntity<>(testResultService.getResultsByRun(runId), HttpStatus.OK);
     }
 
     @PutMapping("/{runId}/results/{resultId}")
+    @PreAuthorize("hasAuthority('ORDERS_ENTER_RESULTS')")
     public ResponseEntity<TestResultDTO> updateResult(
             @PathVariable Long runId,
             @PathVariable Long resultId,
@@ -30,6 +33,7 @@ public class TestResultController {
     }
 
     @DeleteMapping("/{runId}/results/{resultId}")
+    @PreAuthorize("hasAuthority('ORDERS_ENTER_RESULTS')")
     public ResponseEntity<TestResultDTO> deleteResult(@PathVariable Long runId, @PathVariable Long resultId) {
         return new ResponseEntity<>(testResultService.deleteResult(runId, resultId), HttpStatus.OK);
     }
