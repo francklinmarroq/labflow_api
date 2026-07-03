@@ -7,6 +7,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import marroquinsoftware.labflowapi.model.ChartType;
+import marroquinsoftware.labflowapi.model.ResultLayout;
 
 import java.math.BigDecimal;
 import java.util.List;
@@ -31,6 +32,10 @@ public class TestConfigDTO {
 
     // Presentacion del perfil. NONE (defecto) = solo tabla; LINE = ademas grafico.
     private ChartType chartType;
+
+    // Como se listan los resultados. STANDARD (defecto) = tabla por parametro;
+    // ANTIBIOGRAM = agrupados por sensibilidad (Sensible/Intermedio/Resistente).
+    private ResultLayout resultLayout;
 
     // Etiqueta del eje X cuando chartType = LINE (ej. "Tiempo (min)").
     private String chartXAxisLabel;

@@ -52,4 +52,11 @@ public class TestConfig {
     // Etiqueta del eje X cuando chartType = LINE (ej. "Tiempo (min)").
     @Column(name = "chart_x_axis_label")
     private String chartXAxisLabel;
+
+    // Como se listan los resultados en el reporte. STANDARD = tabla por parametro
+    // agrupada por seccion (por defecto). ANTIBIOGRAM = se agrupan por su valor de
+    // sensibilidad (Sensible/Intermedio/Resistente), como en un antibiograma.
+    @Enumerated(EnumType.STRING)
+    @Column(name = "result_layout")
+    private ResultLayout resultLayout = ResultLayout.STANDARD;
 }
