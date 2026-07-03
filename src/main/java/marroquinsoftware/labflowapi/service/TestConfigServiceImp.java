@@ -4,6 +4,7 @@ import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.ChartType;
 import marroquinsoftware.labflowapi.model.Parameter;
+import marroquinsoftware.labflowapi.model.ResultLayout;
 import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.model.TestConfig;
 import marroquinsoftware.labflowapi.model.TestConfigParameter;
@@ -96,11 +97,13 @@ public class TestConfigServiceImp implements TestConfigService {
                 .orElseThrow(() -> new ResourceNotFoundException("Test", "testId", testId));
     }
 
-    // Copia la metadata de presentación del gráfico. chartType nulo se trata como
-    // NONE para no romper clientes que no envían el campo (alta normal de perfiles).
+    // Copia la metadata de presentación (gráfico y disposición de resultados). Los
+    // enums nulos se tratan como su valor por defecto para no romper clientes que
+    // no envían el campo (alta normal de perfiles).
     private void applyChartConfig(TestConfig config, TestConfigDTO dto) {
         config.setChartType(dto.getChartType() != null ? dto.getChartType() : ChartType.NONE);
         config.setChartXAxisLabel(dto.getChartXAxisLabel());
+        config.setResultLayout(dto.getResultLayout() != null ? dto.getResultLayout() : ResultLayout.STANDARD);
     }
 
     // Reemplaza los parámetros del perfil conservando el orden recibido desde el
@@ -145,6 +148,7 @@ public class TestConfigServiceImp implements TestConfigService {
                 .map(cp -> cp.getParameter().getId())
                 .collect(Collectors.toList()));
         dto.setChartType(config.getChartType() != null ? config.getChartType() : ChartType.NONE);
+        dto.setResultLayout(config.getResultLayout() != null ? config.getResultLayout() : ResultLayout.STANDARD);
         // Solo incluimos las X de los parámetros que la tengan definida, para no
         // devolver un mapa lleno de nulls en perfiles que no son curva.
         Map<Long, BigDecimal> chartXValues = config.getConfigParameters().stream()

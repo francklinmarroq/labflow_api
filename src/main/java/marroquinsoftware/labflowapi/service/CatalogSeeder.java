@@ -134,6 +134,8 @@ public class CatalogSeeder {
             ChartType chartType = parseEnum(ChartType.class, r.chart_type());
             if (chartType != null) tc.setChartType(chartType);
             tc.setChartXAxisLabel(r.chart_x_axis_label());
+            ResultLayout resultLayout = parseEnum(ResultLayout.class, r.result_layout());
+            if (resultLayout != null) tc.setResultLayout(resultLayout);
             for (TestConfigParameterRow p : paramsByConfig.getOrDefault(r.id(), List.of())) {
                 tc.getConfigParameters().add(new TestConfigParameter(
                         tc, parameters.get(p.parameter_id()), p.display_order(), p.chart_x_value()));
@@ -188,7 +190,7 @@ public class CatalogSeeder {
 
     private record TestConfigRow(
             Long id, Long test_id, String name, Boolean active,
-            String chart_type, String chart_x_axis_label) {}
+            String chart_type, String chart_x_axis_label, String result_layout) {}
 
     private record TestConfigParameterRow(
             Long test_config_id, Long parameter_id, Integer display_order, BigDecimal chart_x_value) {}
