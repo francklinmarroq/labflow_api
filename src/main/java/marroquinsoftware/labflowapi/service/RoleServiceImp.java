@@ -25,7 +25,7 @@ public class RoleServiceImp implements RoleService {
 
     @Override
     public List<RoleDTO> getAllRoles() {
-        return appRoleRepository.findAll(Sort.by("name").ascending())
+        return appRoleRepository.findByLaboratoryId(TenantContext.getLaboratoryId(), Sort.by("name").ascending())
                 .stream()
                 .map(this::toDto)
                 .toList();
@@ -33,10 +33,13 @@ public class RoleServiceImp implements RoleService {
 
     @Override
     public RoleDTO createRole(RoleDTO roleDTO) {
-        if (appRoleRepository.existsByName(roleDTO.getName())) {
+        Long laboratoryId = TenantContext.getLaboratoryId();
+        if (appRoleRepository.existsByLaboratoryIdAndName(laboratoryId, roleDTO.getName())) {
             throw new APIException("Ya existe un rol con el nombre: " + roleDTO.getName());
         }
         AppRole role = new AppRole();
+        // AppRole ya no es @TenantId, así que el laboratorio se asigna a mano.
+        role.setLaboratoryId(laboratoryId);
         role.setName(roleDTO.getName());
         role.setDescription(roleDTO.getDescription());
         role.setPermissions(new HashSet<>(roleDTO.getPermissions()));
@@ -46,7 +49,8 @@ public class RoleServiceImp implements RoleService {
     @Override
     public RoleDTO updateRole(RoleDTO roleDTO, Long roleId) {
         AppRole role = loadRole(roleId);
-        if (appRoleRepository.existsByNameAndIdNot(roleDTO.getName(), roleId)) {
+        if (appRoleRepository.existsByLaboratoryIdAndNameAndIdNot(
+                TenantContext.getLaboratoryId(), roleDTO.getName(), roleId)) {
             throw new APIException("Ya existe un rol con el nombre: " + roleDTO.getName());
         }
         role.setName(roleDTO.getName());
@@ -68,9 +72,8 @@ public class RoleServiceImp implements RoleService {
     }
 
     /**
-     * Carga el rol verificando que pertenezca al laboratorio en sesión: además
-     * del filtro de Hibernate por @TenantId, se comprueba explícitamente para
-     * no operar nunca sobre roles de otro tenant.
+     * Carga el rol verificando que pertenezca al laboratorio en sesión (como
+     * AppRole ya no es @TenantId, esta comprobación es el único aislamiento).
      */
     private AppRole loadRole(Long roleId) {
         AppRole role = appRoleRepository.findById(roleId)

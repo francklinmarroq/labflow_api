@@ -16,7 +16,6 @@ import jakarta.persistence.UniqueConstraint;
 import jakarta.validation.constraints.NotBlank;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import org.hibernate.annotations.TenantId;
 
 import java.util.HashSet;
 import java.util.Set;
@@ -25,6 +24,12 @@ import java.util.Set;
  * Rol configurable creado por cada laboratorio (tenant). El owner define qué
  * permisos del catálogo {@link Permission} otorga el rol; los usuarios STAFF
  * reciben sus permisos a través del rol asignado.
+ *
+ * <p>A diferencia de las entidades de negocio, {@code AppRole} NO usa
+ * {@code @TenantId}: se carga durante la autenticación (al construir
+ * {@code AppUserDetails}), cuando todavía no hay tenant establecido, así que el
+ * filtro por tenant fallaría. El aislamiento por laboratorio se hace a mano en
+ * {@code RoleServiceImp}/{@code UserAdminServiceImp} (igual que con {@code User}).
  */
 @Entity
 @Table(name = "app_role", uniqueConstraints = @UniqueConstraint(columnNames = {"laboratory_id", "name"}))
@@ -36,7 +41,6 @@ public class AppRole {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
 
-    @TenantId
     @Column(name = "laboratory_id", updatable = false)
     private Long laboratoryId;
 
