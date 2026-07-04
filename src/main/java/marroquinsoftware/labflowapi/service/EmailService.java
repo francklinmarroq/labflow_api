@@ -116,7 +116,7 @@ public class EmailService {
                       <tr>
                         <td style="background-color:#4f46e5; padding:24px 32px;">
                           <span style="font-size:20px; font-weight:bold; color:#ffffff; letter-spacing:0.3px;">
-                            &#9889; LabFlow
+                            LabFlow
                           </span>
                         </td>
                       </tr>
