@@ -1,55 +1,67 @@
 package marroquinsoftware.labflowapi.service;
 
-import jakarta.mail.internet.MimeMessage;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.ObjectProvider;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.mail.javamail.JavaMailSender;
-import org.springframework.mail.javamail.MimeMessageHelper;
+import org.springframework.http.MediaType;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.RestClient;
+import org.springframework.web.client.RestClientResponseException;
+
+import java.util.List;
+import java.util.Map;
 
 /**
- * Envío de correos por SMTP. El {@link JavaMailSender} se inyecta de forma
- * opcional (vía {@link ObjectProvider}) para que la app arranque aunque no haya
- * SMTP configurado en desarrollo; en ese caso el envío se omite con un aviso.
+ * Envío de correos por el API HTTP de Resend (https://resend.com), no por SMTP:
+ * las plataformas tipo Railway bloquean los puertos SMTP salientes (25/465/587),
+ * pero el API va por HTTPS (443), que nunca se bloquea.
  */
 @Service
 public class EmailService {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(EmailService.class);
+    private static final String RESEND_ENDPOINT = "https://api.resend.com/emails";
 
-    private final ObjectProvider<JavaMailSender> mailSenderProvider;
+    private final RestClient restClient = RestClient.create();
 
     @Value("${app.mailFrom}")
     private String from;
 
-    public EmailService(ObjectProvider<JavaMailSender> mailSenderProvider) {
-        this.mailSenderProvider = mailSenderProvider;
-    }
+    @Value("${app.resend.apiKey:}")
+    private String resendApiKey;
 
     /**
-     * Envía la invitación de forma asíncrona: si el SMTP falla o tarda, no tumba
+     * Envía la invitación de forma asíncrona: si el API falla o tarda, no tumba
      * la creación del usuario (el owner puede reenviar la invitación después).
      */
     @Async
     public void sendInvitation(String to, String labName, String roleName, String acceptUrl) {
-        JavaMailSender mailSender = mailSenderProvider.getIfAvailable();
-        if (mailSender == null) {
-            LOGGER.warn("SMTP no configurado (spring.mail.host vacío). No se envió la invitación a {}. "
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            LOGGER.warn("RESEND_API_KEY vacío. No se envió la invitación a {}. "
                     + "Enlace de aceptación: {}", to, acceptUrl);
             return;
         }
         try {
-            MimeMessage message = mailSender.createMimeMessage();
-            MimeMessageHelper helper = new MimeMessageHelper(message, "UTF-8");
-            helper.setFrom(from);
-            helper.setTo(to);
-            helper.setSubject("Invitación para unirse a " + labName + " en LabFlow");
-            helper.setText(buildHtml(labName, roleName, acceptUrl), true);
-            mailSender.send(message);
+            Map<String, Object> payload = Map.of(
+                    "from", from,
+                    "to", List.of(to),
+                    "subject", "Invitación para unirse a " + labName + " en LabFlow",
+                    "html", buildHtml(labName, roleName, acceptUrl)
+            );
+            restClient.post()
+                    .uri(RESEND_ENDPOINT)
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
             LOGGER.info("Invitación enviada a {}", to);
+        } catch (RestClientResponseException e) {
+            // El cuerpo de la respuesta trae el motivo real de Resend
+            // (ej. dominio no verificado, remitente inválido).
+            LOGGER.error("Resend rechazó la invitación a {}: {} {}",
+                    to, e.getStatusCode(), e.getResponseBodyAsString());
         } catch (Exception e) {
             LOGGER.error("No se pudo enviar la invitación a {}: {}", to, e.getMessage());
         }
