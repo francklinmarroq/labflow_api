@@ -11,6 +11,8 @@ public interface UserAdminService {
 
     UserAccountDTO createUser(CreateUserRequest request);
 
+    UserAccountDTO resendInvite(Long userId);
+
     UserAccountDTO updateUser(UpdateUserRequest request, Long userId);
 
     UserAccountDTO deleteUser(Long userId);
