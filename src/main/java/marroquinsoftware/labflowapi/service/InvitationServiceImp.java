@@ -5,7 +5,6 @@ import marroquinsoftware.labflowapi.model.User;
 import marroquinsoftware.labflowapi.payload.InvitationInfoResponse;
 import marroquinsoftware.labflowapi.repositories.UserRepository;
 import marroquinsoftware.labflowapi.security.InvitationTokens;
-import marroquinsoftware.labflowapi.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.stereotype.Service;
@@ -52,15 +51,9 @@ public class InvitationServiceImp implements InvitationService {
         if (rawToken == null || rawToken.isBlank()) {
             throw new APIException("Invitación inválida.");
         }
-        String hash = InvitationTokens.hash(rawToken);
-        // El endpoint es público (sin tenant): fijamos el TenantContext al
-        // laboratorio del invitado antes de cargar al usuario, para que su
-        // AppRole (que es @TenantId) se pueda resolver. El AuthTokenFilter
-        // limpia el TenantContext al terminar la petición.
-        Long labId = userRepository.findLaboratoryIdByInvitationTokenHash(hash)
-                .orElseThrow(() -> new APIException("La invitación no existe o ya fue utilizada."));
-        TenantContext.setLaboratoryId(labId);
-        User user = userRepository.findByInvitationTokenHash(hash)
+        // El TenantContext ya lo fijó AuthTokenFilter a partir del token, así que
+        // el AppRole (@TenantId) del invitado se resuelve sin problema.
+        User user = userRepository.findByInvitationTokenHash(InvitationTokens.hash(rawToken))
                 .orElseThrow(() -> new APIException("La invitación no existe o ya fue utilizada."));
         if (user.getInvitationExpiresAt() == null
                 || user.getInvitationExpiresAt().isBefore(Instant.now())) {
