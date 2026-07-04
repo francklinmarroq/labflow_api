@@ -67,26 +67,115 @@ public class EmailService {
         }
     }
 
+    /**
+     * Plantilla del correo de invitación. Se usa una estructura basada en tablas
+     * con estilos en línea (lo único que renderizan de forma consistente los
+     * clientes de correo como Gmail y Outlook) y la paleta de LabFlow (índigo
+     * {@code #4f46e5} sobre grises slate).
+     */
     private String buildHtml(String labName, String roleName, String acceptUrl) {
-        return """
-                <div style="font-family: Arial, sans-serif; max-width: 480px; margin: auto; color: #1e293b;">
-                  <h2 style="color: #0f766e;">Te invitaron a LabFlow</h2>
-                  <p>Fuiste invitado a unirte a <strong>%s</strong> con el rol de <strong>%s</strong>.</p>
-                  <p>Haz clic en el botón para crear tu contraseña y activar tu cuenta:</p>
-                  <p style="text-align: center; margin: 32px 0;">
-                    <a href="%s" style="background: #0f766e; color: #fff; padding: 12px 24px;
-                       border-radius: 8px; text-decoration: none; font-weight: bold;">
-                      Aceptar invitación
-                    </a>
-                  </p>
-                  <p style="color: #64748b; font-size: 13px;">
-                    Si el botón no funciona, copia y pega este enlace en tu navegador:<br>
-                    <a href="%s">%s</a>
-                  </p>
-                  <p style="color: #94a3b8; font-size: 12px;">
-                    Si no esperabas esta invitación, puedes ignorar este correo.
-                  </p>
-                </div>
-                """.formatted(labName, roleName, acceptUrl, acceptUrl, acceptUrl);
+        return EMAIL_TEMPLATE
+                .replace("{{labName}}", escapeHtml(labName))
+                .replace("{{roleName}}", escapeHtml(roleName))
+                .replace("{{acceptUrl}}", acceptUrl);
     }
+
+    /** Escapa el texto dinámico para que un nombre con `<`, `&`, etc. no rompa el HTML. */
+    private String escapeHtml(String value) {
+        if (value == null) {
+            return "";
+        }
+        return value.replace("&", "&amp;")
+                .replace("<", "&lt;")
+                .replace(">", "&gt;")
+                .replace("\"", "&quot;");
+    }
+
+    private static final String EMAIL_TEMPLATE = """
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <meta name="color-scheme" content="light">
+            </head>
+            <body style="margin:0; padding:0; background-color:#f1f5f9;">
+              <!-- Texto de vista previa (oculto) -->
+              <div style="display:none; max-height:0; overflow:hidden; opacity:0;">
+                Te invitaron a unirte a {{labName}} en LabFlow. Crea tu contraseña para activar tu cuenta.
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                     style="background-color:#f1f5f9; padding:32px 12px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" width="480" cellpadding="0" cellspacing="0"
+                           style="max-width:480px; width:100%; background-color:#ffffff; border-radius:16px;
+                                  overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.08);
+                                  font-family:'Segoe UI', Arial, sans-serif;">
+                      <!-- Encabezado de marca -->
+                      <tr>
+                        <td style="background-color:#4f46e5; padding:24px 32px;">
+                          <span style="font-size:20px; font-weight:bold; color:#ffffff; letter-spacing:0.3px;">
+                            LabFlow
+                          </span>
+                        </td>
+                      </tr>
+                      <!-- Cuerpo -->
+                      <tr>
+                        <td style="padding:32px;">
+                          <h1 style="margin:0 0 8px; font-size:22px; color:#1e293b;">Te damos la bienvenida</h1>
+                          <p style="margin:0 0 20px; font-size:15px; line-height:1.6; color:#475569;">
+                            Fuiste invitado a unirte a
+                            <strong style="color:#1e293b;">{{labName}}</strong> en LabFlow.
+                          </p>
+                          <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 0 24px;">
+                            <tr>
+                              <td style="background-color:#eef2ff; border-radius:9999px; padding:6px 14px;
+                                         font-size:13px; font-weight:600; color:#4338ca;">
+                                Rol asignado: {{roleName}}
+                              </td>
+                            </tr>
+                          </table>
+                          <p style="margin:0 0 28px; font-size:15px; line-height:1.6; color:#475569;">
+                            Para activar tu cuenta, crea tu contraseña con el siguiente botón:
+                          </p>
+                          <!-- Botón -->
+                          <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;">
+                            <tr>
+                              <td align="center" bgcolor="#4f46e5" style="border-radius:8px;">
+                                <a href="{{acceptUrl}}"
+                                   style="display:inline-block; padding:14px 32px; font-size:16px; font-weight:bold;
+                                          color:#ffffff; text-decoration:none; border-radius:8px;">
+                                  Activar mi cuenta
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
+                          <p style="margin:28px 0 0; font-size:13px; line-height:1.6; color:#64748b;">
+                            Si el botón no funciona, copia y pega este enlace en tu navegador:
+                          </p>
+                          <p style="margin:4px 0 0; font-size:13px; word-break:break-all;">
+                            <a href="{{acceptUrl}}" style="color:#4f46e5;">{{acceptUrl}}</a>
+                          </p>
+                        </td>
+                      </tr>
+                      <!-- Pie -->
+                      <tr>
+                        <td style="padding:20px 32px; background-color:#f8fafc; border-top:1px solid #e2e8f0;">
+                          <p style="margin:0; font-size:12px; line-height:1.6; color:#94a3b8;">
+                            Por seguridad, este enlace caduca. Si ya expiró, pide al administrador de tu
+                            laboratorio que te reenvíe la invitación. Si no esperabas este correo, puedes ignorarlo.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:16px 0 0; font-size:12px; color:#94a3b8; font-family:'Segoe UI', Arial, sans-serif;">
+                      LabFlow &middot; Gestión de laboratorio clínico
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+            """;
 }
