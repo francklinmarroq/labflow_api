@@ -27,10 +27,18 @@ public class UserController {
         return new ResponseEntity<>(userAdminService.getUsers(), HttpStatus.OK);
     }
 
+    // Invita a un usuario nuevo: se crea deshabilitado y se le manda el correo.
     @PostMapping
     @PreAuthorize("hasAuthority('USERS_MANAGE')")
     public ResponseEntity<UserAccountDTO> createUser(@Valid @RequestBody CreateUserRequest request) {
         return new ResponseEntity<>(userAdminService.createUser(request), HttpStatus.CREATED);
+    }
+
+    // Reenvía la invitación (genera un token nuevo) a un usuario aún pendiente.
+    @PostMapping("/{userId}/resend-invite")
+    @PreAuthorize("hasAuthority('USERS_MANAGE')")
+    public ResponseEntity<UserAccountDTO> resendInvite(@PathVariable Long userId) {
+        return new ResponseEntity<>(userAdminService.resendInvite(userId), HttpStatus.OK);
     }
 
     @PutMapping("/{userId}")

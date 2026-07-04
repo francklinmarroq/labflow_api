@@ -2,12 +2,16 @@ package marroquinsoftware.labflowapi.controller.v1;
 
 import jakarta.validation.Valid;
 import marroquinsoftware.labflowapi.exceptions.APIException;
+import marroquinsoftware.labflowapi.model.User;
+import marroquinsoftware.labflowapi.payload.AcceptInvitationRequest;
+import marroquinsoftware.labflowapi.payload.InvitationInfoResponse;
 import marroquinsoftware.labflowapi.payload.JwtResponse;
 import marroquinsoftware.labflowapi.payload.LoginRequest;
 import marroquinsoftware.labflowapi.payload.RegisterRequest;
 import marroquinsoftware.labflowapi.payload.UserInfoResponse;
 import marroquinsoftware.labflowapi.security.AppUserDetails;
 import marroquinsoftware.labflowapi.security.JwtUtils;
+import marroquinsoftware.labflowapi.service.InvitationService;
 import marroquinsoftware.labflowapi.service.RegistrationService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -21,6 +25,7 @@ import org.springframework.security.core.AuthenticationException;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -41,6 +46,8 @@ public class AuthController {
     private JwtUtils jwtUtils;
     @Autowired
     private RegistrationService registrationService;
+    @Autowired
+    private InvitationService invitationService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
@@ -112,6 +119,25 @@ public class AuthController {
                 userDetails.getPermissionNames()
         );
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    /** Datos de la invitación para la pantalla de aceptación (público). */
+    @GetMapping("/invitation/{token}")
+    public ResponseEntity<InvitationInfoResponse> getInvitation(@PathVariable String token) {
+        return new ResponseEntity<>(invitationService.getInvitation(token), HttpStatus.OK);
+    }
+
+    /**
+     * El usuario invitado define su contraseña y activa su cuenta (público).
+     * Devuelve el JWT para dejarlo con la sesión iniciada.
+     */
+    @PostMapping("/invitation/{token}/accept")
+    public ResponseEntity<?> acceptInvitation(@PathVariable String token,
+                                              @Valid @RequestBody AcceptInvitationRequest request) {
+        User user = invitationService.acceptInvitation(token, request.getPassword());
+        AppUserDetails userDetails = new AppUserDetails(user);
+        String jwtToken = jwtUtils.generateToken(userDetails);
+        return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.OK);
     }
 
     private JwtResponse buildJwtResponse(String jwtToken, AppUserDetails userDetails) {

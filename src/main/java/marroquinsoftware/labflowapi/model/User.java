@@ -7,6 +7,8 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 /**
  * Usuario de la aplicación. Sustituye a la tabla {@code users} de
  * JdbcUserDetailsManager para poder ligar cada usuario a su laboratorio (tenant).
@@ -51,4 +53,22 @@ public class User {
     @ManyToOne(fetch = FetchType.EAGER)
     @JoinColumn(name = "app_role_id")
     private AppRole appRole;
+
+    /**
+     * Hash SHA-256 del token de invitación (se guarda hasheado, como la
+     * contraseña, para que una fuga de BD no exponga invitaciones usables).
+     * No nulo mientras la invitación esté pendiente; se limpia al aceptarla.
+     */
+    @Column(name = "invitation_token_hash", length = 64)
+    private String invitationTokenHash;
+
+    /** Fecha de expiración de la invitación pendiente. */
+    @Column(name = "invitation_expires_at")
+    private Instant invitationExpiresAt;
+
+    /** ¿El usuario fue invitado y aún no acepta (no tiene contraseña propia)? */
+    @Transient
+    public boolean isInvitationPending() {
+        return invitationTokenHash != null;
+    }
 }

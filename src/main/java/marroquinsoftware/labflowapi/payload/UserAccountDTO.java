@@ -16,4 +16,6 @@ public class UserAccountDTO {
     private Role role;
     private Long roleId;
     private String roleName;
+    /** Fue invitado y aún no acepta (no ha definido su contraseña). */
+    private boolean invitationPending;
 }

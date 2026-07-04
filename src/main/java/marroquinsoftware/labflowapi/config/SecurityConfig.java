@@ -62,8 +62,10 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(requests -> requests
-                        // Solo login y registro son públicos; /auth/me requiere sesión.
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register", "/error").permitAll()
+                        // Login, registro y aceptación de invitaciones son públicos;
+                        // /auth/me requiere sesión.
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
+                                "/api/v1/auth/invitation/**", "/error").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

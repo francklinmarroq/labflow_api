@@ -16,4 +16,7 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // así que el laboratorio se filtra explícitamente.
     List<User> findByLaboratoryIdOrderByUsername(Long laboratoryId);
     long countByAppRole_Id(Long roleId);
+
+    // Búsqueda global por token de invitación (endpoint público sin tenant).
+    Optional<User> findByInvitationTokenHash(String invitationTokenHash);
 }
