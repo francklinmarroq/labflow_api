@@ -2,6 +2,7 @@ package marroquinsoftware.labflowapi.repositories;
 
 import marroquinsoftware.labflowapi.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
 import org.springframework.stereotype.Repository;
 
 import java.util.List;
@@ -19,4 +20,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
 
     // Búsqueda global por token de invitación (endpoint público sin tenant).
     Optional<User> findByInvitationTokenHash(String invitationTokenHash);
+
+    // Solo el id del laboratorio, sin hidratar el AppRole (que es @TenantId y
+    // fallaría bajo el tenant vacío del endpoint público). Se usa para fijar el
+    // TenantContext antes de cargar el usuario completo.
+    @Query("select u.laboratory.id from User u where u.invitationTokenHash = :hash")
+    Optional<Long> findLaboratoryIdByInvitationTokenHash(String hash);
 }
