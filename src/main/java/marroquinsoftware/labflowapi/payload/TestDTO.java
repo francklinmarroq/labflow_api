@@ -14,7 +14,7 @@ import java.math.BigDecimal;
 public class TestDTO {
     private Long id;
 
-    @NotBlank
+    @NotBlank(message = "El nombre del examen es obligatorio")
     private String name;
 
     private BigDecimal price;

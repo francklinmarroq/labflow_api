@@ -59,7 +59,7 @@ public class ReferralServiceImp implements ReferralService {
         for (Long labTestId : request.getLabTestIds()) {
             LabTest labTest = testsById.get(labTestId);
             if (labTest == null) {
-                throw new APIException("LabTest with id: " + labTestId + " does not belong to order with id: " + orderId);
+                throw new APIException("Uno de los exámenes seleccionados ya no pertenece a la orden. Recargue la página e intente de nuevo.");
             }
             ReferralItem item = new ReferralItem();
             item.setReferral(referral);

@@ -13,12 +13,12 @@ import marroquinsoftware.labflowapi.security.AppUserDetails;
 import marroquinsoftware.labflowapi.security.JwtUtils;
 import marroquinsoftware.labflowapi.service.InvitationService;
 import marroquinsoftware.labflowapi.service.RegistrationService;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.authentication.AuthenticationManager;
+import org.springframework.security.authentication.DisabledException;
+import org.springframework.security.authentication.LockedException;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.Authentication;
 import org.springframework.security.core.AuthenticationException;
@@ -38,8 +38,6 @@ import java.util.Map;
 @RequestMapping("/api/v1/auth")
 public class AuthController {
 
-    private static final Logger LOGGER = LoggerFactory.getLogger(AuthController.class);
-
     @Autowired
     private AuthenticationManager authenticationManager;
     @Autowired
@@ -56,30 +54,23 @@ public class AuthController {
             authentication = authenticationManager.authenticate(
                     new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
             );
+        } catch (DisabledException e) {
+            return unauthorized("Su cuenta está deshabilitada. Contacte al administrador de su laboratorio.");
+        } catch (LockedException e) {
+            return unauthorized("Su cuenta está bloqueada. Contacte al administrador de su laboratorio.");
         } catch (AuthenticationException e) {
-            Map<String, Object> map = new HashMap<>();
-            map.put("message", "Bad credentials");
-            map.put("status", false);
-            return new ResponseEntity<Object>(map, HttpStatus.UNAUTHORIZED);
+            return unauthorized("Correo o contraseña incorrectos.");
         }
         SecurityContextHolder.getContext().setAuthentication(authentication);
         AppUserDetails userDetails = (AppUserDetails) authentication.getPrincipal();
-        try {
-            String jwtToken = jwtUtils.generateToken(userDetails);
-            JwtResponse jwtResponse = buildJwtResponse(jwtToken, userDetails);
-            return new ResponseEntity<>(jwtResponse, HttpStatus.OK);
-        } catch (Exception e) {
-            LOGGER.error("Failed to generate JWT token", e);
-            Map<String, Object> map = new HashMap<>();
-            map.put("message", "Could not generate token: " + e.getMessage());
-            map.put("status", false);
-            return new ResponseEntity<>(map, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        // Si la generación del token falla, la excepción sube al handler global,
+        // que responde con mensaje en español y código de soporte.
+        String jwtToken = jwtUtils.generateToken(userDetails);
+        return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.OK);
     }
 
     @PostMapping("/register")
     public ResponseEntity<?> register(@Valid @RequestBody RegisterRequest request) {
-        System.out.println("HITTING REGISTER");
         try {
             registrationService.register(request);
         } catch (APIException e) {
@@ -89,21 +80,20 @@ public class AuthController {
             return new ResponseEntity<>(map, HttpStatus.CONFLICT);
         }
 
-        try {
-            Authentication authentication = authenticationManager.authenticate(
-                    new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
-            );
-            SecurityContextHolder.getContext().setAuthentication(authentication);
-            AppUserDetails userDetails = (AppUserDetails) authentication.getPrincipal();
-            String jwtToken = jwtUtils.generateToken(userDetails);
-            return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.CREATED);
-        } catch (Exception e) {
-            LOGGER.error("Failed to authenticate/generate token after registration", e);
-            Map<String, Object> map = new HashMap<>();
-            map.put("message", "Registration succeeded but token generation failed: " + e.getMessage());
-            map.put("status", false);
-            return new ResponseEntity<>(map, HttpStatus.INTERNAL_SERVER_ERROR);
-        }
+        Authentication authentication = authenticationManager.authenticate(
+                new UsernamePasswordAuthenticationToken(request.getUsername(), request.getPassword())
+        );
+        SecurityContextHolder.getContext().setAuthentication(authentication);
+        AppUserDetails userDetails = (AppUserDetails) authentication.getPrincipal();
+        String jwtToken = jwtUtils.generateToken(userDetails);
+        return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.CREATED);
+    }
+
+    private ResponseEntity<Object> unauthorized(String message) {
+        Map<String, Object> map = new HashMap<>();
+        map.put("message", message);
+        map.put("status", false);
+        return new ResponseEntity<>(map, HttpStatus.UNAUTHORIZED);
     }
 
     /**

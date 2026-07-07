@@ -12,7 +12,7 @@ public class LabTestDTO {
     private Long id;
     private Long orderId;
 
-    @NotNull
+    @NotNull(message = "Debe seleccionar un examen")
     private Long testId;
 
     private Long testConfigId;

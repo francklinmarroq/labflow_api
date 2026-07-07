@@ -20,6 +20,7 @@ import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.Collections;
@@ -52,10 +53,13 @@ public class TestConfigServiceImp implements TestConfigService {
         return buildPagedResponse(testConfigRepository.findByActive(true, buildPageable(pageNumber, pageSize, sortBy, sortDir)));
     }
 
+    // El perfil y sus parámetros se guardan juntos: si un parámetro no existe,
+    // no queda un perfil a medias.
     @Override
+    @Transactional
     public TestConfigDTO createTestConfig(TestConfigDTO dto) {
         if (testConfigRepository.findByName(dto.getName()) != null) {
-            throw new APIException("Test config with name: " + dto.getName() + " already exists.");
+            throw new APIException("Ya existe un perfil de examen con el nombre '" + dto.getName() + "'.");
         }
         TestConfig config = new TestConfig();
         config.setTest(resolveTest(dto.getTestId()));
@@ -67,13 +71,14 @@ public class TestConfigServiceImp implements TestConfigService {
     }
 
     @Override
+    @Transactional
     public TestConfigDTO updateTestConfig(TestConfigDTO dto, Long id) {
         TestConfig config = testConfigRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("TestConfig", "id", id));
 
         TestConfig existing = testConfigRepository.findByName(dto.getName());
         if (existing != null && !existing.getId().equals(id)) {
-            throw new APIException("Test config with name: " + dto.getName() + " already exists.");
+            throw new APIException("Ya existe un perfil de examen con el nombre '" + dto.getName() + "'.");
         }
 
         config.setTest(resolveTest(dto.getTestId()));

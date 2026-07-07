@@ -13,7 +13,7 @@ import marroquinsoftware.labflowapi.model.ParameterValueType;
 public class ParameterDTO {
     private Long id;
     private Long unitId;
-    @NotBlank
+    @NotBlank(message = "El nombre del parámetro es obligatorio")
     private String name;
     private ParameterSection section;
     private ParameterValueType valueType;

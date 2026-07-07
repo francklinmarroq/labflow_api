@@ -13,11 +13,11 @@ import java.util.List;
 @AllArgsConstructor
 public class ReferralRequest {
 
-    @NotBlank
+    @NotBlank(message = "El laboratorio de destino es obligatorio")
     private String destinationLabName;
 
     private String reason;
 
-    @NotEmpty
+    @NotEmpty(message = "Debe seleccionar al menos un examen para remitir")
     private List<Long> labTestIds;
 }

@@ -47,10 +47,10 @@ public class CustomerServiceImp implements CustomerService {
     @Override
     public CustomerDTO createCustomer(CustomerDTO dto) {
         if (dto.getNationalIdNumber() != null && customerRepository.findByNationalIdNumber(dto.getNationalIdNumber()) != null) {
-            throw new APIException("Customer with nationalIdNumber: " + dto.getNationalIdNumber() + " already exists.");
+            throw new APIException("Ya existe un paciente con el número de identificación '" + dto.getNationalIdNumber() + "'.");
         }
         if (dto.getTaxNumber() != null && customerRepository.findByTaxNumber(dto.getTaxNumber()) != null) {
-            throw new APIException("Customer with taxNumber: " + dto.getTaxNumber() + " already exists.");
+            throw new APIException("Ya existe un paciente con el NIT '" + dto.getTaxNumber() + "'.");
         }
         Customer customer = new Customer();
         mapDtoToEntity(dto, customer);
@@ -64,13 +64,13 @@ public class CustomerServiceImp implements CustomerService {
         if (dto.getNationalIdNumber() != null) {
             Customer existing = customerRepository.findByNationalIdNumber(dto.getNationalIdNumber());
             if (existing != null && !existing.getId().equals(id)) {
-                throw new APIException("Customer with nationalIdNumber: " + dto.getNationalIdNumber() + " already exists.");
+                throw new APIException("Ya existe un paciente con el número de identificación '" + dto.getNationalIdNumber() + "'.");
             }
         }
         if (dto.getTaxNumber() != null) {
             Customer existing = customerRepository.findByTaxNumber(dto.getTaxNumber());
             if (existing != null && !existing.getId().equals(id)) {
-                throw new APIException("Customer with taxNumber: " + dto.getTaxNumber() + " already exists.");
+                throw new APIException("Ya existe un paciente con el NIT '" + dto.getTaxNumber() + "'.");
             }
         }
         mapDtoToEntity(dto, customer);

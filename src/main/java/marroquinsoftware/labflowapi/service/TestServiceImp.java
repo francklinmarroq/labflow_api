@@ -47,7 +47,7 @@ public class TestServiceImp implements TestService {
     @Override
     public TestDTO createTest(TestDTO dto) {
         if (testRepository.findByName(dto.getName()) != null) {
-            throw new APIException("Test with name: " + dto.getName() + " already exists.");
+            throw new APIException("Ya existe un examen con el nombre '" + dto.getName() + "'.");
         }
         Test test = modelMapper.map(dto, Test.class);
         return modelMapper.map(testRepository.save(test), TestDTO.class);
@@ -60,7 +60,7 @@ public class TestServiceImp implements TestService {
 
         Test existing = testRepository.findByName(dto.getName());
         if (existing != null && !existing.getId().equals(id)) {
-            throw new APIException("Test with name: " + dto.getName() + " already exists.");
+            throw new APIException("Ya existe un examen con el nombre '" + dto.getName() + "'.");
         }
 
         modelMapper.map(dto, test);

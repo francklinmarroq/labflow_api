@@ -15,7 +15,7 @@ import java.math.BigDecimal;
 public class ReferenceRangeDTO {
     private Long id;
 
-    @NotNull
+    @NotNull(message = "Debe indicar el parámetro")
     private Long parameterId;
 
     private Sex sex;

@@ -14,7 +14,7 @@ public class LaboratoryDTO {
 
     private Long id;
 
-    @NotBlank
+    @NotBlank(message = "El nombre del laboratorio es obligatorio")
     private String name;
 
     private String rtn;

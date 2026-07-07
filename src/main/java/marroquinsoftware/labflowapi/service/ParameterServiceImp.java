@@ -35,10 +35,8 @@ public class ParameterServiceImp implements ParameterService {
         Sort sortByAndOrder = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageDetails = PageRequest.of(pageNumber, pageSize, sortByAndOrder);
         Page<Parameter> parameterPage = parameterRepository.findAll(pageDetails);
+        // Un catálogo vacío no es un error: se devuelve la página sin contenido.
         List<Parameter> savedParameters = parameterPage.getContent();
-        if (savedParameters.isEmpty()) {
-            throw new APIException("There are no parameters saved.");
-        }
         List<ParameterDTO> parameterDTOs = savedParameters.stream()
                 .map(parameter -> modelMapper.map(parameter, ParameterDTO.class))
                 .toList();
@@ -56,7 +54,7 @@ public class ParameterServiceImp implements ParameterService {
     public ParameterDTO createParameter(ParameterDTO parameterDTO) {
         Parameter existing = parameterRepository.findByName(parameterDTO.getName());
         if (existing != null) {
-            throw new APIException("Parameter with name: " + parameterDTO.getName() + " already exists.");
+            throw new APIException("Ya existe un parámetro con el nombre '" + parameterDTO.getName() + "'.");
         }
         Parameter parameter = modelMapper.map(parameterDTO, Parameter.class);
         if (parameterDTO.getUnitId() != null) {

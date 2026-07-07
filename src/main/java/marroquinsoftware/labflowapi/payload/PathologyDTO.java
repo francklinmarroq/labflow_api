@@ -10,6 +10,6 @@ import lombok.NoArgsConstructor;
 @AllArgsConstructor
 public class PathologyDTO {
     private Long id;
-    @NotBlank
+    @NotBlank(message = "El nombre de la patología es obligatorio")
     private String name;
 }

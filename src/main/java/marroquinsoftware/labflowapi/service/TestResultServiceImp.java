@@ -41,7 +41,7 @@ public class TestResultServiceImp implements TestResultService {
         TestResult result = testResultRepository.findById(resultId)
                 .orElseThrow(() -> new ResourceNotFoundException("TestResult", "resultId", resultId));
         if (!result.getTestRun().getId().equals(runId)) {
-            throw new APIException("Result with id: " + resultId + " does not belong to run with id: " + runId);
+            throw new APIException("El resultado no pertenece a la corrida indicada. Recargue la página e intente de nuevo.");
         }
         result.setValue(dto.getValue());
         return toDTO(testResultRepository.save(result));
@@ -52,7 +52,7 @@ public class TestResultServiceImp implements TestResultService {
         TestResult result = testResultRepository.findById(resultId)
                 .orElseThrow(() -> new ResourceNotFoundException("TestResult", "resultId", resultId));
         if (!result.getTestRun().getId().equals(runId)) {
-            throw new APIException("Result with id: " + resultId + " does not belong to run with id: " + runId);
+            throw new APIException("El resultado no pertenece a la corrida indicada. Recargue la página e intente de nuevo.");
         }
         testResultRepository.delete(result);
         return toDTO(result);
