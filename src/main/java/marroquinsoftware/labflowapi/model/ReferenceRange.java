@@ -32,7 +32,15 @@ public class ReferenceRange {
 
     @ManyToOne
     @JoinColumn(name = "age_range_id")
-    private AgeRange ageRange; // null = applies to all ages
+    private AgeRange ageRange; // null = applies to all ages (grupo de edad con nombre, reutilizable)
+
+    // Límites de edad propios de esta fila, para tablas de valores "por edad" que
+    // no reutilizan un grupo con nombre (ej. fosfatasa alcalina: recién nacido,
+    // 1 mes, 1 año…). Si están presentes tienen prioridad sobre ageRange. Una
+    // "edad específica" se expresa como escalón: solo minAgeDays ("desde"), y el
+    // reporte elige la fila con el mayor "desde" ≤ la edad del paciente.
+    private Integer minAgeDays;
+    private Integer maxAgeDays;
 
     private BigDecimal lowerLimit;
     @ColumnDefault("false")

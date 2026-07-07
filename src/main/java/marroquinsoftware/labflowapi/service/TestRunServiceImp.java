@@ -174,6 +174,8 @@ public class TestRunServiceImp implements TestRunService {
         d.setParameterId(r.getParameter().getId());
         d.setSex(r.getSex());
         d.setAgeRangeId(r.getAgeRange() != null ? r.getAgeRange().getId() : null);
+        d.setMinAgeDays(r.getMinAgeDays());
+        d.setMaxAgeDays(r.getMaxAgeDays());
         d.setLowerLimit(r.getLowerLimit());
         d.setLowerExclusive(r.isLowerExclusive());
         d.setUpperLimit(r.getUpperLimit());
