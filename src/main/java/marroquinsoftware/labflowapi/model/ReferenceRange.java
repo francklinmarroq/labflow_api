@@ -45,4 +45,16 @@ public class ReferenceRange {
     private BigDecimal criticalLow;
     private BigDecimal criticalHigh;
     private String interpretationText;
+
+    // Contexto fisiológico del rango (fase del ciclo, gestación, menopausia).
+    // NONE = rango común que aplica solo por sexo/edad. Cuando no es NONE, la
+    // ventana contextMin/contextMax define en qué día del ciclo o semana de
+    // gestación aplica, para que el reporte lo seleccione automáticamente.
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'NONE'")
+    @Column(nullable = false)
+    private ReferenceContextKind contextKind = ReferenceContextKind.NONE;
+    private String contextLabel; // texto impreso: "Fase lútea", "Gestación 2.º trim.", "Hombres"
+    private Integer contextMin;
+    private Integer contextMax;
 }

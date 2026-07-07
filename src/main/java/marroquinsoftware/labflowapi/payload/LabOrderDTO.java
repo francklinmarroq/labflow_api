@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import marroquinsoftware.labflowapi.model.OrderStatus;
 
 import java.time.Instant;
+import java.time.LocalDate;
 
 @Data
 @NoArgsConstructor
@@ -19,4 +20,8 @@ public class LabOrderDTO {
     private Instant requestedAt;
     private OrderStatus status;
     private String notes;
+    private LocalDate lmpDate;
+    private boolean pregnant;
+    private Integer gestationalWeeks;
+    private boolean menopausal;
 }

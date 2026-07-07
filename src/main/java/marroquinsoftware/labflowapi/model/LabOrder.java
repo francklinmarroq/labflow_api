@@ -6,9 +6,11 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.TenantId;
 
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 @Entity
@@ -47,6 +49,19 @@ public class LabOrder {
     private OrderStatus status;
 
     private String notes;
+
+    // Contexto clínico de la visita, capturado una vez, del que se computa el día
+    // del ciclo / semana gestacional para elegir el rango de referencia que aplica
+    // en pruebas por fase (progesterona, FSH, LH, gestación…). Solo relevante para
+    // pacientes de sexo femenino.
+    private LocalDate lmpDate; // fecha de última menstruación (FUM)
+    @ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean pregnant;
+    private Integer gestationalWeeks; // override si no hay FUM
+    @ColumnDefault("false")
+    @Column(nullable = false)
+    private boolean menopausal;
 
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
