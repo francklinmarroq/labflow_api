@@ -181,6 +181,10 @@ public class TestRunServiceImp implements TestRunService {
         d.setCriticalLow(r.getCriticalLow());
         d.setCriticalHigh(r.getCriticalHigh());
         d.setInterpretationText(r.getInterpretationText());
+        d.setContextKind(r.getContextKind());
+        d.setContextLabel(r.getContextLabel());
+        d.setContextMin(r.getContextMin());
+        d.setContextMax(r.getContextMax());
         return d;
     }
 }

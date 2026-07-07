@@ -4,6 +4,7 @@ import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import marroquinsoftware.labflowapi.model.ReferenceContextKind;
 import marroquinsoftware.labflowapi.model.Sex;
 
 import java.math.BigDecimal;
@@ -26,4 +27,9 @@ public class ReferenceRangeDTO {
     private BigDecimal criticalLow;
     private BigDecimal criticalHigh;
     private String interpretationText;
+
+    private ReferenceContextKind contextKind = ReferenceContextKind.NONE;
+    private String contextLabel;
+    private Integer contextMin;
+    private Integer contextMax;
 }

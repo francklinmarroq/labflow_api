@@ -66,6 +66,7 @@ public class LabOrderServiceImp implements LabOrderService {
         order.setRequestedAt(dto.getRequestedAt() != null ? dto.getRequestedAt() : Instant.now());
         order.setStatus(dto.getStatus() != null ? dto.getStatus() : OrderStatus.PENDING);
         order.setNotes(dto.getNotes());
+        applyClinicalContext(order, dto);
         return toDTO(labOrderRepository.save(order));
     }
 
@@ -108,6 +109,7 @@ public class LabOrderServiceImp implements LabOrderService {
         if (dto.getRequestedAt() != null) order.setRequestedAt(dto.getRequestedAt());
         if (dto.getStatus() != null) order.setStatus(dto.getStatus());
         order.setNotes(dto.getNotes());
+        applyClinicalContext(order, dto);
         return toDTO(labOrderRepository.save(order));
     }
 
@@ -122,6 +124,16 @@ public class LabOrderServiceImp implements LabOrderService {
         return toDTO(order);
     }
 
+    // El contexto clínico se guarda tal cual llega del formulario (la orden envía
+    // el estado completo). Si no es gestante, se descarta la semana de gestación
+    // para no dejar datos incoherentes.
+    private void applyClinicalContext(LabOrder order, LabOrderDTO dto) {
+        order.setLmpDate(dto.getLmpDate());
+        order.setPregnant(dto.isPregnant());
+        order.setGestationalWeeks(dto.isPregnant() ? dto.getGestationalWeeks() : null);
+        order.setMenopausal(dto.isMenopausal());
+    }
+
     private LabOrderDTO toDTO(LabOrder order) {
         LabOrderDTO dto = new LabOrderDTO();
         dto.setId(order.getId());
@@ -130,6 +142,10 @@ public class LabOrderServiceImp implements LabOrderService {
         dto.setRequestedAt(order.getRequestedAt());
         dto.setStatus(order.getStatus());
         dto.setNotes(order.getNotes());
+        dto.setLmpDate(order.getLmpDate());
+        dto.setPregnant(order.isPregnant());
+        dto.setGestationalWeeks(order.getGestationalWeeks());
+        dto.setMenopausal(order.isMenopausal());
         return dto;
     }
 }
