@@ -20,6 +20,8 @@ public class ReferenceRangeDTO {
 
     private Sex sex;
     private Long ageRangeId; // null = applies to all ages
+    private Integer minAgeDays; // límites de edad propios de la fila (prioridad sobre ageRangeId)
+    private Integer maxAgeDays;
     private BigDecimal lowerLimit;
     private boolean lowerExclusive;
     private BigDecimal upperLimit;
