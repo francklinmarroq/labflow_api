@@ -100,6 +100,8 @@ public class CatalogSeeder {
             rr.setParameter(parameters.get(r.parameter_id()));
             rr.setSex(parseEnum(Sex.class, r.sex()));
             if (r.age_range_id() != null) rr.setAgeRange(ageRanges.get(r.age_range_id()));
+            rr.setMinAgeDays(r.min_age_days());
+            rr.setMaxAgeDays(r.max_age_days());
             rr.setLowerLimit(r.lower_limit());
             rr.setLowerExclusive(Boolean.TRUE.equals(r.lower_exclusive()));
             rr.setUpperLimit(r.upper_limit());
@@ -107,6 +109,11 @@ public class CatalogSeeder {
             rr.setCriticalLow(r.critical_low());
             rr.setCriticalHigh(r.critical_high());
             rr.setInterpretationText(r.interpretation_text());
+            ReferenceContextKind contextKind = parseEnum(ReferenceContextKind.class, r.context_kind());
+            if (contextKind != null) rr.setContextKind(contextKind);
+            rr.setContextLabel(r.context_label());
+            rr.setContextMin(r.context_min());
+            rr.setContextMax(r.context_max());
             referenceRangeRepository.save(rr);
         }
 
@@ -182,9 +189,12 @@ public class CatalogSeeder {
 
     private record ReferenceRangeRow(
             Long id, Long parameter_id, String sex, Long age_range_id,
+            Integer min_age_days, Integer max_age_days,
             BigDecimal lower_limit, Boolean lower_exclusive,
             BigDecimal upper_limit, Boolean upper_exclusive,
-            BigDecimal critical_low, BigDecimal critical_high, String interpretation_text) {}
+            BigDecimal critical_low, BigDecimal critical_high, String interpretation_text,
+            String context_kind, String context_label,
+            Integer context_min, Integer context_max) {}
 
     private record TestRow(Long id, String name, BigDecimal price, BigDecimal cost, String area) {}
 
