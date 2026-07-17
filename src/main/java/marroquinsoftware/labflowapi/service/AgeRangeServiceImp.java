@@ -49,7 +49,7 @@ public class AgeRangeServiceImp implements AgeRangeService {
     @Override
     public AgeRangeDTO createAgeRange(AgeRangeDTO dto) {
         if (ageRangeRepository.findByName(dto.getName()) != null) {
-            throw new APIException("Age range with name: " + dto.getName() + " already exists.");
+            throw new APIException("Ya existe un rango de edad con el nombre '" + dto.getName() + "'.");
         }
         AgeRange saved = ageRangeRepository.save(modelMapper.map(dto, AgeRange.class));
         return modelMapper.map(saved, AgeRangeDTO.class);

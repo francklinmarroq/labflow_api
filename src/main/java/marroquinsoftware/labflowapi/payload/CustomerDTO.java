@@ -13,7 +13,7 @@ import java.util.List;
 @AllArgsConstructor
 public class CustomerDTO {
     private Long id;
-    @NotBlank
+    @NotBlank(message = "El nombre del paciente es obligatorio")
     private String name;
     private Integer ageInDays;
     private Sex sex;

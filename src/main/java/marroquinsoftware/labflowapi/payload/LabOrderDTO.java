@@ -15,7 +15,7 @@ import java.time.LocalDate;
 public class LabOrderDTO {
     private Long id;
     private Long orderNumber;
-    @NotNull
+    @NotNull(message = "Debe seleccionar un paciente")
     private Long customerId;
     private Instant requestedAt;
     private OrderStatus status;

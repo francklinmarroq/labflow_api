@@ -11,7 +11,7 @@ import lombok.NoArgsConstructor;
 public class AgeRangeDTO {
     private Long id;
 
-    @NotBlank
+    @NotBlank(message = "El nombre del rango de edad es obligatorio")
     private String name;
 
     private Integer minAgeDays;

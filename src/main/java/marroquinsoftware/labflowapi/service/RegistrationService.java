@@ -39,7 +39,7 @@ public class RegistrationService {
     @Transactional
     public User register(RegisterRequest request) {
         if (userRepository.existsByUsername(request.getUsername())) {
-            throw new APIException("Username already taken");
+            throw new APIException("Este correo ya está registrado. Use otro correo o inicie sesión.");
         }
 
         Laboratory laboratory = modelMapper.map(request.getLaboratory(), Laboratory.class);

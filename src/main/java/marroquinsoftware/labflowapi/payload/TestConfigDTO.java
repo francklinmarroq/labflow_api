@@ -19,13 +19,13 @@ import java.util.Map;
 public class TestConfigDTO {
     private Long id;
 
-    @NotNull
+    @NotNull(message = "Debe seleccionar un examen")
     private Long testId;
 
-    @NotBlank
+    @NotBlank(message = "El nombre del perfil es obligatorio")
     private String name;
 
-    @NotEmpty
+    @NotEmpty(message = "Debe seleccionar al menos un parámetro")
     private List<Long> parameterIds;
 
     private boolean active;

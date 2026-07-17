@@ -21,13 +21,15 @@ public class AuthEntryPoint implements AuthenticationEntryPoint {
 
     @Override
     public void commence(HttpServletRequest request, HttpServletResponse response, AuthenticationException authException) throws IOException, ServletException {
-        LOGGER.error("Unauthorized error: {}", authException.getMessage());
+        LOGGER.warn("Acceso no autorizado a {}: {}", request.getServletPath(), authException.getMessage());
         response.setContentType(MediaType.APPLICATION_JSON_VALUE);
         response.setStatus(HttpServletResponse.SC_UNAUTHORIZED);
         final Map<String, Object> body = new HashMap<>();
         body.put("status", HttpServletResponse.SC_UNAUTHORIZED);
         body.put("error", "Unauthorized");
-        body.put("message", authException.getMessage());
+        // El detalle técnico de Spring Security va al log; al usuario solo se le
+        // pide volver a iniciar sesión (causa típica: token vencido o ausente).
+        body.put("message", "Su sesión expiró o no ha iniciado sesión. Inicie sesión de nuevo.");
         body.put("path", request.getServletPath());
 
         final ObjectMapper mapper = new ObjectMapper();

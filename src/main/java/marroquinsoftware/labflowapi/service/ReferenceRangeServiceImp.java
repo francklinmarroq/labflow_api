@@ -80,7 +80,7 @@ public class ReferenceRangeServiceImp implements ReferenceRangeService {
                 .orElseThrow(() -> new ResourceNotFoundException("ReferenceRange", "rangeId", rangeId));
 
         if (!range.getParameter().getId().equals(parameterId)) {
-            throw new APIException("Reference range with id: " + rangeId + " does not belong to parameter with id: " + parameterId);
+            throw new APIException("El rango de referencia no pertenece al parámetro indicado. Recargue la página e intente de nuevo.");
         }
 
         Parameter parameter = range.getParameter();
@@ -101,7 +101,7 @@ public class ReferenceRangeServiceImp implements ReferenceRangeService {
                 .orElseThrow(() -> new ResourceNotFoundException("ReferenceRange", "rangeId", rangeId));
 
         if (!range.getParameter().getId().equals(parameterId)) {
-            throw new APIException("Reference range with id: " + rangeId + " does not belong to parameter with id: " + parameterId);
+            throw new APIException("El rango de referencia no pertenece al parámetro indicado. Recargue la página e intente de nuevo.");
         }
 
         referenceRangeRepository.delete(range);

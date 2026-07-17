@@ -61,12 +61,12 @@ public class LabTestServiceImp implements LabTestService {
         LabTest labTest = labTestRepository.findById(labTestId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "labTestId", labTestId));
         if (!labTest.getOrder().getId().equals(orderId)) {
-            throw new APIException("LabTest with id: " + labTestId + " does not belong to order with id: " + orderId);
+            throw new APIException("El examen no pertenece a la orden indicada. Recargue la página e intente de nuevo.");
         }
         TestConfig testConfig = testConfigRepository.findById(testConfigId)
                 .orElseThrow(() -> new ResourceNotFoundException("TestConfig", "testConfigId", testConfigId));
         if (!testConfig.getTest().getId().equals(labTest.getTest().getId())) {
-            throw new APIException("TestConfig '" + testConfig.getName() + "' is not a template for test '" + labTest.getTest().getName() + "'");
+            throw new APIException("El perfil '" + testConfig.getName() + "' no corresponde al examen '" + labTest.getTest().getName() + "'.");
         }
         labTest.setTestConfig(testConfig);
         return toDTO(labTestRepository.save(labTest));
@@ -77,7 +77,7 @@ public class LabTestServiceImp implements LabTestService {
         LabTest labTest = labTestRepository.findById(labTestId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "labTestId", labTestId));
         if (!labTest.getOrder().getId().equals(orderId)) {
-            throw new APIException("LabTest with id: " + labTestId + " does not belong to order with id: " + orderId);
+            throw new APIException("El examen no pertenece a la orden indicada. Recargue la página e intente de nuevo.");
         }
         labTest.setNotes(notes);
         return toDTO(labTestRepository.save(labTest));
@@ -88,7 +88,7 @@ public class LabTestServiceImp implements LabTestService {
         LabTest labTest = labTestRepository.findById(labTestId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "labTestId", labTestId));
         if (!labTest.getOrder().getId().equals(orderId)) {
-            throw new APIException("LabTest with id: " + labTestId + " does not belong to order with id: " + orderId);
+            throw new APIException("El examen no pertenece a la orden indicada. Recargue la página e intente de nuevo.");
         }
         labTest.setSampleType(sampleType);
         return toDTO(labTestRepository.save(labTest));
@@ -99,7 +99,7 @@ public class LabTestServiceImp implements LabTestService {
         LabTest labTest = labTestRepository.findById(testId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "testId", testId));
         if (!labTest.getOrder().getId().equals(orderId)) {
-            throw new APIException("LabTest with id: " + testId + " does not belong to order with id: " + orderId);
+            throw new APIException("El examen no pertenece a la orden indicada. Recargue la página e intente de nuevo.");
         }
         labTestRepository.delete(labTest);
         return toDTO(labTest);

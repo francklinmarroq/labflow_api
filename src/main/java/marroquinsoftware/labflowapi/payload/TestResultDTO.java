@@ -13,7 +13,7 @@ import java.util.List;
 public class TestResultDTO {
     private Long id;
     private Long testRunId;
-    @NotNull
+    @NotNull(message = "Debe indicar el parámetro del resultado")
     private Long parameterId;
     private String value;
 

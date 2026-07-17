@@ -33,10 +33,8 @@ public class UnitServiceImp implements UnitService {
         Sort sortByAndOrder = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortDir).descending();
         Pageable pageDetails = PageRequest.of(pageNumer, pageSize, sortByAndOrder);
         Page<Unit> unitPage = unitRepository.findAll(pageDetails);
+        // Un catálogo vacío no es un error: se devuelve la página sin contenido.
         List<Unit> savedUnits = unitPage.getContent();
-        if (savedUnits.isEmpty()){
-            throw new APIException("There are no units saved.");
-        }
         List<UnitDTO> unitDTOS = savedUnits.stream().map(unit -> modelMapper.map(unit, UnitDTO.class)).toList();
         UnitResponse unitResponse = new UnitResponse();
         unitResponse.setPageNumber(unitPage.getNumber());
@@ -54,7 +52,7 @@ public class UnitServiceImp implements UnitService {
         Unit unit = modelMapper.map(unitDTO, Unit.class);
         Unit existingUnit = unitRepository.findByUnitSymbol(unit.getUnitSymbol());
         if (existingUnit != null){
-            throw new APIException("Unit with symbol: " + unit.getUnitSymbol() + " already exists.");
+            throw new APIException("Ya existe una unidad con el símbolo '" + unit.getUnitSymbol() + "'.");
         }
         Unit savedUnit = unitRepository.save(unit);
         return modelMapper.map(savedUnit, UnitDTO.class);

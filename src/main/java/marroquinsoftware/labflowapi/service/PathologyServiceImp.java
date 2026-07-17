@@ -46,7 +46,7 @@ public class PathologyServiceImp implements PathologyService {
     @Override
     public PathologyDTO createPathology(PathologyDTO dto) {
         if (pathologyRepository.findByName(dto.getName()) != null) {
-            throw new APIException("Pathology with name: " + dto.getName() + " already exists.");
+            throw new APIException("Ya existe una patología con el nombre '" + dto.getName() + "'.");
         }
         Pathology saved = pathologyRepository.save(modelMapper.map(dto, Pathology.class));
         return modelMapper.map(saved, PathologyDTO.class);
@@ -58,7 +58,7 @@ public class PathologyServiceImp implements PathologyService {
                 .orElseThrow(() -> new ResourceNotFoundException("Pathology", "pathologyId", id));
         Pathology existing = pathologyRepository.findByName(dto.getName());
         if (existing != null && !existing.getId().equals(id)) {
-            throw new APIException("Pathology with name: " + dto.getName() + " already exists.");
+            throw new APIException("Ya existe una patología con el nombre '" + dto.getName() + "'.");
         }
         pathology.setName(dto.getName());
         return modelMapper.map(pathologyRepository.save(pathology), PathologyDTO.class);

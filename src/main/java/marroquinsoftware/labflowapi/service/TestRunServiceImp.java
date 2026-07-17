@@ -22,6 +22,7 @@ import marroquinsoftware.labflowapi.repositories.TestResultRepository;
 import marroquinsoftware.labflowapi.repositories.TestRunRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.Collections;
@@ -56,7 +57,13 @@ public class TestRunServiceImp implements TestRunService {
         return testRunRepository.findByTest_IdOrderByRunNumberAsc(testId).stream().map(this::toDTO).toList();
     }
 
+    /**
+     * La corrida y sus resultados se guardan en una sola transacción: si un
+     * parámetro no existe o falla el snapshot de rangos, no queda una corrida
+     * huérfana sin resultados.
+     */
     @Override
+    @Transactional
     public TestRunDTO addRunToTest(Long testId, TestRunDTO dto) {
         LabTest test = labTestRepository.findById(testId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "testId", testId));
@@ -94,7 +101,10 @@ public class TestRunServiceImp implements TestRunService {
         return toDTO(savedRun);
     }
 
+    // Desmarca todas las corridas y marca la elegida en una sola transacción,
+    // para que nunca queden dos verificadas (o ninguna) si algo falla a medias.
     @Override
+    @Transactional
     public TestRunDTO verifyRun(Long testId, Long runId) {
         if (!labTestRepository.existsById(testId)) {
             throw new ResourceNotFoundException("LabTest", "testId", testId);
@@ -115,7 +125,7 @@ public class TestRunServiceImp implements TestRunService {
         TestRun run = testRunRepository.findById(runId)
                 .orElseThrow(() -> new ResourceNotFoundException("TestRun", "runId", runId));
         if (!run.getTest().getId().equals(testId)) {
-            throw new APIException("Run with id: " + runId + " does not belong to test with id: " + testId);
+            throw new APIException("La corrida de resultados no pertenece al examen indicado. Recargue la página e intente de nuevo.");
         }
         testRunRepository.delete(run);
         return toDTO(run);
