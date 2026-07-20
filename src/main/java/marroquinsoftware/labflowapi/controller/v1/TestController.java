@@ -3,7 +3,9 @@ package marroquinsoftware.labflowapi.controller.v1;
 import jakarta.validation.Valid;
 import marroquinsoftware.labflowapi.config.AppConstants;
 import marroquinsoftware.labflowapi.payload.TestDTO;
+import marroquinsoftware.labflowapi.payload.TestFullDTO;
 import marroquinsoftware.labflowapi.payload.TestResponse;
+import marroquinsoftware.labflowapi.service.TestBuilderService;
 import marroquinsoftware.labflowapi.service.TestService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -17,6 +19,9 @@ public class TestController {
 
     @Autowired
     private TestService testService;
+
+    @Autowired
+    private TestBuilderService testBuilderService;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('CATALOG_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_ENTER_RESULTS','ORDERS_PRINT')")
@@ -44,5 +49,27 @@ public class TestController {
     @PreAuthorize("hasAuthority('CATALOG_DELETE')")
     public ResponseEntity<TestDTO> deleteTest(@PathVariable Long testId) {
         return new ResponseEntity<>(testService.deleteTest(testId), HttpStatus.OK);
+    }
+
+    // --- Editor unificado: examen + perfil + parámetros con rangos en un solo paso ---
+
+    @GetMapping("/{testId}/full")
+    @PreAuthorize("hasAuthority('CATALOG_VIEW')")
+    public ResponseEntity<TestFullDTO> getFullTest(@PathVariable Long testId) {
+        return new ResponseEntity<>(testBuilderService.getFull(testId), HttpStatus.OK);
+    }
+
+    @PostMapping("/full")
+    @PreAuthorize("hasAuthority('CATALOG_CREATE')")
+    public ResponseEntity<TestFullDTO> createFullTest(@Valid @RequestBody TestFullDTO dto) {
+        return new ResponseEntity<>(testBuilderService.createFull(dto), HttpStatus.CREATED);
+    }
+
+    @PutMapping("/{testId}/full")
+    @PreAuthorize("hasAuthority('CATALOG_EDIT')")
+    public ResponseEntity<TestFullDTO> updateFullTest(
+            @Valid @RequestBody TestFullDTO dto,
+            @PathVariable Long testId) {
+        return new ResponseEntity<>(testBuilderService.updateFull(dto, testId), HttpStatus.OK);
     }
 }
