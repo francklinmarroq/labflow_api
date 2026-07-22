@@ -14,6 +14,10 @@ public enum Permission {
     ORDERS_REFER("Órdenes", "Remitir exámenes"),
     ORDERS_DELETE("Órdenes", "Cancelar órdenes"),
 
+    QUOTES_VIEW("Cotizaciones", "Ver cotizaciones"),
+    QUOTES_CREATE("Cotizaciones", "Crear cotizaciones"),
+    QUOTES_DELETE("Cotizaciones", "Eliminar cotizaciones"),
+
     PATIENTS_VIEW("Pacientes", "Ver pacientes"),
     PATIENTS_CREATE("Pacientes", "Crear pacientes"),
     PATIENTS_EDIT("Pacientes", "Editar pacientes"),

@@ -6,6 +6,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Entity
@@ -42,6 +43,16 @@ public class Laboratory {
     private String cai2RangeFrom;
     private String cai2RangeTo;
     private String cai2CurrentNumber;
+
+    // Descuentos por edad que se aplican solos en las cotizaciones. El umbral es
+    // la edad mínima en años cumplidos y el porcentaje va de 0 a 100. Si el
+    // umbral o el porcentaje están vacíos, ese tramo no da descuento.
+    private Integer thirdAgeMinYears;
+    @Column(precision = 5, scale = 2)
+    private BigDecimal thirdAgeDiscountPercent;
+    private Integer fourthAgeMinYears;
+    @Column(precision = 5, scale = 2)
+    private BigDecimal fourthAgeDiscountPercent;
 
     @OneToOne
     private User owner;

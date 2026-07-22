@@ -16,9 +16,10 @@ public class LaboratoryController {
     @Autowired
     private LaboratoryService laboratoryService;
 
-    // La impresión de órdenes también lee los datos del laboratorio (membrete).
+    // La impresión de órdenes y cotizaciones también lee los datos del
+    // laboratorio (membrete).
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('LAB_SETTINGS_VIEW','LAB_SETTINGS_EDIT','ORDERS_PRINT')")
+    @PreAuthorize("hasAnyAuthority('LAB_SETTINGS_VIEW','LAB_SETTINGS_EDIT','ORDERS_PRINT','QUOTES_VIEW','QUOTES_CREATE')")
     public ResponseEntity<LaboratoryDTO> getLaboratory() {
         return new ResponseEntity<>(laboratoryService.getLaboratory(), HttpStatus.OK);
     }
