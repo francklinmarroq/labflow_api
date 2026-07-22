@@ -114,6 +114,12 @@ public class LabOrderServiceImp implements LabOrderService {
     }
 
     @Override
+    public LabOrderDTO getOrderById(Long id) {
+        return toDTO(labOrderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", id)));
+    }
+
+    @Override
     public LabOrderDTO deleteOrder(Long id) {
         LabOrder order = labOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", id));

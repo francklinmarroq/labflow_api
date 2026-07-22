@@ -78,6 +78,12 @@ public class CustomerServiceImp implements CustomerService {
     }
 
     @Override
+    public CustomerDTO getCustomerById(Long id) {
+        return toDTO(customerRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerId", id)));
+    }
+
+    @Override
     public CustomerDTO deleteCustomer(Long id) {
         Customer customer = customerRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerId", id));

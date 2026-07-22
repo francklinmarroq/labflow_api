@@ -77,4 +77,26 @@ export default {
     // su pool de conexiones a Postgres entre llamadas.
     return getContainer(env.API_CONTAINER).fetch(request);
   },
+
+  // Warm-up: arrancar la JVM cuesta ~28 s y ese costo lo paga entero el primer
+  // usuario que entra despues de una pausa. El cron le pega a /health cada pocos
+  // minutos para que el contenedor no llegue a dormirse (ver sleepAfter arriba).
+  //
+  // Los horarios estan en wrangler.jsonc y cubren solo el horario de atencion:
+  // mantener vivo un standard-2 las 24 h se paga, y de madrugada nadie entra. Si
+  // alguien entra fuera de ese rango, sigue funcionando — solo espera el arranque.
+  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
+    ctx.waitUntil(
+      getContainer(env.API_CONTAINER)
+        .fetch(new Request("https://labflow-api.internal/api/v1/health"))
+        .then(async (res) => {
+          console.log(`labflow-api: warm-up ${res.status}`);
+        })
+        .catch((error) => {
+          // Que falle un warm-up no es critico: el proximo cron reintenta y, en
+          // el peor caso, el usuario paga el arranque en frio como antes.
+          console.error("labflow-api: warm-up fallido", error);
+        }),
+    );
+  },
 } satisfies ExportedHandler<Env>;

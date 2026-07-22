@@ -4,15 +4,22 @@ import marroquinsoftware.labflowapi.model.ReferenceRange;
 import marroquinsoftware.labflowapi.model.Sex;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.domain.Sort;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 
 public interface ReferenceRangeRepository extends JpaRepository<ReferenceRange, Long> {
 
     Page<ReferenceRange> findByParameterId(Long parameterId, Pageable pageable);
+
+    // Versión por lote: la pantalla de una orden necesita los rangos de todos los
+    // parámetros a la vez, y pedirlos de a uno costaba una llamada HTTP por
+    // parámetro (veinte y pico en un hemograma).
+    List<ReferenceRange> findByParameterIdIn(Collection<Long> parameterIds, Sort sort);
 
     // Filtra por edad usando los límites propios de la fila (minAgeDays/maxAgeDays)
     // si están presentes; si no, cae al grupo de edad con nombre (ageRange). El

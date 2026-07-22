@@ -39,6 +39,14 @@ public class CustomerController {
         return new ResponseEntity<>(customerService.getAllCustomers(pageNumber, pageSize, sortBy, sortOrder), HttpStatus.OK);
     }
 
+    // Mismo caso que en órdenes: las vistas de detalle necesitan un paciente, no
+    // el padrón entero.
+    @GetMapping("/{customerId}")
+    @PreAuthorize("hasAnyAuthority('PATIENTS_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_PRINT','QUOTES_CREATE')")
+    public ResponseEntity<CustomerDTO> getCustomerById(@PathVariable Long customerId) {
+        return new ResponseEntity<>(customerService.getCustomerById(customerId), HttpStatus.OK);
+    }
+
     // Al crear una orden se puede registrar al paciente en el mismo flujo.
     @PostMapping
     @PreAuthorize("hasAnyAuthority('PATIENTS_CREATE','ORDERS_CREATE')")
