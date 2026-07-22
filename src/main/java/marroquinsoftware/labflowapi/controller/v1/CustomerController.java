@@ -27,9 +27,10 @@ public class CustomerController {
     @Autowired
     private PatientHistoryService patientHistoryService;
 
-    // Las vistas de órdenes también leen pacientes (crear orden, imprimir).
+    // Las vistas de órdenes y cotizaciones también leen pacientes (crear orden,
+    // imprimir, cotizar sobre un paciente ya registrado).
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('PATIENTS_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_PRINT')")
+    @PreAuthorize("hasAnyAuthority('PATIENTS_VIEW','ORDERS_VIEW','ORDERS_CREATE','ORDERS_PRINT','QUOTES_CREATE')")
     public ResponseEntity<CustomerResponse> getAllCustomers(
             @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
             @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,

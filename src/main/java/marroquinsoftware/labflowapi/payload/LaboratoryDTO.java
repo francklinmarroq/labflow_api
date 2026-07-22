@@ -1,10 +1,15 @@
 package marroquinsoftware.labflowapi.payload;
 
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 
 @Data
@@ -34,4 +39,19 @@ public class LaboratoryDTO {
     private String cai2RangeFrom;
     private String cai2RangeTo;
     private String cai2CurrentNumber;
+
+    // Descuentos por edad aplicados automáticamente en las cotizaciones.
+    @Min(value = 0, message = "La edad de la tercera edad no puede ser negativa")
+    @Max(value = 130, message = "La edad de la tercera edad no es válida")
+    private Integer thirdAgeMinYears;
+    @DecimalMin(value = "0.0", message = "El descuento de tercera edad no puede ser negativo")
+    @DecimalMax(value = "100.0", message = "El descuento de tercera edad no puede pasar de 100%")
+    private BigDecimal thirdAgeDiscountPercent;
+
+    @Min(value = 0, message = "La edad de la cuarta edad no puede ser negativa")
+    @Max(value = 130, message = "La edad de la cuarta edad no es válida")
+    private Integer fourthAgeMinYears;
+    @DecimalMin(value = "0.0", message = "El descuento de cuarta edad no puede ser negativo")
+    @DecimalMax(value = "100.0", message = "El descuento de cuarta edad no puede pasar de 100%")
+    private BigDecimal fourthAgeDiscountPercent;
 }
