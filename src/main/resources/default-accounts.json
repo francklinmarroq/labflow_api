@@ -1,0 +1,18 @@
+{
+  "accounts": [
+    { "code": "1101", "name": "Caja", "type": "ACTIVO", "system_key": "CAJA" },
+    { "code": "1102", "name": "Bancos", "type": "ACTIVO", "system_key": "BANCOS" },
+    { "code": "1103", "name": "Cuentas por cobrar clientes", "type": "ACTIVO", "system_key": "CUENTAS_POR_COBRAR" },
+    { "code": "1201", "name": "Mobiliario y equipo de laboratorio", "type": "ACTIVO", "system_key": null },
+    { "code": "2101", "name": "Cuentas por pagar", "type": "PASIVO", "system_key": null },
+    { "code": "3101", "name": "Capital", "type": "CAPITAL", "system_key": "CAPITAL" },
+    { "code": "4101", "name": "Ingresos por servicios de laboratorio", "type": "INGRESO", "system_key": "INGRESOS_SERVICIOS" },
+    { "code": "4201", "name": "Descuentos sobre ventas", "type": "INGRESO", "system_key": "DESCUENTOS_VENTAS" },
+    { "code": "5101", "name": "Sueldos y salarios", "type": "GASTO", "system_key": null },
+    { "code": "5102", "name": "Alquileres", "type": "GASTO", "system_key": null },
+    { "code": "5103", "name": "Servicios públicos", "type": "GASTO", "system_key": null },
+    { "code": "5104", "name": "Reactivos e insumos de laboratorio", "type": "GASTO", "system_key": null },
+    { "code": "5105", "name": "Papelería y útiles", "type": "GASTO", "system_key": null },
+    { "code": "5199", "name": "Otros gastos", "type": "GASTO", "system_key": null }
+  ]
+}
