@@ -1,0 +1,49 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "labflow-api",
+  "main": "worker/index.ts",
+  "compatibility_date": "2026-07-01",
+
+  "containers": [
+    {
+      "class_name": "LabflowApiContainer",
+      // wrangler construye este Dockerfile y sube la imagen al registry de
+      // Cloudflare en cada `wrangler deploy`.
+      "image": "./Dockerfile",
+      // standard-1 = 1/2 vCPU, 4 GiB, 8 GB de disco. La RAM sobra; lo que puede
+      // quedar corto es el vCPU durante el arranque de la JVM. Si el primer
+      // request tarda demasiado, subir a standard-2 (1 vCPU, 6 GiB).
+      "instance_type": "standard-1",
+      // Una sola instancia: el Worker rutea todo al mismo contenedor, que
+      // mantiene su pool de conexiones contra Postgres.
+      "max_instances": 1
+    }
+  ],
+
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "API_CONTAINER",
+        "class_name": "LabflowApiContainer"
+      }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["LabflowApiContainer"]
+    }
+  ],
+
+  "vars": {
+    // Configuracion no sensible. Lo secreto (DB_URL, DB_USERNAME, DB_PASSWORD,
+    // JWT_SECRET, RESEND_API_KEY) va con `wrangler secret put`, nunca aca.
+    "MAIL_FROM": "no-reply@labflow.app",
+    "FRONTEND_BASE_URL": "http://localhost:3000"
+  },
+
+  "observability": {
+    "enabled": true
+  }
+}

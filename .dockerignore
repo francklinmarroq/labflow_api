@@ -2,3 +2,23 @@ target/
 *.md
 .git/
 .gitignore
+
+# Secretos: en Cloudflare las credenciales van como secrets del Worker, nunca
+# horneadas en la imagen.
+.env
+
+# Tooling del Worker y de los editores: nada de esto hace falta para compilar el
+# jar, y node_modules/ pesa mas que la propia app.
+node_modules/
+.wrangler/
+worker/
+wrangler.jsonc
+package.json
+package-lock.json
+tsconfig.json
+.claude/
+.idea/
+.settings/
+.classpath
+.project
+.factorypath
