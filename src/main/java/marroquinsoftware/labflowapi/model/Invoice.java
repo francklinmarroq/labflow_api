@@ -58,6 +58,12 @@ public class Invoice {
     private String labRtn;
     private String labAddress;
     private String labPhone;
+    private String labHeadline;
+    private String labFooterNote;
+    private String labPacNumber;
+    private String labRegExonerado;
+    private String labRegSag;
+    private String labOrdenCompraExenta;
 
     @ManyToOne
     @JoinColumn(name = "order_id", nullable = false)
@@ -93,12 +99,31 @@ public class Invoice {
     @Column(precision = 5, scale = 2)
     private BigDecimal discountPercent;
 
+    /** Bruto: suma de los precios de lista de las líneas, sin ningún descuento. */
     @Column(precision = 12, scale = 2)
     private BigDecimal subtotal;
 
+    /**
+     * Parte del descuento atribuible al tramo de edad. Si al final se rebajó
+     * menos que lo que dictaba la regla (pasa: el paciente califica al 20% pero
+     * se le dio 10%), acá queda lo que realmente se rebajó por ese concepto y no
+     * el monto teórico — así las líneas impresas siempre suman el total.
+     */
     @Column(precision = 12, scale = 2)
     private BigDecimal discountAmount;
 
+    /**
+     * Rebaja adicional a la de edad: promociones, cortesías o un precio de
+     * cierre negociado en mostrador. Sale de la diferencia entre lo que daba el
+     * cálculo automático y el total que el operador decidió cobrar.
+     *
+     * <p>Nullable por las facturas anteriores a este campo, que no tenían forma
+     * de llevar otros descuentos; ahí equivale a cero.
+     */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal otherDiscountAmount;
+
+    /** Lo que se le cobra al paciente, ya con todos los descuentos aplicados. */
     @Column(precision = 12, scale = 2)
     private BigDecimal total;
 

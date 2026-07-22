@@ -42,6 +42,23 @@ public class InvoiceItem {
     @Column(nullable = false)
     private String testName;
 
+    /**
+     * Precio de lista del catálogo al emitir. Se guarda aparte de {@code price}
+     * para que una regalía o un precio especial quede visible en la factura:
+     * la línea muestra cuánto costaba y cuánto se cobró.
+     *
+     * <p>Nullable por las facturas emitidas antes de existir este campo; ahí se
+     * asume que no hubo ajuste y vale lo mismo que {@code price}.
+     */
+    @Column(precision = 12, scale = 2)
+    private BigDecimal listPrice;
+
+    /** Lo que realmente se le cobra al paciente por esta línea. */
     @Column(precision = 12, scale = 2)
     private BigDecimal price;
+
+    /** Precio de lista con respaldo para las facturas viejas sin snapshot. */
+    public BigDecimal listPriceOrPrice() {
+        return listPrice != null ? listPrice : price;
+    }
 }

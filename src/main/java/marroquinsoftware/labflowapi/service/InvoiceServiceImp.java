@@ -24,7 +24,9 @@ import java.time.LocalDate;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 @Service
 public class InvoiceServiceImp implements InvoiceService {
@@ -37,6 +39,7 @@ public class InvoiceServiceImp implements InvoiceService {
     @Autowired private CustomerRepository customerRepository;
     @Autowired private CaiNumberService caiNumberService;
     @Autowired private AgeDiscountCalculator ageDiscountCalculator;
+    @Autowired private InvoiceTotalsCalculator invoiceTotalsCalculator;
     @Autowired private AmountInWordsConverter amountInWordsConverter;
     @Autowired private JournalService journalService;
 
@@ -55,7 +58,9 @@ public class InvoiceServiceImp implements InvoiceService {
             if (test == null) continue;
             BigDecimal price = test.getPrice() != null
                     ? test.getPrice().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-            items.add(new InvoiceItemDTO(null, test.getId(), test.getName(), price));
+            // labTestId es la llave con la que el mostrador manda un precio
+            // especial para esta línea al emitir.
+            items.add(new InvoiceItemDTO(null, test.getId(), labTest.getId(), test.getName(), price, price));
             subtotal = subtotal.add(price);
         }
         subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
@@ -113,17 +118,36 @@ public class InvoiceServiceImp implements InvoiceService {
 
         Invoice invoice = new Invoice();
 
+        // Precios especiales que manda el mostrador, indexados por el examen de
+        // la orden al que aplican (regalías, promociones, precio negociado).
+        Map<Long, BigDecimal> specialPrices = new HashMap<>();
+        for (InvoiceItemPriceDTO adjustment : request.getItemPrices() == null
+                ? List.<InvoiceItemPriceDTO>of() : request.getItemPrices()) {
+            specialPrices.put(adjustment.getLabTestId(),
+                    adjustment.getPrice().setScale(2, RoundingMode.HALF_UP));
+        }
+
         // Los ítems congelan nombre y precio del catálogo vigente, igual que en
-        // cotizaciones: la factura no cambia si mañana suben las tarifas.
+        // cotizaciones: la factura no cambia si mañana suben las tarifas. Si la
+        // línea lleva precio especial, se guardan ambos para que la factura
+        // impresa muestre cuánto costaba y cuánto se cobró.
         List<InvoiceItem> items = new ArrayList<>();
         for (LabTest labTest : order.getTests()) {
             Test test = labTest.getTest();
             if (test == null) continue;
+            BigDecimal listPrice = test.getPrice() != null
+                    ? test.getPrice().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
+            BigDecimal charged = specialPrices.getOrDefault(labTest.getId(), listPrice);
+            if (charged.compareTo(listPrice) > 0) {
+                throw new APIException("El precio de «" + test.getName() + "» (L " + charged
+                        + ") no puede superar el de catálogo (L " + listPrice + ").");
+            }
             InvoiceItem item = new InvoiceItem();
             item.setInvoice(invoice);
             item.setTestId(test.getId());
             item.setTestName(test.getName());
-            item.setPrice(test.getPrice() != null ? test.getPrice().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO);
+            item.setListPrice(listPrice);
+            item.setPrice(charged);
             items.add(item);
         }
         if (items.isEmpty()) {
@@ -131,16 +155,16 @@ public class InvoiceServiceImp implements InvoiceService {
         }
         invoice.setItems(items);
 
-        BigDecimal subtotal = items.stream()
-                .map(InvoiceItem::getPrice)
-                .reduce(BigDecimal.ZERO, BigDecimal::add)
-                .setScale(2, RoundingMode.HALF_UP);
         Customer customer = order.getCustomer();
         AgeDiscountDTO discount = ageDiscountCalculator.discountFor(customer.getAgeInDays(), laboratory);
-        BigDecimal discountAmount = subtotal
-                .multiply(discount.getPercent())
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-        BigDecimal total = subtotal.subtract(discountAmount);
+        InvoiceTotalsCalculator.Totals totals = invoiceTotalsCalculator.compute(
+                items.stream().map(InvoiceItem::getListPrice).toList(),
+                items.stream().map(InvoiceItem::getPrice).toList(),
+                discount.getPercent(),
+                request.getTotal());
+        BigDecimal subtotal = totals.subtotal();
+        BigDecimal discountAmount = totals.ageDiscount();
+        BigDecimal total = totals.total();
 
         invoice.setOrder(order);
         invoice.setCustomer(customer);
@@ -152,6 +176,7 @@ public class InvoiceServiceImp implements InvoiceService {
         invoice.setDiscountPercent(discount.getPercent());
         invoice.setSubtotal(subtotal);
         invoice.setDiscountAmount(discountAmount);
+        invoice.setOtherDiscountAmount(totals.otherDiscount());
         invoice.setTotal(total);
         invoice.setPaidAmount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
 
@@ -167,6 +192,12 @@ public class InvoiceServiceImp implements InvoiceService {
         invoice.setLabRtn(laboratory.getRtn());
         invoice.setLabAddress(joinAddress(laboratory));
         invoice.setLabPhone(laboratory.getPhone());
+        invoice.setLabHeadline(laboratory.getInvoiceHeadline());
+        invoice.setLabFooterNote(laboratory.getInvoiceFooterNote());
+        invoice.setLabPacNumber(laboratory.getPacNumber());
+        invoice.setLabRegExonerado(laboratory.getRegExonerado());
+        invoice.setLabRegSag(laboratory.getRegSag());
+        invoice.setLabOrdenCompraExenta(laboratory.getOrdenCompraExenta());
 
         invoice.setIssuedAt(Instant.now());
         invoice.setIssuedByUsername(currentUsername());
@@ -409,10 +440,16 @@ public class InvoiceServiceImp implements InvoiceService {
      * mapeo es uno solo para contado, crédito y abonos parciales.
      */
     private void postIssueEntry(Invoice invoice) {
+        // Ingresos se acredita por el bruto y toda rebaja va a Descuentos sobre
+        // ventas: descuento por edad, regalías de línea y el cierre negociado.
+        // Así el asiento cuadra (total + descuentos = subtotal) y el reporte
+        // muestra cuánto se dejó de cobrar en el período.
+        BigDecimal totalDiscount = invoice.getSubtotal().subtract(invoice.getTotal());
+
         List<LinePlan> lines = new ArrayList<>();
         lines.add(LinePlan.debit(journalService.systemAccount(SystemAccountKey.CUENTAS_POR_COBRAR), invoice.getTotal()));
-        if (invoice.getDiscountAmount().compareTo(BigDecimal.ZERO) > 0) {
-            lines.add(LinePlan.debit(journalService.systemAccount(SystemAccountKey.DESCUENTOS_VENTAS), invoice.getDiscountAmount()));
+        if (totalDiscount.compareTo(BigDecimal.ZERO) > 0) {
+            lines.add(LinePlan.debit(journalService.systemAccount(SystemAccountKey.DESCUENTOS_VENTAS), totalDiscount));
         }
         lines.add(LinePlan.credit(journalService.systemAccount(SystemAccountKey.INGRESOS_SERVICIOS), invoice.getSubtotal()));
         journalService.post(
@@ -475,7 +512,8 @@ public class InvoiceServiceImp implements InvoiceService {
     private InvoiceDTO toDTO(Invoice invoice, boolean includePayments) {
         List<InvoiceItemDTO> itemDTOs = (invoice.getItems() == null ? List.<InvoiceItem>of() : invoice.getItems())
                 .stream()
-                .map(i -> new InvoiceItemDTO(i.getId(), i.getTestId(), i.getTestName(), i.getPrice()))
+                .map(i -> new InvoiceItemDTO(i.getId(), i.getTestId(), null, i.getTestName(),
+                        i.listPriceOrPrice(), i.getPrice()))
                 .toList();
         List<PaymentDTO> paymentDTOs = null;
         if (includePayments) {
@@ -486,6 +524,10 @@ public class InvoiceServiceImp implements InvoiceService {
                     .toList();
         }
         AgeDiscountKind kind = invoice.getDiscountKind() != null ? invoice.getDiscountKind() : AgeDiscountKind.NONE;
+        BigDecimal chargedTotal = (invoice.getItems() == null ? List.<InvoiceItem>of() : invoice.getItems())
+                .stream()
+                .map(InvoiceItem::getPrice)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal balance = invoice.getStatus() == InvoiceStatus.ANULADA
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
                 : invoice.getTotal().subtract(invoice.getPaidAmount()).setScale(2, RoundingMode.HALF_UP);
@@ -500,6 +542,12 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getLabRtn(),
                 invoice.getLabAddress(),
                 invoice.getLabPhone(),
+                invoice.getLabHeadline(),
+                invoice.getLabFooterNote(),
+                invoice.getLabPacNumber(),
+                invoice.getLabRegExonerado(),
+                invoice.getLabRegSag(),
+                invoice.getLabOrdenCompraExenta(),
                 invoice.getOrder() != null ? invoice.getOrder().getId() : null,
                 invoice.getOrder() != null ? invoice.getOrder().getOrderNumber() : null,
                 invoice.getCustomer() != null ? invoice.getCustomer().getId() : null,
@@ -515,7 +563,13 @@ public class InvoiceServiceImp implements InvoiceService {
                 kind.getLabel(),
                 invoice.getDiscountPercent(),
                 invoice.getSubtotal(),
+                // Las regalías de línea no se guardan aparte: son la diferencia
+                // entre el bruto y lo que suman las líneas cobradas.
+                invoice.getSubtotal().subtract(chargedTotal).setScale(2, RoundingMode.HALF_UP),
                 invoice.getDiscountAmount(),
+                invoice.getOtherDiscountAmount() != null
+                        ? invoice.getOtherDiscountAmount()
+                        : BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP),
                 invoice.getTotal(),
                 invoice.getPaidAmount(),
                 balance,

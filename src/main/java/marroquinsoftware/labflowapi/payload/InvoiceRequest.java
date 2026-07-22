@@ -1,17 +1,25 @@
 package marroquinsoftware.labflowapi.payload;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import marroquinsoftware.labflowapi.model.SaleCondition;
 
+import java.math.BigDecimal;
+import java.util.List;
+
 /**
- * Datos con los que se emite una factura desde una orden. Los exámenes y
- * precios salen de la orden (catálogo vigente) y el descuento por edad se
- * calcula solo; aquí únicamente se decide la condición de venta, el RTN del
- * cliente si pidió factura con RTN, y el pago inicial.
+ * Datos con los que se emite una factura desde una orden. Los exámenes salen de
+ * la orden y sus precios del catálogo vigente, con el descuento por edad
+ * calculado automáticamente; eso es lo que se factura si no se manda nada más.
+ *
+ * <p>Cuando el mostrador necesita apartarse de ese cálculo puede ajustar el
+ * precio de una línea ({@code itemPrices}, p. ej. una regalía en 0.00) y/o
+ * fijar el {@code total} a cobrar. La diferencia contra el cálculo automático
+ * se registra sola como "otros descuentos"; ver {@code InvoiceTotalsCalculator}.
  */
 @Data
 @NoArgsConstructor
@@ -26,6 +34,20 @@ public class InvoiceRequest {
 
     /** RTN del cliente; vacío = consumidor final (se usa el del expediente si existe). */
     private String customerRtn;
+
+    /**
+     * Precios especiales por examen. Solo hace falta mandar los que cambian; los
+     * exámenes ausentes se facturan al precio de catálogo.
+     */
+    @Valid
+    private List<InvoiceItemPriceDTO> itemPrices;
+
+    /**
+     * Total a cobrar. Null = el que sale del cálculo automático. Si es menor, la
+     * diferencia queda como "otros descuentos" en la factura.
+     */
+    @DecimalMin(value = "0.00", message = "El total a cobrar no puede ser negativo")
+    private BigDecimal total;
 
     /**
      * Obligatorio y por el total en ventas al contado; opcional (abono) en

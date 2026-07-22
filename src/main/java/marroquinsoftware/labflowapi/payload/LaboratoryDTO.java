@@ -28,6 +28,14 @@ public class LaboratoryDTO {
     private String address1;
     private String address2;
 
+    // Rótulos y registros fiscales que salen en la factura impresa.
+    private String invoiceHeadline;
+    private String invoiceFooterNote;
+    private String pacNumber;
+    private String regExonerado;
+    private String regSag;
+    private String ordenCompraExenta;
+
     // Solo de lectura: la API la firma en cada respuesta y vence a la hora. No se
     // guarda en la base ni se acepta del cliente; el logo se cambia por
     // POST /laboratory/logo.

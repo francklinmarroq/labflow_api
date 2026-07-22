@@ -37,8 +37,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @Import({InvoiceServiceImp.class, JournalServiceImp.class, AccountSeeder.class, CaiNumberService.class,
-        AgeDiscountCalculator.class, AmountInWordsConverter.class, TenantIdentifierResolver.class,
-        InvoiceAccountingTest.JacksonForTest.class})
+        AgeDiscountCalculator.class, InvoiceTotalsCalculator.class, AmountInWordsConverter.class,
+        TenantIdentifierResolver.class, InvoiceAccountingTest.JacksonForTest.class})
 @TestPropertySource(properties = {
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
@@ -110,12 +110,12 @@ class InvoiceAccountingTest {
     }
 
     private InvoiceRequest contado(Long orderId, String amount) {
-        return new InvoiceRequest(orderId, SaleCondition.CONTADO, null,
+        return new InvoiceRequest(orderId, SaleCondition.CONTADO, null, null, null,
                 new PaymentRequest(new BigDecimal(amount), PaymentMethod.EFECTIVO, null));
     }
 
     private InvoiceRequest credito(Long orderId) {
-        return new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null);
+        return new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null);
     }
 
     private JournalEntry entryOf(JournalSourceType type, Long sourceId) {

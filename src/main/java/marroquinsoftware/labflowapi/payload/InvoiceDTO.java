@@ -28,6 +28,12 @@ public class InvoiceDTO {
     private String labRtn;
     private String labAddress;
     private String labPhone;
+    private String labHeadline;
+    private String labFooterNote;
+    private String labPacNumber;
+    private String labRegExonerado;
+    private String labRegSag;
+    private String labOrdenCompraExenta;
 
     private Long orderId;
     private Long orderNumber;
@@ -46,8 +52,14 @@ public class InvoiceDTO {
     private AgeDiscountKind discountKind;
     private String discountLabel;
     private BigDecimal discountPercent;
+    /** Bruto, antes de cualquier descuento. */
     private BigDecimal subtotal;
+    /** Rebaja acumulada en las líneas (regalías, precios especiales). */
+    private BigDecimal itemDiscountAmount;
+    /** Rebaja atribuida al tramo de edad. */
     private BigDecimal discountAmount;
+    /** Rebaja adicional: promociones o precio de cierre. */
+    private BigDecimal otherDiscountAmount;
     private BigDecimal total;
     private BigDecimal paidAmount;
     /** Saldo pendiente (total - pagado); 0 en facturas anuladas. */

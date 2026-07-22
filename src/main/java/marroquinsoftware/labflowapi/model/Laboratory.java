@@ -30,6 +30,19 @@ public class Laboratory {
     private String address1;
     private String address2;
 
+    // Rótulos libres de la factura. El encabezado va bajo el nombre del emisor
+    // (p. ej. «EMERGENCIA LAS 24 HORAS») y el pie es el lema del final. Se
+    // congelan en cada factura para que reimprimir una vieja no cambie el texto.
+    private String invoiceHeadline;
+    private String invoiceFooterNote;
+
+    // Registros fiscales que exige el formato de factura hondureño. Van vacíos
+    // por defecto (se imprimen en blanco) y se llenan según cada laboratorio.
+    private String pacNumber;       // Nº de PAC / constancia de facturación
+    private String regExonerado;    // Registro de exonerado
+    private String regSag;          // Registro S.A.G.
+    private String ordenCompraExenta; // O. C. Exenta
+
     // Llave del logo dentro del bucket privado (no una URL): el bucket no sirve
     // nada en público, así que la URL se firma al vuelo cada vez que se lee.
     private String logoObjectKey;
