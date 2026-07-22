@@ -202,8 +202,8 @@ public class InvoiceServiceImp implements InvoiceService {
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         Instant fromInstant = from != null ? from.atStartOfDay(ZoneOffset.UTC).toInstant() : null;
         Instant toInstant = to != null ? to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant() : null;
-        String searchTerm = search != null && !search.isBlank() ? search.trim() : null;
-        Page<Invoice> page = invoiceRepository.search(status, orderId, fromInstant, toInstant, searchTerm, pageable);
+        Page<Invoice> page = invoiceRepository.findAll(
+                BillingSpecifications.invoices(status, orderId, fromInstant, toInstant, search), pageable);
         InvoiceResponse response = new InvoiceResponse();
         response.setContent(page.getContent().stream().map(i -> toDTO(i, false)).toList());
         response.setPageNumber(page.getNumber());

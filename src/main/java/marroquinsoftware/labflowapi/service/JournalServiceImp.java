@@ -9,6 +9,7 @@ import marroquinsoftware.labflowapi.payload.JournalEntryResponse;
 import marroquinsoftware.labflowapi.payload.JournalLineDTO;
 import marroquinsoftware.labflowapi.payload.JournalLineRequest;
 import marroquinsoftware.labflowapi.repositories.AccountRepository;
+import marroquinsoftware.labflowapi.repositories.BillingSpecifications;
 import marroquinsoftware.labflowapi.repositories.JournalEntryCounterRepository;
 import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
@@ -96,7 +97,8 @@ public class JournalServiceImp implements JournalService {
                                            LocalDate from, LocalDate to, JournalSourceType sourceType) {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
-        Page<JournalEntry> page = journalEntryRepository.search(from, to, sourceType, pageable);
+        Page<JournalEntry> page = journalEntryRepository.findAll(
+                BillingSpecifications.journalEntries(from, to, sourceType), pageable);
         JournalEntryResponse response = new JournalEntryResponse();
         response.setContent(page.getContent().stream().map(this::toDTO).toList());
         response.setPageNumber(page.getNumber());

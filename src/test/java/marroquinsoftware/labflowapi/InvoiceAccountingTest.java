@@ -4,6 +4,7 @@ import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.model.*;
 import marroquinsoftware.labflowapi.payload.InvoiceDTO;
 import marroquinsoftware.labflowapi.payload.InvoiceRequest;
+import marroquinsoftware.labflowapi.payload.InvoiceResponse;
 import marroquinsoftware.labflowapi.payload.PaymentRequest;
 import marroquinsoftware.labflowapi.repositories.*;
 import marroquinsoftware.labflowapi.service.*;
@@ -291,6 +292,53 @@ class InvoiceAccountingTest {
         assertEquals(0, dto.getPaidAmount().compareTo(BigDecimal.ZERO));
         assertEquals(0, dto.getBalance().compareTo(new BigDecimal("500.00")));
         assertBalanced(entryOf(JournalSourceType.ANULACION_PAGO, paymentId));
+    }
+
+    // La pantalla de Facturas llama al listado sin ningún filtro; los filtros
+    // opcionales viajan como null y la consulta tiene que resolverlos igual.
+    @Test
+    void listsInvoicesWithAndWithoutFilters() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        InvoiceDTO issued = invoiceService.createInvoice(contado(order.getId(), "500.00"));
+
+        InvoiceResponse all = invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, null, null, null, null);
+        assertEquals(1, all.getContent().size(), "el listado sin filtros debe devolver la factura");
+        assertEquals(issued.getInvoiceNumber(), all.getContent().get(0).getInvoiceNumber());
+
+        InvoiceResponse byStatus = invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                InvoiceStatus.PAGADA, null, null, null, null);
+        assertEquals(1, byStatus.getContent().size());
+        assertEquals(0, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                InvoiceStatus.ANULADA, null, null, null, null).getContent().size());
+
+        assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, order.getId(), null, null, null).getContent().size());
+
+        // La búsqueda matchea número de factura o nombre del paciente.
+        assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, null, null, null, "Paciente").getContent().size());
+        assertEquals(0, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, null, null, null, "no-existe").getContent().size());
+
+        assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, null, LocalDate.now().minusDays(1), LocalDate.now(), null).getContent().size());
+    }
+
+    @Test
+    void listsReceivablesAndCustomerStatement() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        InvoiceDTO dto = invoiceService.createInvoice(credito(order.getId()));
+        invoiceService.registerPayment(dto.getId(),
+                new PaymentRequest(new BigDecimal("200.00"), PaymentMethod.EFECTIVO, null));
+
+        var receivables = invoiceService.getReceivables(0, 50);
+        assertEquals(1, receivables.getContent().size());
+        assertEquals(0, receivables.getTotalReceivable().compareTo(new BigDecimal("300.00")));
+
+        var statement = invoiceService.getCustomerStatement(customer.getId());
+        assertEquals(2, statement.getRows().size(), "la factura y su abono");
+        assertEquals(0, statement.getBalance().compareTo(new BigDecimal("300.00")));
     }
 
     @Test

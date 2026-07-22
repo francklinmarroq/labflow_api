@@ -10,6 +10,7 @@ import marroquinsoftware.labflowapi.payload.ExpenseDTO;
 import marroquinsoftware.labflowapi.payload.ExpenseRequest;
 import marroquinsoftware.labflowapi.payload.ExpenseResponse;
 import marroquinsoftware.labflowapi.repositories.AccountRepository;
+import marroquinsoftware.labflowapi.repositories.BillingSpecifications;
 import marroquinsoftware.labflowapi.repositories.ExpenseRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -77,7 +78,7 @@ public class ExpenseServiceImp implements ExpenseService {
                                           LocalDate from, LocalDate to) {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
-        Page<Expense> page = expenseRepository.search(from, to, pageable);
+        Page<Expense> page = expenseRepository.findAll(BillingSpecifications.expenses(from, to), pageable);
         ExpenseResponse response = new ExpenseResponse();
         response.setContent(page.getContent().stream().map(this::toDTO).toList());
         response.setPageNumber(page.getNumber());

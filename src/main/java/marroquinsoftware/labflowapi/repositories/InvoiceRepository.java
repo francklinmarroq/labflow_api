@@ -6,15 +6,15 @@ import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
-import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
-public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
+public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpecificationExecutor<Invoice> {
 
     /**
      * Lee la factura con bloqueo de escritura, para serializar pagos
@@ -29,22 +29,9 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long> {
 
     Optional<Invoice> findFirstByOrderIdAndStatusNotOrderByIssuedAtDesc(Long orderId, InvoiceStatus status);
 
-    /** Listado con filtros opcionales; search matchea número de factura o cliente. */
-    @Query("""
-            select i from Invoice i
-            where (:status is null or i.status = :status)
-              and (:orderId is null or i.order.id = :orderId)
-              and (:from is null or i.issuedAt >= :from)
-              and (:to is null or i.issuedAt <= :to)
-              and (:search is null or lower(i.invoiceNumber) like lower(concat('%', :search, '%'))
-                   or lower(i.customerName) like lower(concat('%', :search, '%')))
-            """)
-    Page<Invoice> search(@Param("status") InvoiceStatus status,
-                         @Param("orderId") Long orderId,
-                         @Param("from") Instant from,
-                         @Param("to") Instant to,
-                         @Param("search") String search,
-                         Pageable pageable);
+    // El listado con filtros opcionales se arma con
+    // BillingSpecifications.invoices() y se ejecuta con findAll(spec, pageable);
+    // ahí está explicado por qué no se escribe como @Query.
 
     /** Facturas con saldo abierto (cuentas por cobrar). */
     @Query("select i from Invoice i where i.status in (marroquinsoftware.labflowapi.model.InvoiceStatus.PENDIENTE, marroquinsoftware.labflowapi.model.InvoiceStatus.PARCIAL)")
