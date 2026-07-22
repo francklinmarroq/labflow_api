@@ -10,10 +10,11 @@
       // wrangler construye este Dockerfile y sube la imagen al registry de
       // Cloudflare en cada `wrangler deploy`.
       "image": "./Dockerfile",
-      // standard-1 = 1/2 vCPU, 4 GiB, 8 GB de disco. La RAM sobra; lo que puede
-      // quedar corto es el vCPU durante el arranque de la JVM. Si el primer
-      // request tarda demasiado, subir a standard-2 (1 vCPU, 6 GiB).
-      "instance_type": "standard-1",
+      // standard-2 = 1 vCPU, 6 GiB, 12 GB de disco. La RAM sobra de lejos; el
+      // vCPU es lo que manda, porque arrancar la JVM es trabajo de CPU puro y
+      // con el medio vCPU de standard-1 el arranque en frio se va a varios
+      // minutos.
+      "instance_type": "standard-2",
       // Una sola instancia: el Worker rutea todo al mismo contenedor, que
       // mantiene su pool de conexiones contra Postgres.
       "max_instances": 1
@@ -39,8 +40,8 @@
   "vars": {
     // Configuracion no sensible. Lo secreto (DB_URL, DB_USERNAME, DB_PASSWORD,
     // JWT_SECRET, RESEND_API_KEY) va con `wrangler secret put`, nunca aca.
-    "MAIL_FROM": "no-reply@labflow.app",
-    "FRONTEND_BASE_URL": "http://localhost:3000"
+    "MAIL_FROM": "no-reply@fmarroquin.com",
+    "FRONTEND_BASE_URL": "https://labflow-frontend.pages.dev/"
   },
 
   "observability": {

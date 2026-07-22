@@ -37,6 +37,17 @@ export class LabflowApiContainer extends Container<Env> {
     FRONTEND_BASE_URL: this.env.FRONTEND_BASE_URL,
   };
 
+  // El `fetch` que trae Container espera 20 s a que el puerto abra y despues se
+  // rinde. La JVM tarda bastante mas que eso, asi que hay que ampliar la espera
+  // a mano o el primer request siempre falla con "error connecting to the port".
+  override async fetch(request: Request): Promise<Response> {
+    await this.startAndWaitForPorts(this.defaultPort, {
+      instanceGetTimeoutMS: 30_000,
+      portReadyTimeoutMS: 300_000,
+    });
+    return this.containerFetch(request, this.defaultPort);
+  }
+
   override onStart() {
     console.log("labflow-api: contenedor arriba");
   }

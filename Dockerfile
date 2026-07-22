@@ -41,4 +41,8 @@ ENV JAVA_TOOL_OPTIONS="-XX:MaxRAMPercentage=70 -XX:+UseSerialGC -XX:+ExitOnOutOf
 ENV SERVER_PORT=8080
 EXPOSE 8080
 
+# Un solo ENTRYPOINT: en un Dockerfile el ultimo pisa a los anteriores. Aca no
+# hay app.jar, porque el jar se extrajo por capas; el arranque es via JarLauncher.
+# UseContainerSupport ya viene activo por defecto en la JVM y MaxRAMPercentage se
+# fija arriba en JAVA_TOOL_OPTIONS, asi que no hacen falta como flags sueltos.
 ENTRYPOINT ["java", "org.springframework.boot.loader.launch.JarLauncher"]
