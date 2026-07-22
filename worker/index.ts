@@ -9,10 +9,14 @@ interface Env {
   DB_PASSWORD: string;
   JWT_SECRET: string;
   RESEND_API_KEY: string;
+  R2_ACCESS_KEY_ID: string;
+  R2_SECRET_ACCESS_KEY: string;
 
   // Vars de wrangler.jsonc.
   MAIL_FROM: string;
   FRONTEND_BASE_URL: string;
+  R2_ENDPOINT: string;
+  R2_BUCKET: string;
 }
 
 export class LabflowApiContainer extends Container<Env> {
@@ -35,6 +39,12 @@ export class LabflowApiContainer extends Container<Env> {
     RESEND_API_KEY: this.env.RESEND_API_KEY,
     MAIL_FROM: this.env.MAIL_FROM,
     FRONTEND_BASE_URL: this.env.FRONTEND_BASE_URL,
+    // R2 se habla por su API de S3 sobre HTTPS, no por binding: los bindings no
+    // llegan al contenedor (mismo motivo por el que Hyperdrive no sirve acá).
+    R2_ENDPOINT: this.env.R2_ENDPOINT,
+    R2_BUCKET: this.env.R2_BUCKET,
+    R2_ACCESS_KEY_ID: this.env.R2_ACCESS_KEY_ID,
+    R2_SECRET_ACCESS_KEY: this.env.R2_SECRET_ACCESS_KEY,
   };
 
   // El `fetch` que trae Container espera 20 s a que el puerto abra y despues se

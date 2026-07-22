@@ -30,6 +30,10 @@ public class Laboratory {
     private String address1;
     private String address2;
 
+    // Llave del logo dentro del bucket privado (no una URL): el bucket no sirve
+    // nada en público, así que la URL se firma al vuelo cada vez que se lee.
+    private String logoObjectKey;
+
     // CAI 1
     private String cai1;
     private LocalDate cai1ExpirationDate;

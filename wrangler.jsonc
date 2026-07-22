@@ -39,9 +39,13 @@
 
   "vars": {
     // Configuracion no sensible. Lo secreto (DB_URL, DB_USERNAME, DB_PASSWORD,
-    // JWT_SECRET, RESEND_API_KEY) va con `wrangler secret put`, nunca aca.
+    // JWT_SECRET, RESEND_API_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) va con
+    // `wrangler secret put`, nunca aca.
     "MAIL_FROM": "no-reply@fmarroquin.com",
-    "FRONTEND_BASE_URL": "https://labflow-frontend.pages.dev/"
+    "FRONTEND_BASE_URL": "https://labflow-frontend.pages.dev/",
+    // Endpoint S3 de la cuenta (sin el bucket al final) y nombre del bucket.
+    "R2_ENDPOINT": "https://22d53d9fdf065447b515a924fdabbc2d.r2.cloudflarestorage.com",
+    "R2_BUCKET": "labflow-files"
   },
 
   "observability": {

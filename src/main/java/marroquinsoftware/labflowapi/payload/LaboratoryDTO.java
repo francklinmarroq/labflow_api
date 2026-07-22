@@ -28,6 +28,11 @@ public class LaboratoryDTO {
     private String address1;
     private String address2;
 
+    // Solo de lectura: la API la firma en cada respuesta y vence a la hora. No se
+    // guarda en la base ni se acepta del cliente; el logo se cambia por
+    // POST /laboratory/logo.
+    private String logoUrl;
+
     private String cai1;
     private LocalDate cai1ExpirationDate;
     private String cai1RangeFrom;
