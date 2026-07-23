@@ -22,3 +22,12 @@ alter table if exists tests drop column if exists notes;
 -- ";" y no entiende el dollar-quoting $$, así que un bloque PL/pgSQL rompe el arranque.
 -- "if exists" en tabla y constraint lo hace idempotente y seguro en BD nuevas.
 alter table if exists app_role_permission drop constraint if exists app_role_permission_permission_check;
+
+-- Mismo caso con otras columnas @Enumerated(STRING) a las que se les agregaron
+-- valores nuevos: el módulo de remisiones sumó cuentas de sistema
+-- (CUENTAS_POR_PAGAR, EXAMENES_REMITIDOS) y fuentes de partida (REMISION,
+-- ANULACION_REMISION). Se eliminan sus check constraints viejos por el mismo
+-- motivo; el enum de Java sigue garantizando la validez. Sentencias sueltas
+-- (no bloques PL/pgSQL) para no romper el arranque, ver arriba.
+alter table if exists accounts drop constraint if exists accounts_system_key_check;
+alter table if exists journal_entries drop constraint if exists journal_entries_source_type_check;

@@ -73,9 +73,11 @@ public class JournalServiceImp implements JournalService {
                     // Laboratorios registrados antes del módulo contable todavía
                     // no tienen catálogo de cuentas: se siembra al primer uso.
                     accountSeeder.seedDefaultAccounts();
+                    // Para llaves agregadas después del catálogo inicial (remisiones),
+                    // los laboratorios ya sembrados no las tienen y el seed completo
+                    // no hace nada; se crea/adopta esa cuenta puntual.
                     return accountRepository.findBySystemKey(key)
-                            .orElseThrow(() -> new APIException(
-                                    "No se encontró la cuenta del sistema " + key + ". Contacte a soporte."));
+                            .orElseGet(() -> accountSeeder.ensureSystemAccount(key));
                 });
     }
 

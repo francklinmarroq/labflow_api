@@ -13,6 +13,8 @@ public interface AccountRepository extends JpaRepository<Account, Long> {
     // El laboratorio (tenant) lo filtra Hibernate por @TenantId en todas estas.
     Optional<Account> findBySystemKey(SystemAccountKey systemKey);
 
+    Optional<Account> findByCode(String code);
+
     boolean existsByCode(String code);
 
     boolean existsByCodeAndIdNot(String code, Long id);

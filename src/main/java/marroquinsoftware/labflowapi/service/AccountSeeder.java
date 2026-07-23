@@ -59,6 +59,43 @@ public class AccountSeeder {
         LOGGER.info("AccountSeeder: catálogo de cuentas por defecto sembrado.");
     }
 
+    /**
+     * Garantiza que exista la cuenta de sistema {@code key} en el laboratorio
+     * actual, sin re-sembrar todo el catálogo. Para llaves agregadas después del
+     * catálogo inicial (p. ej. las de remisiones): laboratorios ya sembrados no
+     * las tienen y {@link #seedDefaultAccounts()} no hace nada porque ya hay
+     * cuentas. Si una cuenta con el mismo código ya existe pero sin llave (caso
+     * de "Cuentas por pagar", que existía sin system_key), se le asigna la llave
+     * en vez de duplicarla.
+     */
+    public Account ensureSystemAccount(SystemAccountKey key) {
+        Account existing = accountRepository.findBySystemKey(key).orElse(null);
+        if (existing != null) return existing;
+
+        AccountRow row = readAccounts().accounts().stream()
+                .filter(r -> key.name().equals(r.system_key()))
+                .findFirst()
+                .orElseThrow(() -> new APIException(
+                        "No hay definición por defecto para la cuenta del sistema " + key + "."));
+
+        Account byCode = accountRepository.findByCode(row.code()).orElse(null);
+        if (byCode != null) {
+            if (byCode.getSystemKey() == null) {
+                byCode.setSystemKey(key);
+                return accountRepository.save(byCode);
+            }
+            return byCode;
+        }
+
+        Account account = new Account();
+        account.setCode(row.code());
+        account.setName(row.name());
+        account.setType(AccountType.valueOf(row.type()));
+        account.setSystemKey(key);
+        account.setActive(true);
+        return accountRepository.save(account);
+    }
+
     private Accounts readAccounts() {
         ClassPathResource resource = new ClassPathResource(ACCOUNTS_RESOURCE);
         try (InputStream in = resource.getInputStream()) {

@@ -10,9 +10,11 @@ public enum JournalSourceType {
     FACTURA("Factura"),
     PAGO("Pago"),
     GASTO("Gasto"),
+    REMISION("Remisión"),
     ANULACION_FACTURA("Anulación de factura"),
     ANULACION_PAGO("Anulación de pago"),
     ANULACION_GASTO("Anulación de gasto"),
+    ANULACION_REMISION("Anulación de remisión"),
     MANUAL("Partida manual");
 
     private final String label;

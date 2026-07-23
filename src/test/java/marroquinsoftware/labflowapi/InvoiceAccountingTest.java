@@ -7,6 +7,8 @@ import marroquinsoftware.labflowapi.payload.InvoiceItemPriceDTO;
 import marroquinsoftware.labflowapi.payload.InvoiceRequest;
 import marroquinsoftware.labflowapi.payload.InvoiceResponse;
 import marroquinsoftware.labflowapi.payload.PaymentRequest;
+import marroquinsoftware.labflowapi.payload.ReferralDTO;
+import marroquinsoftware.labflowapi.payload.ReferralRequest;
 import marroquinsoftware.labflowapi.repositories.*;
 import marroquinsoftware.labflowapi.service.*;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
@@ -40,7 +42,7 @@ import static org.junit.jupiter.api.Assertions.*;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @Import({InvoiceServiceImp.class, JournalServiceImp.class, AccountSeeder.class, CaiNumberService.class,
         AgeDiscountCalculator.class, InvoiceTotalsCalculator.class, AmountInWordsConverter.class,
-        TenantIdentifierResolver.class, InvoiceAccountingTest.JacksonForTest.class})
+        ReferralServiceImp.class, TenantIdentifierResolver.class, InvoiceAccountingTest.JacksonForTest.class})
 @TestPropertySource(properties = {
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
@@ -54,6 +56,7 @@ class InvoiceAccountingTest {
     }
 
     @Autowired InvoiceService invoiceService;
+    @Autowired ReferralService referralService;
     @Autowired JournalService journalService;
     @Autowired AccountSeeder accountSeeder;
     @Autowired LaboratoryRepository laboratoryRepository;
@@ -307,6 +310,71 @@ class InvoiceAccountingTest {
         // No hay "otros descuentos": todo lo rebajado cabe dentro del techo de edad.
         assertEquals(0, dto.getOtherDiscountAmount().compareTo(BigDecimal.ZERO));
         assertEquals(0, dto.getTotal().compareTo(new BigDecimal("480.00")));
+    }
+
+    @Test
+    void referralCostBooksAgainstPayableWhenNotPaid() {
+        LabOrder order = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = order.getTests().get(0).getId();
+        ReferralRequest req = new ReferralRequest("Lab Externo", null,
+                List.of(new ReferralRequest.Item(labTestId, new BigDecimal("120.00"))), null);
+
+        ReferralDTO dto = referralService.createReferral(order.getId(), req);
+
+        assertEquals(0, dto.getTotalCost().compareTo(new BigDecimal("120.00")));
+        JournalEntry entry = entryOf(JournalSourceType.REMISION, dto.getId());
+        assertBalanced(entry);
+        assertEquals(0, lineAmount(entry, SystemAccountKey.EXAMENES_REMITIDOS, true)
+                .compareTo(new BigDecimal("120.00")));
+        assertEquals(0, lineAmount(entry, SystemAccountKey.CUENTAS_POR_PAGAR, false)
+                .compareTo(new BigDecimal("120.00")));
+    }
+
+    @Test
+    void referralCostBooksAgainstCashWhenPaidOnSpot() {
+        LabOrder order = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = order.getTests().get(0).getId();
+        ReferralRequest req = new ReferralRequest("Lab Externo", null,
+                List.of(new ReferralRequest.Item(labTestId, new BigDecimal("120.00"))), PaymentMethod.EFECTIVO);
+
+        ReferralDTO dto = referralService.createReferral(order.getId(), req);
+
+        JournalEntry entry = entryOf(JournalSourceType.REMISION, dto.getId());
+        assertBalanced(entry);
+        assertEquals(0, lineAmount(entry, SystemAccountKey.EXAMENES_REMITIDOS, true)
+                .compareTo(new BigDecimal("120.00")));
+        assertEquals(0, lineAmount(entry, SystemAccountKey.CAJA, false)
+                .compareTo(new BigDecimal("120.00")));
+    }
+
+    @Test
+    void referralWithoutCostBooksNothing() {
+        LabOrder order = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = order.getTests().get(0).getId();
+        ReferralRequest req = new ReferralRequest("Lab Externo", null,
+                List.of(new ReferralRequest.Item(labTestId, BigDecimal.ZERO)), null);
+
+        ReferralDTO dto = referralService.createReferral(order.getId(), req);
+
+        assertTrue(journalEntryRepository
+                .findFirstBySourceTypeAndSourceId(JournalSourceType.REMISION, dto.getId()).isEmpty());
+    }
+
+    @Test
+    void deletingReferralReversesItsCost() {
+        LabOrder order = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = order.getTests().get(0).getId();
+        ReferralDTO dto = referralService.createReferral(order.getId(),
+                new ReferralRequest("Lab Externo", null,
+                        List.of(new ReferralRequest.Item(labTestId, new BigDecimal("120.00"))), null));
+
+        referralService.deleteReferral(dto.getId());
+
+        JournalEntry reversal = entryOf(JournalSourceType.ANULACION_REMISION, dto.getId());
+        assertBalanced(reversal);
+        // El contra-asiento invierte los lados: el gasto ahora va al haber.
+        assertEquals(0, lineAmount(reversal, SystemAccountKey.EXAMENES_REMITIDOS, false)
+                .compareTo(new BigDecimal("120.00")));
     }
 
     @Test

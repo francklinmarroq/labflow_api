@@ -64,7 +64,7 @@ class AccountSeedIntegrityTest {
         accountSeeder.seedDefaultAccounts();
 
         List<Account> accounts = accountRepository.findAll();
-        assertEquals(14, accounts.size(), "el catálogo por defecto debe tener 14 cuentas");
+        assertEquals(15, accounts.size(), "el catálogo por defecto debe tener 15 cuentas");
 
         // Todas las cuentas del sistema presentes, sin repetir clave.
         Set<SystemAccountKey> seededKeys = accounts.stream()

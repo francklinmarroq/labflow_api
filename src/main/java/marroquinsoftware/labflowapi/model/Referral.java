@@ -49,6 +49,14 @@ public class Referral {
     /** Usuario que generó la remisión (capturado del contexto de seguridad). */
     private String createdByUsername;
 
+    /**
+     * Cómo se salda el costo con el laboratorio de destino. {@code null} = queda
+     * por pagar (se acredita Cuentas por pagar); si trae método, se pagó al
+     * momento (se acredita Caja o Bancos según el método).
+     */
+    @Enumerated(EnumType.STRING)
+    private PaymentMethod paymentMethod;
+
     @OneToMany(mappedBy = "referral", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
