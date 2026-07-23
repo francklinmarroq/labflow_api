@@ -12,6 +12,12 @@
       "runtimeExecutable": "powershell",
       "runtimeArgs": ["-ExecutionPolicy", "Bypass", "-File", ".claude/run-frontend.ps1"],
       "port": 3000
+    },
+    {
+      "name": "website",
+      "runtimeExecutable": "pnpm",
+      "runtimeArgs": ["-C", "../labflow_website", "dev", "--port", "3100"],
+      "port": 3100
     }
   ]
 }

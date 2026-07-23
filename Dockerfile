@@ -9,7 +9,8 @@ COPY pom.xml ./
 RUN mvn -B dependency:go-offline
 
 COPY src ./src
-RUN mvn -B -DskipTests clean package
+#RUN mvn -B -DskipTests clean package
+RUN mvn -B -Dmaven.test.skip=true clean package
 
 # El jar de Spring Boot se parte en capas: dependencias, loader y clases propias
 # quedan en directorios distintos. Como solo la ultima cambia entre despliegues,
