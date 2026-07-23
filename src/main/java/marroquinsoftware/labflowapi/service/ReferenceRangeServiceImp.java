@@ -1,5 +1,6 @@
 package marroquinsoftware.labflowapi.service;
 
+import marroquinsoftware.labflowapi.config.AppConstants;
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.AgeRange;
@@ -23,6 +24,10 @@ import java.util.List;
 
 @Service
 public class ReferenceRangeServiceImp implements ReferenceRangeService {
+
+    // Tope defensivo para que un `parameterIds` armado a mano no se traduzca en
+    // un IN (...) gigantesco contra Postgres.
+    private static final int MAX_BATCH_PARAMETERS = 500;
 
     @Autowired
     private ReferenceRangeRepository referenceRangeRepository;
@@ -57,6 +62,24 @@ public class ReferenceRangeServiceImp implements ReferenceRangeService {
         response.setTotalPages(page.getTotalPages());
         response.setLastPage(page.isLast());
         return response;
+    }
+
+    @Override
+    public List<ReferenceRangeDTO> getRangesByParameterIds(List<Long> parameterIds) {
+        if (parameterIds == null || parameterIds.isEmpty()) return List.of();
+
+        if (parameterIds.size() > MAX_BATCH_PARAMETERS) {
+            throw new APIException("Se solicitaron demasiados parámetros a la vez. Divida la consulta en partes más pequeñas.");
+        }
+
+        // No se valida que cada id exista: los parámetros que no tengan rangos
+        // simplemente no aparecen en la respuesta. El filtro de tenant lo aplica
+        // Hibernate sobre ReferenceRange, así que no se filtran datos de otro lab.
+        return referenceRangeRepository
+                .findByParameterIdIn(parameterIds, Sort.by(AppConstants.SORT_REFERENCE_RANGES_BY).ascending())
+                .stream()
+                .map(this::toDTO)
+                .toList();
     }
 
     @Override

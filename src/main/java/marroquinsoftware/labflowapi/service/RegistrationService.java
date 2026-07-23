@@ -32,6 +32,9 @@ public class RegistrationService {
     @Autowired
     private CatalogSeeder catalogSeeder;
 
+    @Autowired
+    private AccountSeeder accountSeeder;
+
     /**
      * Crea, en una sola transacción, el laboratorio (tenant) y su usuario dueño.
      * Si algo falla, no queda ni el lab ni el usuario a medias.
@@ -65,6 +68,7 @@ public class RegistrationService {
         TenantContext.setLaboratoryId(laboratory.getId());
         try {
             catalogSeeder.seedDefaultCatalog();
+            accountSeeder.seedDefaultAccounts();
         } finally {
             if (previousTenant != null) {
                 TenantContext.setLaboratoryId(previousTenant);

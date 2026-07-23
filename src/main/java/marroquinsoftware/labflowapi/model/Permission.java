@@ -28,6 +28,16 @@ public enum Permission {
     CATALOG_EDIT("Catálogo", "Editar entradas del catálogo"),
     CATALOG_DELETE("Catálogo", "Eliminar entradas del catálogo"),
 
+    INVOICES_VIEW("Facturación", "Ver facturas"),
+    INVOICES_CREATE("Facturación", "Emitir facturas"),
+    INVOICES_ANNUL("Facturación", "Anular facturas"),
+    PAYMENTS_MANAGE("Facturación", "Registrar y anular pagos"),
+
+    EXPENSES_VIEW("Contabilidad", "Ver gastos"),
+    EXPENSES_MANAGE("Contabilidad", "Registrar y anular gastos"),
+    ACCOUNTING_VIEW("Contabilidad", "Ver contabilidad"),
+    ACCOUNTING_MANAGE("Contabilidad", "Gestionar cuentas y partidas manuales"),
+
     LAB_SETTINGS_VIEW("Configuración", "Ver datos del laboratorio"),
     LAB_SETTINGS_EDIT("Configuración", "Editar datos del laboratorio"),
 

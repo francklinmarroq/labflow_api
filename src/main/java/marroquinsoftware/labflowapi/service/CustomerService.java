@@ -7,5 +7,7 @@ public interface CustomerService {
     CustomerResponse getAllCustomers(Integer pageNumber, Integer pageSize, String sortBy, String sortDir);
     CustomerDTO createCustomer(CustomerDTO dto);
     CustomerDTO updateCustomer(CustomerDTO dto, Long id);
+    CustomerDTO getCustomerById(Long id);
+
     CustomerDTO deleteCustomer(Long id);
 }

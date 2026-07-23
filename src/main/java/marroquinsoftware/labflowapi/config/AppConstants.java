@@ -15,4 +15,7 @@ public class AppConstants {
     public static final String SORT_ORDERS_BY = "requestedAt";
     public static final String SORT_QUOTES_BY = "quotedAt";
     public static final String SORT_LABORATORY_BY = "name";
+    public static final String SORT_EXPENSES_BY = "expenseDate";
+    public static final String SORT_INVOICES_BY = "issuedAt";
+    public static final String SORT_JOURNAL_BY = "entryNumber";
 }

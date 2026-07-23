@@ -1,0 +1,19 @@
+{
+  "name": "labflow-api-worker",
+  "description": "Worker que rutea a la API de LabFlow en Cloudflare Containers",
+  "scripts": {
+    "deploy": "wrangler deploy",
+    "dev": "wrangler dev",
+    "typecheck": "tsc"
+  },
+  "type": "module",
+  "private": true,
+  "dependencies": {
+    "@cloudflare/containers": "^0.3.7"
+  },
+  "devDependencies": {
+    "@cloudflare/workers-types": "^5.20260722.1",
+    "typescript": "^7.0.2",
+    "wrangler": "^4.113.0"
+  }
+}

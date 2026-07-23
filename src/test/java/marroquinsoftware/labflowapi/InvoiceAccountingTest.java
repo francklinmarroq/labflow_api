@@ -1,0 +1,503 @@
+package marroquinsoftware.labflowapi;
+
+import marroquinsoftware.labflowapi.exceptions.APIException;
+import marroquinsoftware.labflowapi.model.*;
+import marroquinsoftware.labflowapi.payload.InvoiceDTO;
+import marroquinsoftware.labflowapi.payload.InvoiceItemPriceDTO;
+import marroquinsoftware.labflowapi.payload.InvoiceRequest;
+import marroquinsoftware.labflowapi.payload.InvoiceResponse;
+import marroquinsoftware.labflowapi.payload.PaymentRequest;
+import marroquinsoftware.labflowapi.payload.ReferralDTO;
+import marroquinsoftware.labflowapi.payload.ReferralRequest;
+import marroquinsoftware.labflowapi.repositories.*;
+import marroquinsoftware.labflowapi.service.*;
+import marroquinsoftware.labflowapi.tenant.TenantContext;
+import marroquinsoftware.labflowapi.tenant.TenantIdentifierResolver;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
+import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Import;
+import org.springframework.test.context.TestPropertySource;
+import tools.jackson.databind.ObjectMapper;
+import tools.jackson.databind.json.JsonMapper;
+
+import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.List;
+
+import static org.junit.jupiter.api.Assertions.*;
+
+/**
+ * Recorre los eventos de facturación (contado, crédito, abonos, anulaciones)
+ * verificando el documento y su rastro contable: cada evento deja una partida
+ * que cuadra y las cuentas correctas.
+ */
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+@Import({InvoiceServiceImp.class, JournalServiceImp.class, AccountSeeder.class, CaiNumberService.class,
+        AgeDiscountCalculator.class, InvoiceTotalsCalculator.class, AmountInWordsConverter.class,
+        ReferralServiceImp.class, TenantIdentifierResolver.class, InvoiceAccountingTest.JacksonForTest.class})
+@TestPropertySource(properties = {
+        "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.sql.init.mode=never"
+})
+class InvoiceAccountingTest {
+
+    static class JacksonForTest {
+        @Bean ObjectMapper objectMapper() { return JsonMapper.builder().build(); }
+    }
+
+    @Autowired InvoiceService invoiceService;
+    @Autowired ReferralService referralService;
+    @Autowired JournalService journalService;
+    @Autowired AccountSeeder accountSeeder;
+    @Autowired LaboratoryRepository laboratoryRepository;
+    @Autowired CustomerRepository customerRepository;
+    @Autowired TestRepository testRepository;
+    @Autowired LabOrderRepository labOrderRepository;
+    @Autowired JournalEntryRepository journalEntryRepository;
+
+    private Laboratory laboratory;
+    private Customer customer;
+
+    @BeforeEach
+    void setUp() {
+        laboratory = new Laboratory();
+        laboratory.setName("Laboratorio de Prueba");
+        laboratory.setRtn("08011999123456");
+        laboratory.setCai1("254F86-612421-9701AB-016921-3E7CD1-35");
+        laboratory.setCai1ExpirationDate(LocalDate.now().plusMonths(6));
+        laboratory.setCai1RangeFrom("000-001-01-00000001");
+        laboratory.setCai1RangeTo("000-001-01-00000100");
+        // Tercera edad desde los 60 años con 10% (para el test de descuento).
+        laboratory.setThirdAgeMinYears(60);
+        laboratory.setThirdAgeDiscountPercent(new BigDecimal("10.00"));
+        laboratory = laboratoryRepository.save(laboratory);
+
+        // El id del laboratorio es el tenant que leen los servicios en runtime.
+        TenantContext.setLaboratoryId(laboratory.getId());
+        accountSeeder.seedDefaultAccounts();
+
+        customer = new Customer();
+        customer.setName("Paciente de Prueba");
+        customer.setAgeInDays(30 * 365); // 30 años: sin descuento
+        customer = customerRepository.save(customer);
+    }
+
+    @AfterEach
+    void clearTenant() { TenantContext.clear(); }
+
+    private LabOrder newOrder(Customer forCustomer, String... testNamesAndPrices) {
+        LabOrder order = new LabOrder();
+        order.setCustomer(forCustomer);
+        order.setStatus(OrderStatus.PENDING);
+        List<LabTest> labTests = new ArrayList<>();
+        for (int i = 0; i < testNamesAndPrices.length; i += 2) {
+            marroquinsoftware.labflowapi.model.Test test = new marroquinsoftware.labflowapi.model.Test();
+            test.setName(testNamesAndPrices[i]);
+            test.setPrice(new BigDecimal(testNamesAndPrices[i + 1]));
+            test = testRepository.save(test);
+            LabTest labTest = new LabTest();
+            labTest.setOrder(order);
+            labTest.setTest(test);
+            labTests.add(labTest);
+        }
+        order.setTests(labTests);
+        return labOrderRepository.save(order);
+    }
+
+    private InvoiceRequest contado(Long orderId, String amount) {
+        return new InvoiceRequest(orderId, SaleCondition.CONTADO, null, null, null, null,
+                new PaymentRequest(new BigDecimal(amount), PaymentMethod.EFECTIVO, null));
+    }
+
+    private InvoiceRequest credito(Long orderId) {
+        return new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null, null);
+    }
+
+    @Test
+    void backdatedInvoiceUsesTheChosenDateForDocumentAndLedger() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        LocalDate backdate = LocalDate.now().minusDays(5);
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null, null,
+                backdate, new PaymentRequest(new BigDecimal("500.00"), PaymentMethod.EFECTIVO, null));
+
+        InvoiceDTO dto = invoiceService.createInvoice(request);
+
+        // La factura queda con la fecha elegida, no con la de hoy.
+        assertEquals(backdate, dto.getIssuedAt().atZone(ZoneId.systemDefault()).toLocalDate());
+        // El asiento de emisión y el del pago inicial heredan esa misma fecha.
+        assertEquals(backdate, entryOf(JournalSourceType.FACTURA, dto.getId()).getEntryDate());
+        assertEquals(backdate,
+                entryOf(JournalSourceType.PAGO, dto.getPayments().get(0).getId()).getEntryDate());
+    }
+
+    @Test
+    void courtesyInvoiceWithZeroTotalBooksOnlyDiscountAndIncome() {
+        LabOrder order = newOrder(customer, "Hemograma", "165.00");
+        Long labTestId = order.getTests().get(0).getId();
+        // Regalía: el examen se cobra en 0, así que el total es 0.
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null,
+                List.of(new InvoiceItemPriceDTO(labTestId, new BigDecimal("0.00"))),
+                new BigDecimal("0.00"), null, null);
+
+        InvoiceDTO dto = invoiceService.createInvoice(request);
+
+        assertEquals(InvoiceStatus.PAGADA, dto.getStatus());
+        assertEquals(0, dto.getTotal().compareTo(BigDecimal.ZERO));
+        assertEquals(0, dto.getBalance().compareTo(BigDecimal.ZERO));
+        assertTrue(dto.getPayments().isEmpty(), "una cortesía no genera pago");
+
+        // El asiento no lleva cuenta por cobrar (total 0); descuento e ingresos
+        // van por el bruto y cuadran.
+        JournalEntry issue = entryOf(JournalSourceType.FACTURA, dto.getId());
+        assertBalanced(issue);
+        assertEquals(0, lineAmount(issue, SystemAccountKey.CUENTAS_POR_COBRAR, true).compareTo(BigDecimal.ZERO));
+        assertEquals(0, lineAmount(issue, SystemAccountKey.DESCUENTOS_VENTAS, true).compareTo(new BigDecimal("165.00")));
+        assertEquals(0, lineAmount(issue, SystemAccountKey.INGRESOS_SERVICIOS, false).compareTo(new BigDecimal("165.00")));
+    }
+
+    @Test
+    void futureInvoiceDateIsRejected() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null, null,
+                LocalDate.now().plusDays(1),
+                new PaymentRequest(new BigDecimal("500.00"), PaymentMethod.EFECTIVO, null));
+
+        assertThrows(APIException.class, () -> invoiceService.createInvoice(request));
+    }
+
+    private JournalEntry entryOf(JournalSourceType type, Long sourceId) {
+        return journalEntryRepository.findFirstBySourceTypeAndSourceId(type, sourceId)
+                .orElseThrow(() -> new AssertionError("falta la partida " + type + " del documento " + sourceId));
+    }
+
+    private void assertBalanced(JournalEntry entry) {
+        BigDecimal debits = entry.getLines().stream().map(JournalLine::getDebit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal credits = entry.getLines().stream().map(JournalLine::getCredit)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        assertEquals(0, debits.compareTo(credits), "la partida " + entry.getEntryNumber() + " no cuadra");
+    }
+
+    private BigDecimal lineAmount(JournalEntry entry, SystemAccountKey key, boolean debit) {
+        return entry.getLines().stream()
+                .filter(l -> l.getAccount().getSystemKey() == key)
+                .map(l -> debit ? l.getDebit() : l.getCredit())
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    @Test
+    void contadoInvoiceIsPaidAndBooksIssueAndPayment() {
+        LabOrder order = newOrder(customer, "Hemograma", "300.00", "Glucosa", "200.00");
+
+        InvoiceDTO dto = invoiceService.createInvoice(contado(order.getId(), "500.00"));
+
+        assertEquals("000-001-01-00000001", dto.getInvoiceNumber());
+        assertEquals(InvoiceStatus.PAGADA, dto.getStatus());
+        assertEquals(0, dto.getBalance().compareTo(BigDecimal.ZERO));
+        assertEquals("QUINIENTOS LEMPIRAS CON 00/100", dto.getTotalInWords());
+        assertEquals(2, dto.getItems().size());
+        assertEquals(1, dto.getPayments().size());
+
+        // Emisión: CxC 500 contra Ingresos 500.
+        JournalEntry issue = entryOf(JournalSourceType.FACTURA, dto.getId());
+        assertBalanced(issue);
+        assertEquals(0, lineAmount(issue, SystemAccountKey.CUENTAS_POR_COBRAR, true)
+                .compareTo(new BigDecimal("500.00")));
+        assertEquals(0, lineAmount(issue, SystemAccountKey.INGRESOS_SERVICIOS, false)
+                .compareTo(new BigDecimal("500.00")));
+
+        // Pago: Caja 500 contra CxC 500 (partida propia, aunque sea contado).
+        JournalEntry payment = entryOf(JournalSourceType.PAGO, dto.getPayments().get(0).getId());
+        assertBalanced(payment);
+        assertEquals(0, lineAmount(payment, SystemAccountKey.CAJA, true)
+                .compareTo(new BigDecimal("500.00")));
+        assertEquals(0, lineAmount(payment, SystemAccountKey.CUENTAS_POR_COBRAR, false)
+                .compareTo(new BigDecimal("500.00")));
+    }
+
+    @Test
+    void contadoRequiresTheFullTotal() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        APIException ex = assertThrows(APIException.class,
+                () -> invoiceService.createInvoice(contado(order.getId(), "400.00")));
+        assertTrue(ex.getMessage().contains("pago completo"), ex.getMessage());
+    }
+
+    @Test
+    void creditoFlowsFromPendingThroughPartialToPaid() {
+        LabOrder order = newOrder(customer, "Perfil lipídico", "500.00");
+        InvoiceDTO dto = invoiceService.createInvoice(credito(order.getId()));
+        assertEquals(InvoiceStatus.PENDIENTE, dto.getStatus());
+
+        dto = invoiceService.registerPayment(dto.getId(),
+                new PaymentRequest(new BigDecimal("200.00"), PaymentMethod.EFECTIVO, null));
+        assertEquals(InvoiceStatus.PARCIAL, dto.getStatus());
+        assertEquals(0, dto.getBalance().compareTo(new BigDecimal("300.00")));
+
+        // Un abono mayor al saldo se rechaza.
+        Long invoiceId = dto.getId();
+        APIException overpay = assertThrows(APIException.class, () -> invoiceService.registerPayment(invoiceId,
+                new PaymentRequest(new BigDecimal("400.00"), PaymentMethod.TARJETA, "V-123")));
+        assertTrue(overpay.getMessage().contains("excede el saldo"), overpay.getMessage());
+
+        dto = invoiceService.registerPayment(invoiceId,
+                new PaymentRequest(new BigDecimal("300.00"), PaymentMethod.TRANSFERENCIA, "T-456"));
+        assertEquals(InvoiceStatus.PAGADA, dto.getStatus());
+
+        // El pago con transferencia entra a Bancos, no a Caja.
+        JournalEntry bankPayment = entryOf(JournalSourceType.PAGO, dto.getPayments().get(1).getId());
+        assertEquals(0, lineAmount(bankPayment, SystemAccountKey.BANCOS, true)
+                .compareTo(new BigDecimal("300.00")));
+
+        assertThrows(APIException.class, () -> invoiceService.registerPayment(invoiceId,
+                new PaymentRequest(new BigDecimal("1.00"), PaymentMethod.EFECTIVO, null)));
+    }
+
+    @Test
+    void ageDiscountIsAppliedAndBookedAgainstDiscountsAccount() {
+        Customer senior = new Customer();
+        senior.setName("Paciente Tercera Edad");
+        senior.setAgeInDays(70 * 365);
+        senior = customerRepository.save(senior);
+        LabOrder order = newOrder(senior, "Hemograma", "300.00", "Glucosa", "200.00");
+
+        InvoiceDTO dto = invoiceService.createInvoice(credito(order.getId()));
+
+        assertEquals(AgeDiscountKind.THIRD_AGE, dto.getDiscountKind());
+        assertEquals(0, dto.getDiscountAmount().compareTo(new BigDecimal("50.00")));
+        // Con la regla completa, el % efectivo es el configurado (10%).
+        assertEquals(0, dto.getDiscountPercent().compareTo(new BigDecimal("10.00")));
+        assertEquals(0, dto.getTotal().compareTo(new BigDecimal("450.00")));
+
+        // Emisión: CxC 450 + Descuentos 50 contra Ingresos 500.
+        JournalEntry issue = entryOf(JournalSourceType.FACTURA, dto.getId());
+        assertBalanced(issue);
+        assertEquals(0, lineAmount(issue, SystemAccountKey.CUENTAS_POR_COBRAR, true)
+                .compareTo(new BigDecimal("450.00")));
+        assertEquals(0, lineAmount(issue, SystemAccountKey.DESCUENTOS_VENTAS, true)
+                .compareTo(new BigDecimal("50.00")));
+        assertEquals(0, lineAmount(issue, SystemAccountKey.INGRESOS_SERVICIOS, false)
+                .compareTo(new BigDecimal("500.00")));
+    }
+
+    @Test
+    void ageDiscountBelowRuleReportsTheEffectivePercent() {
+        Customer senior = new Customer();
+        senior.setName("Paciente Tercera Edad");
+        senior.setAgeInDays(70 * 365);
+        senior = customerRepository.save(senior);
+        LabOrder order = newOrder(senior, "Hemograma", "300.00", "Glucosa", "200.00");
+
+        // La regla da 10% (50 sobre 500), pero en mostrador solo se rebaja 20.
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CREDITO, null, null,
+                new BigDecimal("480.00"), null, null);
+        InvoiceDTO dto = invoiceService.createInvoice(request);
+
+        assertEquals(AgeDiscountKind.THIRD_AGE, dto.getDiscountKind());
+        assertEquals(0, dto.getDiscountAmount().compareTo(new BigDecimal("20.00")));
+        // El % debe reflejar lo realmente rebajado (20/500 = 4%), no el 10% de la regla.
+        assertEquals(0, dto.getDiscountPercent().compareTo(new BigDecimal("4.00")));
+        // No hay "otros descuentos": todo lo rebajado cabe dentro del techo de edad.
+        assertEquals(0, dto.getOtherDiscountAmount().compareTo(BigDecimal.ZERO));
+        assertEquals(0, dto.getTotal().compareTo(new BigDecimal("480.00")));
+    }
+
+    @Test
+    void referralCostBooksAgainstPayableWhenNotPaid() {
+        LabOrder order = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = order.getTests().get(0).getId();
+        ReferralRequest req = new ReferralRequest("Lab Externo", null,
+                List.of(new ReferralRequest.Item(labTestId, new BigDecimal("120.00"))), null);
+
+        ReferralDTO dto = referralService.createReferral(order.getId(), req);
+
+        assertEquals(0, dto.getTotalCost().compareTo(new BigDecimal("120.00")));
+        JournalEntry entry = entryOf(JournalSourceType.REMISION, dto.getId());
+        assertBalanced(entry);
+        assertEquals(0, lineAmount(entry, SystemAccountKey.EXAMENES_REMITIDOS, true)
+                .compareTo(new BigDecimal("120.00")));
+        assertEquals(0, lineAmount(entry, SystemAccountKey.CUENTAS_POR_PAGAR, false)
+                .compareTo(new BigDecimal("120.00")));
+    }
+
+    @Test
+    void referralCostBooksAgainstCashWhenPaidOnSpot() {
+        LabOrder order = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = order.getTests().get(0).getId();
+        ReferralRequest req = new ReferralRequest("Lab Externo", null,
+                List.of(new ReferralRequest.Item(labTestId, new BigDecimal("120.00"))), PaymentMethod.EFECTIVO);
+
+        ReferralDTO dto = referralService.createReferral(order.getId(), req);
+
+        JournalEntry entry = entryOf(JournalSourceType.REMISION, dto.getId());
+        assertBalanced(entry);
+        assertEquals(0, lineAmount(entry, SystemAccountKey.EXAMENES_REMITIDOS, true)
+                .compareTo(new BigDecimal("120.00")));
+        assertEquals(0, lineAmount(entry, SystemAccountKey.CAJA, false)
+                .compareTo(new BigDecimal("120.00")));
+    }
+
+    @Test
+    void referralWithoutCostBooksNothing() {
+        LabOrder order = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = order.getTests().get(0).getId();
+        ReferralRequest req = new ReferralRequest("Lab Externo", null,
+                List.of(new ReferralRequest.Item(labTestId, BigDecimal.ZERO)), null);
+
+        ReferralDTO dto = referralService.createReferral(order.getId(), req);
+
+        assertTrue(journalEntryRepository
+                .findFirstBySourceTypeAndSourceId(JournalSourceType.REMISION, dto.getId()).isEmpty());
+    }
+
+    @Test
+    void deletingReferralReversesItsCost() {
+        LabOrder order = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = order.getTests().get(0).getId();
+        ReferralDTO dto = referralService.createReferral(order.getId(),
+                new ReferralRequest("Lab Externo", null,
+                        List.of(new ReferralRequest.Item(labTestId, new BigDecimal("120.00"))), null));
+
+        referralService.deleteReferral(dto.getId());
+
+        JournalEntry reversal = entryOf(JournalSourceType.ANULACION_REMISION, dto.getId());
+        assertBalanced(reversal);
+        // El contra-asiento invierte los lados: el gasto ahora va al haber.
+        assertEquals(0, lineAmount(reversal, SystemAccountKey.EXAMENES_REMITIDOS, false)
+                .compareTo(new BigDecimal("120.00")));
+    }
+
+    @Test
+    void ordersCannotBeInvoicedTwiceUntilAnnulled() {
+        LabOrder order = newOrder(customer, "Hemograma", "100.00");
+        InvoiceDTO first = invoiceService.createInvoice(credito(order.getId()));
+
+        APIException ex = assertThrows(APIException.class,
+                () -> invoiceService.createInvoice(credito(order.getId())));
+        assertTrue(ex.getMessage().contains(first.getInvoiceNumber()), ex.getMessage());
+
+        invoiceService.annulInvoice(first.getId(), "Error de emisión");
+
+        InvoiceDTO second = invoiceService.createInvoice(credito(order.getId()));
+        assertEquals("000-001-01-00000002", second.getInvoiceNumber(),
+                "tras anular se refactura con el siguiente número");
+    }
+
+    @Test
+    void annullingAnInvoiceWithPaymentsReversesEverything() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        InvoiceDTO dto = invoiceService.createInvoice(credito(order.getId()));
+        dto = invoiceService.registerPayment(dto.getId(),
+                new PaymentRequest(new BigDecimal("200.00"), PaymentMethod.EFECTIVO, null));
+        Long paymentId = dto.getPayments().get(0).getId();
+
+        dto = invoiceService.annulInvoice(dto.getId(), "El paciente devolvió la orden");
+
+        assertEquals(InvoiceStatus.ANULADA, dto.getStatus());
+        assertEquals(0, dto.getBalance().compareTo(BigDecimal.ZERO));
+        assertTrue(dto.getPayments().stream().allMatch(p -> p.isAnnulled()),
+                "anular la factura anula sus pagos");
+
+        JournalEntry paymentReversal = entryOf(JournalSourceType.ANULACION_PAGO, paymentId);
+        assertBalanced(paymentReversal);
+        assertEquals(0, lineAmount(paymentReversal, SystemAccountKey.CUENTAS_POR_COBRAR, true)
+                .compareTo(new BigDecimal("200.00")));
+
+        JournalEntry issueReversal = entryOf(JournalSourceType.ANULACION_FACTURA, dto.getId());
+        assertBalanced(issueReversal);
+        assertEquals(0, lineAmount(issueReversal, SystemAccountKey.CUENTAS_POR_COBRAR, false)
+                .compareTo(new BigDecimal("500.00")));
+
+        Long invoiceId = dto.getId();
+        assertThrows(APIException.class,
+                () -> invoiceService.annulInvoice(invoiceId, "otra vez"),
+                "no se anula dos veces");
+    }
+
+    @Test
+    void annullingAPaymentRestoresTheBalance() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        InvoiceDTO dto = invoiceService.createInvoice(credito(order.getId()));
+        dto = invoiceService.registerPayment(dto.getId(),
+                new PaymentRequest(new BigDecimal("200.00"), PaymentMethod.EFECTIVO, null));
+        Long paymentId = dto.getPayments().get(0).getId();
+
+        dto = invoiceService.annulPayment(dto.getId(), paymentId, "Se cobró por error");
+
+        assertEquals(InvoiceStatus.PENDIENTE, dto.getStatus());
+        assertEquals(0, dto.getPaidAmount().compareTo(BigDecimal.ZERO));
+        assertEquals(0, dto.getBalance().compareTo(new BigDecimal("500.00")));
+        assertBalanced(entryOf(JournalSourceType.ANULACION_PAGO, paymentId));
+    }
+
+    // La pantalla de Facturas llama al listado sin ningún filtro; los filtros
+    // opcionales viajan como null y la consulta tiene que resolverlos igual.
+    @Test
+    void listsInvoicesWithAndWithoutFilters() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        InvoiceDTO issued = invoiceService.createInvoice(contado(order.getId(), "500.00"));
+
+        InvoiceResponse all = invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, null, null, null, null);
+        assertEquals(1, all.getContent().size(), "el listado sin filtros debe devolver la factura");
+        assertEquals(issued.getInvoiceNumber(), all.getContent().get(0).getInvoiceNumber());
+
+        InvoiceResponse byStatus = invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                InvoiceStatus.PAGADA, null, null, null, null);
+        assertEquals(1, byStatus.getContent().size());
+        assertEquals(0, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                InvoiceStatus.ANULADA, null, null, null, null).getContent().size());
+
+        assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, order.getId(), null, null, null).getContent().size());
+
+        // La búsqueda matchea número de factura o nombre del paciente.
+        assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, null, null, null, "Paciente").getContent().size());
+        assertEquals(0, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, null, null, null, "no-existe").getContent().size());
+
+        assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
+                null, null, LocalDate.now().minusDays(1), LocalDate.now(), null).getContent().size());
+    }
+
+    @Test
+    void listsReceivablesAndCustomerStatement() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        InvoiceDTO dto = invoiceService.createInvoice(credito(order.getId()));
+        invoiceService.registerPayment(dto.getId(),
+                new PaymentRequest(new BigDecimal("200.00"), PaymentMethod.EFECTIVO, null));
+
+        var receivables = invoiceService.getReceivables(0, 50);
+        assertEquals(1, receivables.getContent().size());
+        assertEquals(0, receivables.getTotalReceivable().compareTo(new BigDecimal("300.00")));
+
+        var statement = invoiceService.getCustomerStatement(customer.getId());
+        assertEquals(2, statement.getRows().size(), "la factura y su abono");
+        assertEquals(0, statement.getBalance().compareTo(new BigDecimal("300.00")));
+    }
+
+    @Test
+    void cancelledOrEmptyOrdersCannotBeInvoiced() {
+        LabOrder cancelled = newOrder(customer, "Hemograma", "100.00");
+        cancelled.setStatus(OrderStatus.CANCELLED);
+        labOrderRepository.save(cancelled);
+        assertThrows(APIException.class, () -> invoiceService.createInvoice(credito(cancelled.getId())));
+
+        LabOrder empty = new LabOrder();
+        empty.setCustomer(customer);
+        empty.setStatus(OrderStatus.PENDING);
+        LabOrder savedEmpty = labOrderRepository.save(empty);
+        assertThrows(APIException.class, () -> invoiceService.createInvoice(credito(savedEmpty.getId())));
+    }
+}

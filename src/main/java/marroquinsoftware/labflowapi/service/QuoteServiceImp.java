@@ -36,11 +36,11 @@ import java.util.stream.Collectors;
 @Service
 public class QuoteServiceImp implements QuoteService {
 
-    /** Misma conversión que usa el frontend para mostrar la edad del paciente. */
-    private static final int DAYS_PER_YEAR = 365;
-
     @Autowired
     private QuoteRepository quoteRepository;
+
+    @Autowired
+    private AgeDiscountCalculator ageDiscountCalculator;
 
     @Autowired
     private QuoteCounterRepository quoteCounterRepository;
@@ -93,7 +93,7 @@ public class QuoteServiceImp implements QuoteService {
                 .filter(java.util.Objects::nonNull)
                 .reduce(BigDecimal.ZERO, BigDecimal::add)
                 .setScale(2, RoundingMode.HALF_UP);
-        AgeDiscountDTO discount = discountFor(quote.getPatientAgeInDays(), requireLaboratory(laboratoryId));
+        AgeDiscountDTO discount = ageDiscountCalculator.discountFor(quote.getPatientAgeInDays(), requireLaboratory(laboratoryId));
         BigDecimal discountAmount = subtotal
                 .multiply(discount.getPercent())
                 .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
@@ -120,7 +120,7 @@ public class QuoteServiceImp implements QuoteService {
 
     @Override
     public AgeDiscountDTO previewDiscount(Integer ageInDays) {
-        return discountFor(ageInDays, requireLaboratory(requireLaboratoryId()));
+        return ageDiscountCalculator.discountFor(ageInDays, requireLaboratory(requireLaboratoryId()));
     }
 
     /**
@@ -165,34 +165,6 @@ public class QuoteServiceImp implements QuoteService {
             items.add(item);
         }
         return items;
-    }
-
-    /**
-     * Elige el tramo de descuento por edad. La cuarta edad tiene prioridad sobre
-     * la tercera: si el paciente llega a ambos umbrales, se le aplica el de
-     * cuarta edad. Un tramo sin umbral o sin porcentaje configurado no aplica.
-     */
-    private AgeDiscountDTO discountFor(Integer ageInDays, Laboratory laboratory) {
-        AgeDiscountDTO none = new AgeDiscountDTO(AgeDiscountKind.NONE, AgeDiscountKind.NONE.getLabel(), BigDecimal.ZERO);
-        if (ageInDays == null || ageInDays <= 0) return none;
-        int years = ageInDays / DAYS_PER_YEAR;
-
-        if (qualifies(years, laboratory.getFourthAgeMinYears(), laboratory.getFourthAgeDiscountPercent())) {
-            return new AgeDiscountDTO(AgeDiscountKind.FOURTH_AGE, AgeDiscountKind.FOURTH_AGE.getLabel(),
-                    laboratory.getFourthAgeDiscountPercent());
-        }
-        if (qualifies(years, laboratory.getThirdAgeMinYears(), laboratory.getThirdAgeDiscountPercent())) {
-            return new AgeDiscountDTO(AgeDiscountKind.THIRD_AGE, AgeDiscountKind.THIRD_AGE.getLabel(),
-                    laboratory.getThirdAgeDiscountPercent());
-        }
-        return none;
-    }
-
-    private boolean qualifies(int years, Integer minYears, BigDecimal percent) {
-        return minYears != null
-                && percent != null
-                && percent.compareTo(BigDecimal.ZERO) > 0
-                && years >= minYears;
     }
 
     /**

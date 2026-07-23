@@ -31,7 +31,21 @@
     </scm>
     <properties>
         <java.version>25</java.version>
+        <aws.sdk.version>2.32.14</aws.sdk.version>
     </properties>
+
+    <dependencyManagement>
+        <dependencies>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws.sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+        </dependencies>
+    </dependencyManagement>
+
     <dependencies>
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -88,6 +102,25 @@
             <version>3.2.4</version>
         </dependency>
 
+
+        <!-- Cloudflare R2 se habla por el API de S3, así que se usa el SDK de AWS.
+             Se cambia el cliente HTTP de Netty por el de la JDK (url-connection-client)
+             porque solo se suben y firman archivos pequeños y así la imagen del
+             contenedor no carga con todo Netty. -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+            <exclusions>
+                <exclusion>
+                    <groupId>software.amazon.awssdk</groupId>
+                    <artifactId>netty-nio-client</artifactId>
+                </exclusion>
+            </exclusions>
+        </dependency>
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>url-connection-client</artifactId>
+        </dependency>
 
         <dependency>
             <groupId>io.jsonwebtoken</groupId>

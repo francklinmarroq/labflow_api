@@ -66,6 +66,8 @@ public class SecurityConfig {
                         // /auth/me requiere sesión.
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
                                 "/api/v1/auth/invitation/**", "/error").permitAll()
+                        // El cron de warm-up pega acá sin credenciales; no expone datos.
+                        .requestMatchers("/api/v1/health").permitAll()
                         .anyRequest().authenticated()
                 )
                 .sessionManagement(session -> session.sessionCreationPolicy(SessionCreationPolicy.STATELESS));

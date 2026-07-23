@@ -7,17 +7,23 @@ import marroquinsoftware.labflowapi.model.TestConfigParameter;
 import marroquinsoftware.labflowapi.repositories.ParameterRepository;
 import marroquinsoftware.labflowapi.repositories.TestConfigRepository;
 import marroquinsoftware.labflowapi.repositories.TestRepository;
+import marroquinsoftware.labflowapi.tenant.TenantIdentifierResolver;
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.data.jpa.test.autoconfigure.DataJpaTest;
 import org.springframework.boot.jdbc.test.autoconfigure.AutoConfigureTestDatabase;
+import org.springframework.context.annotation.Import;
 import org.springframework.test.context.TestPropertySource;
 
 import java.util.List;
 
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
+// Las entidades llevan @TenantId, así que Hibernate arranca en modo multi-tenant
+// y exige un resolver para poder abrir sesión; sin este import el contexto ni
+// siquiera levanta.
+@Import(TenantIdentifierResolver.class)
 @TestPropertySource(properties = {
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",

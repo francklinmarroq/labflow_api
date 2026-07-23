@@ -10,6 +10,8 @@ public interface ReferenceRangeService {
 
     ReferenceRangeResponse getRangesByParameter(Long parameterId, Integer pageNumber, Integer pageSize, String sortBy, String sortDir);
 
+    List<ReferenceRangeDTO> getRangesByParameterIds(List<Long> parameterIds);
+
     ReferenceRangeDTO createReferenceRange(Long parameterId, ReferenceRangeDTO dto);
 
     ReferenceRangeDTO updateReferenceRange(Long parameterId, Long rangeId, ReferenceRangeDTO dto);

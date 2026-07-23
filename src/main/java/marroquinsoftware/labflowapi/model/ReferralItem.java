@@ -40,4 +40,11 @@ public class ReferralItem {
 
     @Column(nullable = false)
     private String testName;
+
+    /**
+     * Lo que el laboratorio de destino cobra por realizar esta prueba (costo del
+     * examen remitido). Puede ser 0 en la rara ocasión en que no cobran.
+     */
+    @Column(precision = 12, scale = 2)
+    private java.math.BigDecimal cost;
 }

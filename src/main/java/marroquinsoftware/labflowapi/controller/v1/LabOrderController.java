@@ -35,6 +35,14 @@ public class LabOrderController {
         return new ResponseEntity<>(labOrderService.getAllOrders(pageNumber, pageSize, sortBy, sortOrder), HttpStatus.OK);
     }
 
+    // Las pantallas de detalle/impresión solo necesitan una orden. Antes bajaban
+    // el listado completo para hacer un find() en el cliente.
+    @GetMapping("/{orderId}")
+    @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT','ORDERS_ENTER_RESULTS')")
+    public ResponseEntity<LabOrderDTO> getOrderById(@PathVariable Long orderId) {
+        return new ResponseEntity<>(labOrderService.getOrderById(orderId), HttpStatus.OK);
+    }
+
     @PostMapping
     @PreAuthorize("hasAuthority('ORDERS_CREATE')")
     public ResponseEntity<LabOrderDTO> createOrder(@Valid @RequestBody LabOrderDTO dto) {
