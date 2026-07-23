@@ -21,7 +21,8 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
-import java.time.ZoneOffset;
+import java.time.LocalTime;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -30,6 +31,12 @@ import java.util.Map;
 
 @Service
 public class InvoiceServiceImp implements InvoiceService {
+
+    // Los instantes (issuedAt) se guardan en UTC, pero el negocio opera en
+    // Honduras (UTC-6, sin horario de verano). "Hoy" y los rangos de fecha se
+    // resuelven en esta zona; con UTC, una factura emitida de tarde caía en el
+    // día siguiente y se perdía en los filtros por fecha.
+    private static final ZoneId LAB_ZONE = ZoneId.of("America/Tegucigalpa");
 
     @Autowired private InvoiceRepository invoiceRepository;
     @Autowired private PaymentRepository paymentRepository;
@@ -199,16 +206,29 @@ public class InvoiceServiceImp implements InvoiceService {
         invoice.setLabRegSag(laboratory.getRegSag());
         invoice.setLabOrdenCompraExenta(laboratory.getOrdenCompraExenta());
 
-        invoice.setIssuedAt(Instant.now());
+        // Fecha de emisión: hoy por defecto, o la que indique el operador para
+        // antedatar. La hora se conserva realista para las de hoy; para una fecha
+        // pasada se fija a mediodía, así ninguna zona horaria la corre de día al
+        // imprimir. El asiento y el pago inicial usan esta misma fecha.
+        LocalDate today = LocalDate.now(LAB_ZONE);
+        LocalDate issueDate = request.getIssueDate() != null ? request.getIssueDate() : today;
+        if (issueDate.isAfter(today)) {
+            throw new APIException("La fecha de la factura no puede ser futura.");
+        }
+        Instant issuedAt = issueDate.isEqual(today)
+                ? Instant.now()
+                : issueDate.atTime(LocalTime.NOON).atZone(LAB_ZONE).toInstant();
+
+        invoice.setIssuedAt(issuedAt);
         invoice.setIssuedByUsername(currentUsername());
         invoice.setSaleCondition(request.getSaleCondition());
         invoice.setStatus(total.compareTo(BigDecimal.ZERO) == 0 ? InvoiceStatus.PAGADA : InvoiceStatus.PENDIENTE);
         invoice = invoiceRepository.save(invoice);
 
-        postIssueEntry(invoice);
+        postIssueEntry(invoice, issueDate);
 
         // Contado: el pago completo entra en la misma transacción. Crédito: el
-        // abono inicial es opcional.
+        // abono inicial es opcional. El pago inicial hereda la fecha de la factura.
         PaymentRequest initialPayment = request.getInitialPayment();
         if (total.compareTo(BigDecimal.ZERO) > 0) {
             if (request.getSaleCondition() == SaleCondition.CONTADO) {
@@ -216,9 +236,9 @@ public class InvoiceServiceImp implements InvoiceService {
                         || initialPayment.getAmount().setScale(2, RoundingMode.HALF_UP).compareTo(total) != 0) {
                     throw new APIException("La venta al contado exige el pago completo (L " + total + ").");
                 }
-                applyPayment(invoice, initialPayment);
+                applyPayment(invoice, initialPayment, issueDate, issuedAt);
             } else if (initialPayment != null) {
-                applyPayment(invoice, initialPayment);
+                applyPayment(invoice, initialPayment, issueDate, issuedAt);
             }
         }
 
@@ -231,8 +251,10 @@ public class InvoiceServiceImp implements InvoiceService {
                                           String search) {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
-        Instant fromInstant = from != null ? from.atStartOfDay(ZoneOffset.UTC).toInstant() : null;
-        Instant toInstant = to != null ? to.plusDays(1).atStartOfDay(ZoneOffset.UTC).toInstant() : null;
+        // El rango es [from 00:00, to+1 00:00) en hora de Honduras; el límite
+        // superior exclusivo (ver BillingSpecifications) incluye todo el día "to".
+        Instant fromInstant = from != null ? from.atStartOfDay(LAB_ZONE).toInstant() : null;
+        Instant toInstant = to != null ? to.plusDays(1).atStartOfDay(LAB_ZONE).toInstant() : null;
         Page<Invoice> page = invoiceRepository.findAll(
                 BillingSpecifications.invoices(status, orderId, fromInstant, toInstant, search), pageable);
         InvoiceResponse response = new InvoiceResponse();
@@ -403,6 +425,14 @@ public class InvoiceServiceImp implements InvoiceService {
      * La factura ya viene bloqueada (o recién creada en esta transacción).
      */
     private void applyPayment(Invoice invoice, PaymentRequest request) {
+        applyPayment(invoice, request, LocalDate.now(), Instant.now());
+    }
+
+    /**
+     * @param entryDate fecha del asiento contable del pago
+     * @param paidAt    instante que se guarda como fecha/hora del recibo
+     */
+    private void applyPayment(Invoice invoice, PaymentRequest request, LocalDate entryDate, Instant paidAt) {
         BigDecimal amount = request.getAmount().setScale(2, RoundingMode.HALF_UP);
         BigDecimal balance = invoice.getTotal().subtract(invoice.getPaidAmount());
         if (amount.compareTo(balance) > 0) {
@@ -412,7 +442,7 @@ public class InvoiceServiceImp implements InvoiceService {
         Payment payment = new Payment();
         payment.setInvoice(invoice);
         payment.setPaymentNumber(nextPaymentNumber(requireLaboratoryId()));
-        payment.setPaidAt(Instant.now());
+        payment.setPaidAt(paidAt);
         payment.setAmount(amount);
         payment.setMethod(request.getMethod());
         String reference = request.getReference() != null ? request.getReference().trim() : null;
@@ -421,7 +451,7 @@ public class InvoiceServiceImp implements InvoiceService {
         payment = paymentRepository.save(payment);
 
         journalService.post(
-                LocalDate.now(),
+                entryDate,
                 "Pago factura Nº " + invoice.getInvoiceNumber() + " (recibo Nº " + payment.getPaymentNumber() + ")",
                 JournalSourceType.PAGO,
                 payment.getId(),
@@ -439,7 +469,7 @@ public class InvoiceServiceImp implements InvoiceService {
      * sea de contado: el pago inmediato la salda en su propia partida), así el
      * mapeo es uno solo para contado, crédito y abonos parciales.
      */
-    private void postIssueEntry(Invoice invoice) {
+    private void postIssueEntry(Invoice invoice, LocalDate entryDate) {
         // Ingresos se acredita por el bruto y toda rebaja va a Descuentos sobre
         // ventas: descuento por edad, regalías de línea y el cierre negociado.
         // Así el asiento cuadra (total + descuentos = subtotal) y el reporte
@@ -453,7 +483,7 @@ public class InvoiceServiceImp implements InvoiceService {
         }
         lines.add(LinePlan.credit(journalService.systemAccount(SystemAccountKey.INGRESOS_SERVICIOS), invoice.getSubtotal()));
         journalService.post(
-                LocalDate.now(),
+                entryDate,
                 "Factura Nº " + invoice.getInvoiceNumber() + " — " + invoice.getCustomerName(),
                 JournalSourceType.FACTURA,
                 invoice.getId(),

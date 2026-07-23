@@ -38,8 +38,10 @@ public final class BillingSpecifications {
             List<Predicate> predicates = new ArrayList<>();
             if (status != null) predicates.add(cb.equal(root.get("status"), status));
             if (orderId != null) predicates.add(cb.equal(root.get("order").get("id"), orderId));
+            // `to` ya es el inicio del día siguiente (exclusivo), así que va con
+            // menor-estricto para no arrastrar la medianoche del día siguiente.
             if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("issuedAt"), from));
-            if (to != null) predicates.add(cb.lessThanOrEqualTo(root.get("issuedAt"), to));
+            if (to != null) predicates.add(cb.lessThan(root.get("issuedAt"), to));
             if (search != null && !search.isBlank()) {
                 String pattern = "%" + search.trim().toLowerCase() + "%";
                 predicates.add(cb.or(

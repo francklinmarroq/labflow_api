@@ -24,6 +24,7 @@ import tools.jackson.databind.json.JsonMapper;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -110,12 +111,39 @@ class InvoiceAccountingTest {
     }
 
     private InvoiceRequest contado(Long orderId, String amount) {
-        return new InvoiceRequest(orderId, SaleCondition.CONTADO, null, null, null,
+        return new InvoiceRequest(orderId, SaleCondition.CONTADO, null, null, null, null,
                 new PaymentRequest(new BigDecimal(amount), PaymentMethod.EFECTIVO, null));
     }
 
     private InvoiceRequest credito(Long orderId) {
-        return new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null);
+        return new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null, null);
+    }
+
+    @Test
+    void backdatedInvoiceUsesTheChosenDateForDocumentAndLedger() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        LocalDate backdate = LocalDate.now().minusDays(5);
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null, null,
+                backdate, new PaymentRequest(new BigDecimal("500.00"), PaymentMethod.EFECTIVO, null));
+
+        InvoiceDTO dto = invoiceService.createInvoice(request);
+
+        // La factura queda con la fecha elegida, no con la de hoy.
+        assertEquals(backdate, dto.getIssuedAt().atZone(ZoneId.systemDefault()).toLocalDate());
+        // El asiento de emisión y el del pago inicial heredan esa misma fecha.
+        assertEquals(backdate, entryOf(JournalSourceType.FACTURA, dto.getId()).getEntryDate());
+        assertEquals(backdate,
+                entryOf(JournalSourceType.PAGO, dto.getPayments().get(0).getId()).getEntryDate());
+    }
+
+    @Test
+    void futureInvoiceDateIsRejected() {
+        LabOrder order = newOrder(customer, "Hemograma", "500.00");
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null, null,
+                LocalDate.now().plusDays(1),
+                new PaymentRequest(new BigDecimal("500.00"), PaymentMethod.EFECTIVO, null));
+
+        assertThrows(APIException.class, () -> invoiceService.createInvoice(request));
     }
 
     private JournalEntry entryOf(JournalSourceType type, Long sourceId) {

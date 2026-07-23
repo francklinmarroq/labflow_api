@@ -9,6 +9,7 @@ import lombok.NoArgsConstructor;
 import marroquinsoftware.labflowapi.model.SaleCondition;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 import java.util.List;
 
 /**
@@ -48,6 +49,13 @@ public class InvoiceRequest {
      */
     @DecimalMin(value = "0.00", message = "El total a cobrar no puede ser negativo")
     private BigDecimal total;
+
+    /**
+     * Fecha de emisión. Null = hoy. Permite antedatar la factura; la fecha del
+     * asiento contable y del pago inicial siguen esta fecha, no el reloj. No se
+     * admiten fechas futuras.
+     */
+    private LocalDate issueDate;
 
     /**
      * Obligatorio y por el total en ventas al contado; opcional (abono) en
