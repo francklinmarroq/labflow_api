@@ -55,6 +55,7 @@ public class PublicReportDTO {
         private String email;
         private String rtn;
         private String logoUrl; // URL firmada con vencimiento (bucket privado)
+        private String stampUrl; // sello del regente, misma firma temporal
     }
 
     /** Datos del paciente que salen en el reporte (sin teléfono/correo/fiscales). */

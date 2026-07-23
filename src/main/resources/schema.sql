@@ -41,3 +41,8 @@ alter table if exists journal_entries drop constraint if exists journal_entries_
 -- partir de la entidad). El backfill de tokens en filas viejas lo hace
 -- PublicTokenBackfill al arrancar.
 alter table if exists lab_orders add column if not exists public_token varchar(36);
+
+-- Sello del regente: misma historia que public_token, ddl-auto=update no agrega la
+-- columna en bases existentes. Guarda la llave del objeto en el bucket privado (no
+-- una URL), igual que logo_object_key.
+alter table if exists laboratory add column if not exists stamp_object_key varchar(255);

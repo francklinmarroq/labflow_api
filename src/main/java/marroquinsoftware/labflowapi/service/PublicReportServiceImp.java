@@ -190,7 +190,7 @@ public class PublicReportServiceImp implements PublicReportService {
         if (lab == null) return null;
         return new PublicReportDTO.Lab(
                 lab.getName(), lab.getAddress1(), lab.getAddress2(),
-                lab.getPhone(), lab.getEmail(), lab.getRtn(), lab.getLogoUrl());
+                lab.getPhone(), lab.getEmail(), lab.getRtn(), lab.getLogoUrl(), lab.getStampUrl());
     }
 
     private PublicReportDTO.Patient toPatient(CustomerDTO customer) {

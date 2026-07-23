@@ -13,4 +13,10 @@ public interface LaboratoryService {
 
     /** Quita el logo; los reportes vuelven a salir sin imagen. */
     LaboratoryDTO deleteLogo();
+
+    /** Sube (o reemplaza) el sello del regente del laboratorio de la sesión. */
+    LaboratoryDTO uploadStamp(MultipartFile file);
+
+    /** Quita el sello; el reporte vuelve a salir solo con la línea de firma. */
+    LaboratoryDTO deleteStamp();
 }
