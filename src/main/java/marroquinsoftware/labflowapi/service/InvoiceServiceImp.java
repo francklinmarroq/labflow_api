@@ -179,8 +179,18 @@ public class InvoiceServiceImp implements InvoiceService {
         String rtn = request.getCustomerRtn() != null ? request.getCustomerRtn().trim() : null;
         invoice.setCustomerRtn(rtn != null && !rtn.isEmpty() ? rtn : customer.getTaxNumber());
 
+        // Porcentaje realmente aplicado del tramo de edad. El descuento por edad
+        // es un techo: si en mostrador se rebaja menos que la regla, el monto se
+        // recorta y el % debe recortarse igual, para no imprimir "4ta edad 20%"
+        // junto a un monto que en realidad es un 10%. Con la regla completa da el
+        // mismo % configurado; el excedente ya va aparte como otros descuentos.
+        BigDecimal charged = subtotal.subtract(totals.itemDiscount());
+        BigDecimal effectivePercent = charged.compareTo(BigDecimal.ZERO) > 0
+                ? discountAmount.multiply(BigDecimal.valueOf(100)).divide(charged, 2, RoundingMode.HALF_UP)
+                : BigDecimal.ZERO;
+
         invoice.setDiscountKind(discount.getKind());
-        invoice.setDiscountPercent(discount.getPercent());
+        invoice.setDiscountPercent(effectivePercent);
         invoice.setSubtotal(subtotal);
         invoice.setDiscountAmount(discountAmount);
         invoice.setOtherDiscountAmount(totals.otherDiscount());

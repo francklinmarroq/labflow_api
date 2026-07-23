@@ -272,6 +272,8 @@ class InvoiceAccountingTest {
 
         assertEquals(AgeDiscountKind.THIRD_AGE, dto.getDiscountKind());
         assertEquals(0, dto.getDiscountAmount().compareTo(new BigDecimal("50.00")));
+        // Con la regla completa, el % efectivo es el configurado (10%).
+        assertEquals(0, dto.getDiscountPercent().compareTo(new BigDecimal("10.00")));
         assertEquals(0, dto.getTotal().compareTo(new BigDecimal("450.00")));
 
         // Emisión: CxC 450 + Descuentos 50 contra Ingresos 500.
@@ -283,6 +285,28 @@ class InvoiceAccountingTest {
                 .compareTo(new BigDecimal("50.00")));
         assertEquals(0, lineAmount(issue, SystemAccountKey.INGRESOS_SERVICIOS, false)
                 .compareTo(new BigDecimal("500.00")));
+    }
+
+    @Test
+    void ageDiscountBelowRuleReportsTheEffectivePercent() {
+        Customer senior = new Customer();
+        senior.setName("Paciente Tercera Edad");
+        senior.setAgeInDays(70 * 365);
+        senior = customerRepository.save(senior);
+        LabOrder order = newOrder(senior, "Hemograma", "300.00", "Glucosa", "200.00");
+
+        // La regla da 10% (50 sobre 500), pero en mostrador solo se rebaja 20.
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CREDITO, null, null,
+                new BigDecimal("480.00"), null, null);
+        InvoiceDTO dto = invoiceService.createInvoice(request);
+
+        assertEquals(AgeDiscountKind.THIRD_AGE, dto.getDiscountKind());
+        assertEquals(0, dto.getDiscountAmount().compareTo(new BigDecimal("20.00")));
+        // El % debe reflejar lo realmente rebajado (20/500 = 4%), no el 10% de la regla.
+        assertEquals(0, dto.getDiscountPercent().compareTo(new BigDecimal("4.00")));
+        // No hay "otros descuentos": todo lo rebajado cabe dentro del techo de edad.
+        assertEquals(0, dto.getOtherDiscountAmount().compareTo(BigDecimal.ZERO));
+        assertEquals(0, dto.getTotal().compareTo(new BigDecimal("480.00")));
     }
 
     @Test
