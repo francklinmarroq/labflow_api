@@ -66,6 +66,9 @@ public class SecurityConfig {
                         // /auth/me requiere sesión.
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
                                 "/api/v1/auth/invitation/**", "/error").permitAll()
+                        // Reporte público de resultados por token (enlace/QR del paciente).
+                        // El tenant lo resuelve AuthTokenFilter desde el token.
+                        .requestMatchers("/api/v1/public/**").permitAll()
                         // El cron de warm-up pega acá sin credenciales; no expone datos.
                         .requestMatchers("/api/v1/health").permitAll()
                         .anyRequest().authenticated()

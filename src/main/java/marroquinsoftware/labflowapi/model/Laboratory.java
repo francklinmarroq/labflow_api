@@ -47,6 +47,10 @@ public class Laboratory {
     // nada en público, así que la URL se firma al vuelo cada vez que se lee.
     private String logoObjectKey;
 
+    // Llave del sello del regente, con el mismo esquema que el logo. Se imprime en
+    // el campo de firma y sello del reporte de resultados.
+    private String stampObjectKey;
+
     // CAI 1
     private String cai1;
     private LocalDate cai1ExpirationDate;

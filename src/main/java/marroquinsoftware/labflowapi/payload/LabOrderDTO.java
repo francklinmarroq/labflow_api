@@ -15,6 +15,10 @@ import java.time.LocalDate;
 public class LabOrderDTO {
     private Long id;
     private Long orderNumber;
+    // Token del enlace público de resultados (solo lectura; lo asigna la API al
+    // crear la orden). El front lo usa para armar la URL/QR que se comparte al
+    // paciente. Ver LabOrder.publicToken.
+    private String publicToken;
     @NotNull(message = "Debe seleccionar un paciente")
     private Long customerId;
     private Instant requestedAt;

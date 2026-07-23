@@ -51,4 +51,18 @@ public class LaboratoryController {
     public ResponseEntity<LaboratoryDTO> deleteLogo() {
         return new ResponseEntity<>(laboratoryService.deleteLogo(), HttpStatus.OK);
     }
+
+    // Sello del regente: mismo camino que el logo (sube por acá, no al bucket) y la
+    // respuesta trae la URL firmada nueva.
+    @PostMapping(value = "/stamp", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
+    @PreAuthorize("hasAuthority('LAB_SETTINGS_EDIT')")
+    public ResponseEntity<LaboratoryDTO> uploadStamp(@RequestParam("file") MultipartFile file) {
+        return new ResponseEntity<>(laboratoryService.uploadStamp(file), HttpStatus.OK);
+    }
+
+    @DeleteMapping("/stamp")
+    @PreAuthorize("hasAuthority('LAB_SETTINGS_EDIT')")
+    public ResponseEntity<LaboratoryDTO> deleteStamp() {
+        return new ResponseEntity<>(laboratoryService.deleteStamp(), HttpStatus.OK);
+    }
 }

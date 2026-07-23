@@ -41,6 +41,10 @@ public class LaboratoryDTO {
     // POST /laboratory/logo.
     private String logoUrl;
 
+    // Sello del regente, mismo esquema de solo lectura que logoUrl. Se cambia por
+    // POST /laboratory/stamp y se imprime en la firma del reporte de resultados.
+    private String stampUrl;
+
     private String cai1;
     private LocalDate cai1ExpirationDate;
     private String cai1RangeFrom;

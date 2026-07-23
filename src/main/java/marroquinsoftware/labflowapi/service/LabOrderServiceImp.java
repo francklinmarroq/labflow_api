@@ -22,6 +22,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.List;
+import java.util.UUID;
 
 @Service
 public class LabOrderServiceImp implements LabOrderService {
@@ -62,6 +63,9 @@ public class LabOrderServiceImp implements LabOrderService {
         LabOrder order = new LabOrder();
         // El laboratorio (tenant) lo asigna Hibernate al persistir por @TenantId.
         order.setOrderNumber(nextOrderNumber(laboratoryId));
+        // Token del enlace público de resultados: opaco, único e irrepetible, se fija
+        // una sola vez aquí y acompaña a la orden toda su vida.
+        order.setPublicToken(UUID.randomUUID().toString());
         order.setCustomer(customer);
         order.setRequestedAt(dto.getRequestedAt() != null ? dto.getRequestedAt() : Instant.now());
         order.setStatus(dto.getStatus() != null ? dto.getStatus() : OrderStatus.PENDING);
@@ -144,6 +148,7 @@ public class LabOrderServiceImp implements LabOrderService {
         LabOrderDTO dto = new LabOrderDTO();
         dto.setId(order.getId());
         dto.setOrderNumber(order.getOrderNumber());
+        dto.setPublicToken(order.getPublicToken());
         dto.setCustomerId(order.getCustomer().getId());
         dto.setRequestedAt(order.getRequestedAt());
         dto.setStatus(order.getStatus());

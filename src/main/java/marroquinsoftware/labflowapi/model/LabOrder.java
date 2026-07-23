@@ -35,6 +35,16 @@ public class LabOrder {
     @Column(name = "order_number")
     private Long orderNumber;
 
+    /**
+     * Token opaco (UUID) para el enlace público de resultados. Con él, el paciente
+     * abre su reporte sin sesión ({@code /api/v1/public/orders/{token}} y la página
+     * pública del front). Es un capability de portador: sirve para armar la URL y el
+     * QR que se imprime en el reporte, por eso se guarda en claro y no se hashea.
+     * Se asigna una sola vez al crear la orden y no cambia.
+     */
+    @Column(name = "public_token", unique = true, updatable = false, length = 36)
+    private String publicToken;
+
     @TenantId
     @Column(name = "laboratory_id", updatable = false)
     private Long laboratoryId;

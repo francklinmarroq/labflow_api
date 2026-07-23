@@ -13,6 +13,7 @@ import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
+import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.UserRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 
@@ -25,6 +26,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
 
     // Endpoints públicos de invitación: /api/v1/auth/invitation/{token}[/accept]
     private static final Pattern INVITATION_PATH = Pattern.compile("/api/v1/auth/invitation/([^/]+)");
+    // Reporte público de resultados: /api/v1/public/orders/{token}
+    private static final Pattern PUBLIC_REPORT_PATH = Pattern.compile("/api/v1/public/orders/([^/]+)");
 
     @Autowired
     private JwtUtils jwtUtils;
@@ -32,6 +35,8 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     private UserDetailsService userDetailsService;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private LabOrderRepository labOrderRepository;
 
     @Override
     protected void doFilterInternal(HttpServletRequest request, HttpServletResponse response, FilterChain filterChain) throws ServletException, IOException {
@@ -55,6 +60,10 @@ public class AuthTokenFilter extends OncePerRequestFilter {
                 // (OSIV), para que el AppRole del invitado (que es @TenantId) se
                 // pueda cargar sin fallar.
                 resolveInvitationTenant(request);
+                // Mismo caso con el reporte público: el laboratorio se resuelve del
+                // token de la orden para que las consultas filtradas por @TenantId
+                // devuelvan sus datos.
+                resolvePublicReportTenant(request);
             }
         } catch (Exception e) {
             LOGGER.error("Cannot set user authentication: {}", e.getMessage());
@@ -74,6 +83,16 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         }
         String rawToken = matcher.group(1);
         userRepository.findLaboratoryIdByInvitationTokenHash(InvitationTokens.hash(rawToken))
+                .ifPresent(TenantContext::setLaboratoryId);
+    }
+
+    private void resolvePublicReportTenant(HttpServletRequest request) {
+        Matcher matcher = PUBLIC_REPORT_PATH.matcher(request.getRequestURI());
+        if (!matcher.find()) {
+            return;
+        }
+        String token = matcher.group(1);
+        labOrderRepository.findLaboratoryIdByPublicToken(token)
                 .ifPresent(TenantContext::setLaboratoryId);
     }
 

@@ -17,6 +17,8 @@ import java.time.Duration;
 import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
 
 @Service
 public class LaboratoryServiceImp implements LaboratoryService {
@@ -64,18 +66,51 @@ public class LaboratoryServiceImp implements LaboratoryService {
                 .orElseThrow(() -> new ResourceNotFoundException("Laboratory", "id", id));
         // El owner no viene en el DTO, así que modelMapper no lo toca y se conserva.
         String logoKey = laboratory.getLogoObjectKey();
+        String stampKey = laboratory.getStampObjectKey();
         modelMapper.map(dto, laboratory);
         laboratory.setId(id);
-        // El logo tampoco viaja en el DTO (solo la URL firmada, que es de lectura):
-        // se repone la llave que ya estaba guardada.
+        // Ni el logo ni el sello viajan en el DTO (solo sus URL firmadas, que son de
+        // lectura): se reponen las llaves que ya estaban guardadas.
         laboratory.setLogoObjectKey(logoKey);
+        laboratory.setStampObjectKey(stampKey);
         return toDto(laboratoryRepository.save(laboratory));
     }
 
     @Override
     public LaboratoryDTO uploadLogo(MultipartFile file) {
+        return replaceImage(file, "logo", "El logo",
+                Laboratory::getLogoObjectKey, Laboratory::setLogoObjectKey);
+    }
+
+    @Override
+    public LaboratoryDTO deleteLogo() {
+        return clearImage(Laboratory::getLogoObjectKey, Laboratory::setLogoObjectKey);
+    }
+
+    @Override
+    public LaboratoryDTO uploadStamp(MultipartFile file) {
+        return replaceImage(file, "sello", "El sello",
+                Laboratory::getStampObjectKey, Laboratory::setStampObjectKey);
+    }
+
+    @Override
+    public LaboratoryDTO deleteStamp() {
+        return clearImage(Laboratory::getStampObjectKey, Laboratory::setStampObjectKey);
+    }
+
+    /**
+     * Sube una imagen del membrete (logo o sello) y la deja apuntada en el
+     * laboratorio, borrando la anterior. Logo y sello comparten reglas: mismo
+     * límite de tamaño, mismos formatos y misma carpeta del bucket.
+     *
+     * @param namePrefix prefijo del archivo en el bucket ({@code logo}, {@code sello})
+     * @param label      cómo se nombra la imagen en los mensajes de error
+     */
+    private LaboratoryDTO replaceImage(MultipartFile file, String namePrefix, String label,
+                                       Function<Laboratory, String> getKey,
+                                       BiConsumer<Laboratory, String> setKey) {
         if (file == null || file.isEmpty()) {
-            throw new APIException("Seleccione una imagen para el logo.");
+            throw new APIException("Seleccione una imagen para %s.".formatted(label.toLowerCase(Locale.ROOT)));
         }
         if (file.getSize() > MAX_LOGO_BYTES) {
             throw new APIException("La imagen no puede pesar más de 2 MB.");
@@ -83,7 +118,7 @@ public class LaboratoryServiceImp implements LaboratoryService {
         String contentType = file.getContentType() == null ? "" : file.getContentType().toLowerCase(Locale.ROOT);
         String extension = ALLOWED_LOGO_TYPES.get(contentType);
         if (extension == null) {
-            throw new APIException("El logo debe ser una imagen PNG, JPG o WEBP.");
+            throw new APIException("%s debe ser una imagen PNG, JPG o WEBP.".formatted(label));
         }
 
         Laboratory laboratory = findOwn();
@@ -94,14 +129,14 @@ public class LaboratoryServiceImp implements LaboratoryService {
             throw new APIException("No se pudo leer la imagen. Intente de nuevo.");
         }
 
-        String previousKey = laboratory.getLogoObjectKey();
+        String previousKey = getKey.apply(laboratory);
         // Nombre nuevo en cada subida: si se reusara el mismo, la caché del
-        // navegador seguiría mostrando el logo viejo en los reportes.
-        String key = "%s/logo-%s.%s".formatted(
-                tenantFolder(laboratory), UUID.randomUUID().toString().substring(0, 8), extension);
+        // navegador seguiría mostrando la imagen vieja en los reportes.
+        String key = "%s/%s-%s.%s".formatted(
+                tenantFolder(laboratory), namePrefix, UUID.randomUUID().toString().substring(0, 8), extension);
         fileStorageService.upload(key, bytes, contentType);
 
-        laboratory.setLogoObjectKey(key);
+        setKey.accept(laboratory, key);
         Laboratory saved = laboratoryRepository.save(laboratory);
 
         // Recién cuando el registro apunta al archivo nuevo se borra el anterior.
@@ -111,11 +146,11 @@ public class LaboratoryServiceImp implements LaboratoryService {
         return toDto(saved);
     }
 
-    @Override
-    public LaboratoryDTO deleteLogo() {
+    private LaboratoryDTO clearImage(Function<Laboratory, String> getKey,
+                                     BiConsumer<Laboratory, String> setKey) {
         Laboratory laboratory = findOwn();
-        String key = laboratory.getLogoObjectKey();
-        laboratory.setLogoObjectKey(null);
+        String key = getKey.apply(laboratory);
+        setKey.accept(laboratory, null);
         Laboratory saved = laboratoryRepository.save(laboratory);
         fileStorageService.delete(key);
         return toDto(saved);
@@ -150,6 +185,7 @@ public class LaboratoryServiceImp implements LaboratoryService {
     private LaboratoryDTO toDto(Laboratory laboratory) {
         LaboratoryDTO dto = modelMapper.map(laboratory, LaboratoryDTO.class);
         dto.setLogoUrl(fileStorageService.signedUrl(laboratory.getLogoObjectKey(), LOGO_URL_TTL));
+        dto.setStampUrl(fileStorageService.signedUrl(laboratory.getStampObjectKey(), LOGO_URL_TTL));
         return dto;
     }
 
