@@ -16,18 +16,9 @@ alter table if exists tests drop column if exists notes;
 -- en app_role_permission.permission. Con ddl-auto=update ese check NO se actualiza al
 -- agregar permisos nuevos (facturación, contabilidad, ajustes del laboratorio), así
 -- que guardar un rol con uno de esos permisos falla con "violates check constraint".
--- La validez ya la garantiza el enum de Java, así que el check sobra: se eliminan
--- todos los check constraints de esa tabla. El bloque es idempotente (si no quedan,
--- no hace nada) y tolera que la tabla aún no exista en instalaciones nuevas.
-do $$
-declare c record;
-begin
-  for c in
-    select conname from pg_constraint
-    where conrelid = 'app_role_permission'::regclass and contype = 'c'
-  loop
-    execute 'alter table app_role_permission drop constraint ' || quote_ident(c.conname);
-  end loop;
-exception
-  when undefined_table then null;
-end $$;
+-- La validez ya la garantiza el enum de Java, así que el check sobra: se elimina.
+-- El check inline sin nombre lo nombra Postgres como <tabla>_<columna>_check. Se usa
+-- una sola sentencia (no un bloque DO) a propósito: Spring parte schema.sql por cada
+-- ";" y no entiende el dollar-quoting $$, así que un bloque PL/pgSQL rompe el arranque.
+-- "if exists" en tabla y constraint lo hace idempotente y seguro en BD nuevas.
+alter table if exists app_role_permission drop constraint if exists app_role_permission_permission_check;
