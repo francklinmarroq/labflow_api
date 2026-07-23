@@ -298,11 +298,14 @@ public class InvoiceServiceImp implements InvoiceService {
             paymentRepository.save(payment);
         }
 
-        journalService.reverse(
-                journalService.findSourceEntry(JournalSourceType.FACTURA, invoice.getId()),
-                JournalSourceType.ANULACION_FACTURA,
-                invoice.getId(),
-                "Anulación de factura Nº " + invoice.getInvoiceNumber());
+        // Una factura de cortesía sin valor puede no tener partida de emisión;
+        // en ese caso no hay nada que revertir.
+        journalService.findSourceEntryIfExists(JournalSourceType.FACTURA, invoice.getId())
+                .ifPresent(entry -> journalService.reverse(
+                        entry,
+                        JournalSourceType.ANULACION_FACTURA,
+                        invoice.getId(),
+                        "Anulación de factura Nº " + invoice.getInvoiceNumber()));
 
         invoice.setStatus(InvoiceStatus.ANULADA);
         invoice.setAnnulledAt(Instant.now());
@@ -476,12 +479,21 @@ public class InvoiceServiceImp implements InvoiceService {
         // muestra cuánto se dejó de cobrar en el período.
         BigDecimal totalDiscount = invoice.getSubtotal().subtract(invoice.getTotal());
 
+        // Solo se agregan líneas con monto: el diario rechaza líneas en cero. Una
+        // factura de cortesía (total 0) no genera cuenta por cobrar; si además el
+        // bruto es 0 no hay movimiento contable y no se asienta nada.
         List<LinePlan> lines = new ArrayList<>();
-        lines.add(LinePlan.debit(journalService.systemAccount(SystemAccountKey.CUENTAS_POR_COBRAR), invoice.getTotal()));
+        if (invoice.getTotal().compareTo(BigDecimal.ZERO) > 0) {
+            lines.add(LinePlan.debit(journalService.systemAccount(SystemAccountKey.CUENTAS_POR_COBRAR), invoice.getTotal()));
+        }
         if (totalDiscount.compareTo(BigDecimal.ZERO) > 0) {
             lines.add(LinePlan.debit(journalService.systemAccount(SystemAccountKey.DESCUENTOS_VENTAS), totalDiscount));
         }
-        lines.add(LinePlan.credit(journalService.systemAccount(SystemAccountKey.INGRESOS_SERVICIOS), invoice.getSubtotal()));
+        if (invoice.getSubtotal().compareTo(BigDecimal.ZERO) > 0) {
+            lines.add(LinePlan.credit(journalService.systemAccount(SystemAccountKey.INGRESOS_SERVICIOS), invoice.getSubtotal()));
+        }
+        if (lines.size() < 2) return;
+
         journalService.post(
                 entryDate,
                 "Factura Nº " + invoice.getInvoiceNumber() + " — " + invoice.getCustomerName(),

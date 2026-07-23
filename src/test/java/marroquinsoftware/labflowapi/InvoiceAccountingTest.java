@@ -3,6 +3,7 @@ package marroquinsoftware.labflowapi;
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.model.*;
 import marroquinsoftware.labflowapi.payload.InvoiceDTO;
+import marroquinsoftware.labflowapi.payload.InvoiceItemPriceDTO;
 import marroquinsoftware.labflowapi.payload.InvoiceRequest;
 import marroquinsoftware.labflowapi.payload.InvoiceResponse;
 import marroquinsoftware.labflowapi.payload.PaymentRequest;
@@ -134,6 +135,31 @@ class InvoiceAccountingTest {
         assertEquals(backdate, entryOf(JournalSourceType.FACTURA, dto.getId()).getEntryDate());
         assertEquals(backdate,
                 entryOf(JournalSourceType.PAGO, dto.getPayments().get(0).getId()).getEntryDate());
+    }
+
+    @Test
+    void courtesyInvoiceWithZeroTotalBooksOnlyDiscountAndIncome() {
+        LabOrder order = newOrder(customer, "Hemograma", "165.00");
+        Long labTestId = order.getTests().get(0).getId();
+        // Regalía: el examen se cobra en 0, así que el total es 0.
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null,
+                List.of(new InvoiceItemPriceDTO(labTestId, new BigDecimal("0.00"))),
+                new BigDecimal("0.00"), null, null);
+
+        InvoiceDTO dto = invoiceService.createInvoice(request);
+
+        assertEquals(InvoiceStatus.PAGADA, dto.getStatus());
+        assertEquals(0, dto.getTotal().compareTo(BigDecimal.ZERO));
+        assertEquals(0, dto.getBalance().compareTo(BigDecimal.ZERO));
+        assertTrue(dto.getPayments().isEmpty(), "una cortesía no genera pago");
+
+        // El asiento no lleva cuenta por cobrar (total 0); descuento e ingresos
+        // van por el bruto y cuadran.
+        JournalEntry issue = entryOf(JournalSourceType.FACTURA, dto.getId());
+        assertBalanced(issue);
+        assertEquals(0, lineAmount(issue, SystemAccountKey.CUENTAS_POR_COBRAR, true).compareTo(BigDecimal.ZERO));
+        assertEquals(0, lineAmount(issue, SystemAccountKey.DESCUENTOS_VENTAS, true).compareTo(new BigDecimal("165.00")));
+        assertEquals(0, lineAmount(issue, SystemAccountKey.INGRESOS_SERVICIOS, false).compareTo(new BigDecimal("165.00")));
     }
 
     @Test

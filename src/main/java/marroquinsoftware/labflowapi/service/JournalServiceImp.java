@@ -29,6 +29,7 @@ import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Optional;
 
 @Service
 public class JournalServiceImp implements JournalService {
@@ -90,6 +91,11 @@ public class JournalServiceImp implements JournalService {
         return journalEntryRepository.findFirstBySourceTypeAndSourceId(sourceType, sourceId)
                 .orElseThrow(() -> new APIException(
                         "No se encontró la partida contable del documento a anular. Contacte a soporte."));
+    }
+
+    @Override
+    public Optional<JournalEntry> findSourceEntryIfExists(JournalSourceType sourceType, Long sourceId) {
+        return journalEntryRepository.findFirstBySourceTypeAndSourceId(sourceType, sourceId);
     }
 
     @Override

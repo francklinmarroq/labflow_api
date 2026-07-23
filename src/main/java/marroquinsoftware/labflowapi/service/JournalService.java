@@ -12,6 +12,7 @@ import marroquinsoftware.labflowapi.payload.JournalEntryResponse;
 import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Motor de partida doble. Todos los asientos —automáticos y manuales— entran
@@ -58,6 +59,12 @@ public interface JournalService {
 
     /** Partida original de un documento, para armar su contra-asiento al anular. */
     JournalEntry findSourceEntry(JournalSourceType sourceType, Long sourceId);
+
+    /**
+     * Igual que {@link #findSourceEntry} pero sin lanzar: una factura de cortesía
+     * sin valor puede no tener partida, y anularla no debe fallar por eso.
+     */
+    Optional<JournalEntry> findSourceEntryIfExists(JournalSourceType sourceType, Long sourceId);
 
     JournalEntryResponse getEntries(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
                                     LocalDate from, LocalDate to, JournalSourceType sourceType);
