@@ -25,8 +25,10 @@ public class InvoiceDTO {
     private String caiRangeTo;
     private LocalDate caiExpirationDate;
     private String labName;
+    private String labTaxName;
     private String labRtn;
     private String labAddress;
+    private String labTaxAddress;
     private String labPhone;
     private String labHeadline;
     private String labFooterNote;
