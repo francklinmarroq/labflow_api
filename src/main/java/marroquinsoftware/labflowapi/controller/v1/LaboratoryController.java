@@ -2,6 +2,7 @@ package marroquinsoftware.labflowapi.controller.v1;
 
 import jakarta.validation.Valid;
 import marroquinsoftware.labflowapi.payload.LaboratoryDTO;
+import marroquinsoftware.labflowapi.payload.OnboardingChoiceRequest;
 import marroquinsoftware.labflowapi.service.LaboratoryService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -30,6 +31,17 @@ public class LaboratoryController {
     @PreAuthorize("hasAuthority('LAB_SETTINGS_EDIT')")
     public ResponseEntity<LaboratoryDTO> createLaboratory(@Valid @RequestBody LaboratoryDTO dto) {
         return new ResponseEntity<>(laboratoryService.createLaboratory(dto), HttpStatus.CREATED);
+    }
+
+    /**
+     * Decisión de datos de inicio (onboarding). La toma el dueño la primera vez que
+     * entra: {@code accept=true} siembra el catálogo por defecto; false empieza
+     * vacío. Requiere permiso de crear catálogo (que el OWNER siempre tiene).
+     */
+    @PostMapping("/onboarding")
+    @PreAuthorize("hasAuthority('CATALOG_CREATE')")
+    public ResponseEntity<LaboratoryDTO> chooseStarterData(@RequestBody OnboardingChoiceRequest request) {
+        return new ResponseEntity<>(laboratoryService.chooseStarterData(request.isAccept()), HttpStatus.OK);
     }
 
     @PutMapping("/{laboratoryId}")

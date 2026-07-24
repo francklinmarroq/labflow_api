@@ -82,6 +82,16 @@ public class Laboratory {
     @Column(precision = 5, scale = 2)
     private BigDecimal fourthAgeDiscountPercent;
 
+    /**
+     * Decisión de datos de inicio (ver {@link OnboardingSeedStatus}). Config
+     * "invisible" para el usuario: no se edita en la pantalla del laboratorio, solo
+     * la mueve el flujo de onboarding. Nace en PENDING; se trata null como PENDING
+     * por compatibilidad con filas anteriores a esta columna.
+     */
+    @Enumerated(EnumType.STRING)
+    @Column(name = "seed_status")
+    private OnboardingSeedStatus seedStatus = OnboardingSeedStatus.PENDING;
+
     @OneToOne
     private User owner;
 }

@@ -75,3 +75,15 @@ alter table if exists laboratory add column if not exists tax_name varchar(255);
 alter table if exists laboratory add column if not exists tax_address varchar(255);
 alter table if exists invoices add column if not exists lab_tax_name varchar(255);
 alter table if exists invoices add column if not exists lab_tax_address varchar(255);
+
+-- Onboarding de datos de inicio: laboratory.seed_status guarda si el laboratorio
+-- ya decidió cargar (o no) el catálogo por defecto. Reemplaza al sembrado en el
+-- registro (que corría con el tenant equivocado). Se agrega idempotente; los labs
+-- que YA tienen exámenes se dan por decididos (ACCEPTED) para no mostrarles el
+-- modal, y los que quedaron vacíos (incluidos los rotos por el bug anterior) se
+-- dejan en PENDING para que el modal les ofrezca sembrar ahora. Se trata null
+-- como PENDING en el código, así que el orden respecto a ddl-auto no importa.
+alter table if exists laboratory add column if not exists seed_status varchar(20);
+update laboratory set seed_status = 'ACCEPTED'
+  where seed_status is null and id in (select distinct laboratory_id from tests where laboratory_id > 0);
+update laboratory set seed_status = 'PENDING' where seed_status is null;
