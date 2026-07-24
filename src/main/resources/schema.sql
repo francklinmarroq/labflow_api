@@ -32,6 +32,26 @@ alter table if exists app_role_permission drop constraint if exists app_role_per
 alter table if exists accounts drop constraint if exists accounts_system_key_check;
 alter table if exists journal_entries drop constraint if exists journal_entries_source_type_check;
 
+-- Drift de restricciones UNIQUE al migrar a multi-tenant (commit dc5c260): estas
+-- entidades tenían un unique GLOBAL en "name" (@Column(unique=true)) que se cambió
+-- por uno compuesto por laboratorio (laboratory_id, name). Pero ddl-auto=update
+-- AGREGA la restricción nueva y NUNCA elimina la vieja, así que en bases que
+-- existían antes del multi-tenant sobrevive el unique global. Efecto: al registrar
+-- un laboratorio NUEVO, el sembrado del catálogo (CatalogSeeder) intenta insertar
+-- un examen/patología/rango con un "name" que otro laboratorio ya tiene y revienta
+-- con "violates unique constraint" -> 409 "Ya existe un registro con esos datos".
+-- El primer laboratorio funciona porque las tablas están vacías; a partir del
+-- segundo, falla. Se eliminan las restricciones globales viejas; la validez por
+-- laboratorio la garantizan las restricciones uk_*_name_per_lab de las entidades.
+-- Los nombres son los que genera Hibernate para @Column(unique=true) (hash
+-- determinístico de tabla+columna, iguales en todas las bases). "if exists" en
+-- tabla y constraint lo hace idempotente y seguro en bases nuevas (donde nunca
+-- existió el unique global).
+alter table if exists tests drop constraint if exists uklynqts1dwsv4wxtgh0jfbyeaa;
+alter table if exists pathology drop constraint if exists uklby58lspcse6fgiy34dk9kgrp;
+alter table if exists age_range drop constraint if exists ukqql5fyaatfi5srbbc3vex478n;
+alter table if exists test_config drop constraint if exists ukbqi8wvsabhl626um5wpbognna;
+
 -- Enlace público de resultados: la columna lab_orders.public_token la declara la
 -- entidad LabOrder, pero ddl-auto=update no siempre la aplica sobre bases ya
 -- existentes; sin ella, TODA consulta a lab_orders (que ahora mapea la columna)
