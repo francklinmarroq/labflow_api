@@ -55,8 +55,10 @@ public class Invoice {
 
     // Snapshot del emisor (membrete fiscal).
     private String labName;
+    private String labTaxName;     // Nombre/razón social fiscal (puede diferir del comercial)
     private String labRtn;
     private String labAddress;
+    private String labTaxAddress;  // Dirección fiscal (puede diferir de la comercial)
     private String labPhone;
     private String labHeadline;
     private String labFooterNote;

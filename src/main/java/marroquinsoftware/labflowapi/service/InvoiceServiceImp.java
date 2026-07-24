@@ -206,8 +206,10 @@ public class InvoiceServiceImp implements InvoiceService {
         invoice.setCaiRangeTo(issued.rangeTo());
         invoice.setCaiExpirationDate(issued.expirationDate());
         invoice.setLabName(laboratory.getName());
+        invoice.setLabTaxName(laboratory.getTaxName());
         invoice.setLabRtn(laboratory.getRtn());
         invoice.setLabAddress(joinAddress(laboratory));
+        invoice.setLabTaxAddress(laboratory.getTaxAddress());
         invoice.setLabPhone(laboratory.getPhone());
         invoice.setLabHeadline(laboratory.getInvoiceHeadline());
         invoice.setLabFooterNote(laboratory.getInvoiceFooterNote());
@@ -591,8 +593,10 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getCaiRangeTo(),
                 invoice.getCaiExpirationDate(),
                 invoice.getLabName(),
+                invoice.getLabTaxName(),
                 invoice.getLabRtn(),
                 invoice.getLabAddress(),
+                invoice.getLabTaxAddress(),
                 invoice.getLabPhone(),
                 invoice.getLabHeadline(),
                 invoice.getLabFooterNote(),

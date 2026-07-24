@@ -66,3 +66,12 @@ alter table if exists lab_orders add column if not exists public_token varchar(3
 -- columna en bases existentes. Guarda la llave del objeto en el bucket privado (no
 -- una URL), igual que logo_object_key.
 alter table if exists laboratory add column if not exists stamp_object_key varchar(255);
+
+-- Identidad fiscal del emisor (nombre/razón social y dirección fiscal), distinta
+-- del nombre y dirección comercial. Mismo motivo que arriba: ddl-auto=update no
+-- siempre agrega columnas nuevas en bases existentes. La factura congela una copia
+-- (invoices.lab_tax_name / lab_tax_address) al emitir.
+alter table if exists laboratory add column if not exists tax_name varchar(255);
+alter table if exists laboratory add column if not exists tax_address varchar(255);
+alter table if exists invoices add column if not exists lab_tax_name varchar(255);
+alter table if exists invoices add column if not exists lab_tax_address varchar(255);

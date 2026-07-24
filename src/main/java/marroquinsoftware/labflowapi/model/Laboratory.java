@@ -30,6 +30,13 @@ public class Laboratory {
     private String address1;
     private String address2;
 
+    // Identidad fiscal del emisor, distinta del nombre comercial (name) y su
+    // dirección: a menudo el laboratorio factura a nombre de una persona natural
+    // o razón social que declara impuestos. Si van vacíos, la factura cae al
+    // nombre/dirección comercial. Se congelan en cada factura al emitir.
+    private String taxName;      // Nombre / razón social fiscal
+    private String taxAddress;   // Dirección fiscal
+
     // Rótulos libres de la factura. El encabezado va bajo el nombre del emisor
     // (p. ej. «EMERGENCIA LAS 24 HORAS») y el pie es el lema del final. Se
     // congelan en cada factura para que reimprimir una vieja no cambie el texto.

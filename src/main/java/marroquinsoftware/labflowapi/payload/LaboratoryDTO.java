@@ -28,6 +28,11 @@ public class LaboratoryDTO {
     private String address1;
     private String address2;
 
+    // Identidad fiscal del emisor (nombre/razón social y dirección fiscal), que
+    // suele diferir del nombre y la dirección comercial. Salen en la factura.
+    private String taxName;
+    private String taxAddress;
+
     // Rótulos y registros fiscales que salen en la factura impresa.
     private String invoiceHeadline;
     private String invoiceFooterNote;
