@@ -74,6 +74,10 @@ public class LabOrderController {
         return new ResponseEntity<>(labTestService.getTestsByOrder(orderId), HttpStatus.OK);
     }
 
+    // Corridas de resultados de todos los exámenes de la orden en una sola llamada.
+    // El detalle y la impresión antes pedían GET /tests/{id}/runs una vez por examen
+    // (N llamadas); esto lo colapsa en un único request. Mismos DTOs (cada uno con su
+    // testId), el cliente agrupa por examen.
     // Todas las corridas de la orden en una sola llamada. El detalle de orden hacía
     // GET /tests/{id}/runs una vez por examen (N requests); esto las colapsa en 1.
     @GetMapping("/{orderId}/runs")

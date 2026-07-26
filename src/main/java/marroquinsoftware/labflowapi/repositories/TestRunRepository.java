@@ -12,16 +12,17 @@ public interface TestRunRepository extends JpaRepository<TestRun, Long> {
     List<TestRun> findByTest_IdOrderByRunNumberAsc(Long testId);
     Optional<TestRun> findTopByTest_IdOrderByRunNumberDesc(Long testId);
 
-    // Todas las corridas de todos los exámenes de una orden en una sola consulta.
-    // El detalle de orden pedía /tests/{id}/runs una vez por examen (N requests al
-    // API y N consultas a Postgres); esto colapsa esas N en 1. Los fetch join traen
-    // examen, resultados y parámetro de una vez para no reintroducir un N+1 al mapear
-    // los DTO. El filtro por @TenantId (laboratory_id) lo sigue aplicando Hibernate.
-    @Query("SELECT DISTINCT r FROM TestRun r "
-            + "JOIN FETCH r.test t "
-            + "LEFT JOIN FETCH r.results res "
-            + "LEFT JOIN FETCH res.parameter "
-            + "WHERE t.order.id = :orderId "
-            + "ORDER BY t.id ASC, r.runNumber ASC")
+    // Versión por lote: la pantalla de detalle/impresión de una orden necesita las
+    // corridas de TODOS sus exámenes a la vez. Pedirlas de a un examen costaba una
+    // llamada HTTP por examen (y contra una API con piso de ~0.7 s por request eso
+    // pesa). Este LEFT JOIN FETCH trae corridas + resultados + parámetro en una sola
+    // consulta, evitando además el N+1 de la colección de resultados por corrida.
+    // El orden (examen, número de corrida) permite agrupar por examen en el cliente
+    // preservando el mismo orden que devolvía el endpoint por examen.
+    @Query("SELECT DISTINCT r FROM TestRun r " +
+           "LEFT JOIN FETCH r.results res " +
+           "LEFT JOIN FETCH res.parameter " +
+           "WHERE r.test.order.id = :orderId " +
+           "ORDER BY r.test.id ASC, r.runNumber ASC")
     List<TestRun> findByOrderIdWithResults(@Param("orderId") Long orderId);
 }

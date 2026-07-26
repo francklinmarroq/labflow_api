@@ -61,8 +61,10 @@ public class TestRunServiceImp implements TestRunService {
         return testRunRepository.findByTest_IdOrderByRunNumberAsc(testId).stream().map(this::toDTO).toList();
     }
 
-    // Devuelve las corridas de TODA la orden en una sola llamada, equivalente a
-    // haber pedido getRunsByTest por cada examen. El front las reagrupa por testId.
+    // Devuelve las corridas de todos los exámenes de la orden en una sola consulta.
+    // Equivale a llamar getRunsByTest por cada examen, pero colapsa N round-trips
+    // HTTP (y N invocaciones de Worker/Durable Object/contenedor) en uno solo. Cada
+    // TestRunDTO ya lleva su testId, así que el cliente puede agruparlas por examen.
     @Override
     public List<TestRunDTO> getRunsByOrder(Long orderId) {
         if (!labOrderRepository.existsById(orderId)) {
