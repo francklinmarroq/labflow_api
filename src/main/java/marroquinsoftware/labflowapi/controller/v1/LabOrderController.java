@@ -5,8 +5,10 @@ import marroquinsoftware.labflowapi.config.AppConstants;
 import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 import marroquinsoftware.labflowapi.payload.LabTestDTO;
+import marroquinsoftware.labflowapi.payload.TestRunDTO;
 import marroquinsoftware.labflowapi.service.LabOrderService;
 import marroquinsoftware.labflowapi.service.LabTestService;
+import marroquinsoftware.labflowapi.service.TestRunService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -24,6 +26,9 @@ public class LabOrderController {
 
     @Autowired
     private LabTestService labTestService;
+
+    @Autowired
+    private TestRunService testRunService;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT')")
@@ -67,6 +72,16 @@ public class LabOrderController {
     @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT','ORDERS_ENTER_RESULTS')")
     public ResponseEntity<List<LabTestDTO>> getTestsByOrder(@PathVariable Long orderId) {
         return new ResponseEntity<>(labTestService.getTestsByOrder(orderId), HttpStatus.OK);
+    }
+
+    // Corridas de resultados de todos los exámenes de la orden en una sola llamada.
+    // El detalle y la impresión antes pedían GET /tests/{id}/runs una vez por examen
+    // (N llamadas); esto lo colapsa en un único request. Mismos DTOs (cada uno con su
+    // testId), el cliente agrupa por examen.
+    @GetMapping("/{orderId}/runs")
+    @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT','ORDERS_ENTER_RESULTS')")
+    public ResponseEntity<List<TestRunDTO>> getRunsByOrder(@PathVariable Long orderId) {
+        return new ResponseEntity<>(testRunService.getRunsByOrder(orderId), HttpStatus.OK);
     }
 
     @PostMapping("/{orderId}/tests")
