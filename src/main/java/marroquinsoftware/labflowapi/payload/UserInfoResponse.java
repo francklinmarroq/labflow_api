@@ -15,4 +15,7 @@ public class UserInfoResponse {
     private String role;
     private String roleName;
     private List<String> permissions;
+    /** Laboratorio (tenant) activo de esta sesión. */
+    private Long laboratoryId;
+    private String laboratoryName;
 }

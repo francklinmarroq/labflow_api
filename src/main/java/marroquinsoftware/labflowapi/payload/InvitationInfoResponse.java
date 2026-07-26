@@ -12,4 +12,9 @@ public class InvitationInfoResponse {
     private String email;
     private String laboratoryName;
     private String roleName;
+    /**
+     * true si el correo ya tiene cuenta en otro laboratorio: al aceptar no se
+     * pide contraseña nueva (se reusa la existente), solo se confirma la unión.
+     */
+    private boolean existingAccount;
 }

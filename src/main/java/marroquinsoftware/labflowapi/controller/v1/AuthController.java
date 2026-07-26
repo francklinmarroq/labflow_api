@@ -1,14 +1,21 @@
 package marroquinsoftware.labflowapi.controller.v1;
 
+import jakarta.servlet.http.HttpServletRequest;
 import jakarta.validation.Valid;
 import marroquinsoftware.labflowapi.exceptions.APIException;
+import marroquinsoftware.labflowapi.model.Role;
 import marroquinsoftware.labflowapi.model.User;
 import marroquinsoftware.labflowapi.payload.AcceptInvitationRequest;
 import marroquinsoftware.labflowapi.payload.InvitationInfoResponse;
 import marroquinsoftware.labflowapi.payload.JwtResponse;
+import marroquinsoftware.labflowapi.payload.LabSelectionResponse;
+import marroquinsoftware.labflowapi.payload.LabSummary;
+import marroquinsoftware.labflowapi.payload.LaboratoryDTO;
 import marroquinsoftware.labflowapi.payload.LoginRequest;
+import marroquinsoftware.labflowapi.payload.LoginSelectRequest;
 import marroquinsoftware.labflowapi.payload.RegisterRequest;
 import marroquinsoftware.labflowapi.payload.UserInfoResponse;
+import marroquinsoftware.labflowapi.repositories.UserRepository;
 import marroquinsoftware.labflowapi.security.AppUserDetails;
 import marroquinsoftware.labflowapi.security.JwtUtils;
 import marroquinsoftware.labflowapi.service.InvitationService;
@@ -32,6 +39,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 
 @RestController
@@ -46,6 +54,8 @@ public class AuthController {
     private RegistrationService registrationService;
     @Autowired
     private InvitationService invitationService;
+    @Autowired
+    private UserRepository userRepository;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
@@ -63,10 +73,81 @@ public class AuthController {
         }
         SecurityContextHolder.getContext().setAuthentication(authentication);
         AppUserDetails userDetails = (AppUserDetails) authentication.getPrincipal();
-        // Si la generación del token falla, la excepción sube al handler global,
-        // que responde con mensaje en español y código de soporte.
+
+        // Un mismo correo puede pertenecer a varios laboratorios. Si solo tiene uno,
+        // se emite el JWT directamente (compatible con el flujo anterior). Si tiene
+        // más, se devuelve un token de selección + la lista para que el usuario elija.
+        List<User> memberships = activeMemberships(userDetails.getUsername());
+        if (memberships.size() <= 1) {
+            // Si la generación del token falla, la excepción sube al handler global,
+            // que responde con mensaje en español y código de soporte.
+            String jwtToken = jwtUtils.generateToken(userDetails);
+            return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.OK);
+        }
+        LabSelectionResponse selection = new LabSelectionResponse(
+                jwtUtils.generateSelectionToken(userDetails.getUsername()),
+                memberships.stream().map(this::toLabSummary).toList());
+        return new ResponseEntity<>(selection, HttpStatus.OK);
+    }
+
+    /**
+     * Segundo paso del login cuando el correo tiene varios laboratorios: con el
+     * token de selección (que acredita las credenciales ya validadas) el usuario
+     * elige el laboratorio y recibe el JWT de sesión. Es público porque el token de
+     * selección no autentica rutas normales; aquí se valida a mano.
+     */
+    @PostMapping("/login/select")
+    public ResponseEntity<?> selectLaboratory(HttpServletRequest httpRequest,
+                                              @Valid @RequestBody LoginSelectRequest request) {
+        String token = jwtUtils.getJwtFromHeader(httpRequest);
+        if (token == null || !jwtUtils.validateJwtToken(token) || !jwtUtils.isSelectionToken(token)) {
+            return unauthorized("La selección de laboratorio expiró. Inicie sesión de nuevo.");
+        }
+        String username = jwtUtils.getUsernameFromJwtToken(token);
+        User membership = userRepository.findByUsernameAndLaboratoryId(username, request.getLaboratoryId())
+                .filter(u -> u.isEnabled() && !u.isInvitationPending())
+                .orElse(null);
+        if (membership == null) {
+            return unauthorized("No tiene acceso a ese laboratorio.");
+        }
+        AppUserDetails userDetails = new AppUserDetails(membership);
         String jwtToken = jwtUtils.generateToken(userDetails);
         return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.OK);
+    }
+
+    /**
+     * Crea un laboratorio adicional para el propietario en sesión (mismo correo) y
+     * devuelve el JWT ya emitido para el nuevo laboratorio, de modo que quede
+     * trabajando en él sin volver a iniciar sesión.
+     */
+    @PostMapping("/laboratories")
+    public ResponseEntity<?> createLaboratory(@AuthenticationPrincipal AppUserDetails principal,
+                                              @Valid @RequestBody LaboratoryDTO request) {
+        if (principal.getRole() != Role.OWNER) {
+            Map<String, Object> map = new HashMap<>();
+            map.put("message", "Solo el propietario puede crear laboratorios.");
+            map.put("status", false);
+            return new ResponseEntity<>(map, HttpStatus.FORBIDDEN);
+        }
+        User user = registrationService.createAdditionalLaboratory(principal.getUsername(), request);
+        AppUserDetails userDetails = new AppUserDetails(user);
+        String jwtToken = jwtUtils.generateToken(userDetails);
+        return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.CREATED);
+    }
+
+    /** Membresías activas del correo (habilitadas y ya aceptadas), ordenadas por id. */
+    private List<User> activeMemberships(String username) {
+        return userRepository.findByUsernameOrderById(username).stream()
+                .filter(u -> u.isEnabled() && !u.isInvitationPending())
+                .toList();
+    }
+
+    private LabSummary toLabSummary(User user) {
+        return new LabSummary(
+                user.getLaboratory().getId(),
+                user.getLaboratory().getName(),
+                user.getRole().name(),
+                user.getAppRole() != null ? user.getAppRole().getName() : null);
     }
 
     @PostMapping("/register")
@@ -106,7 +187,9 @@ public class AuthController {
                 userDetails.getUsername(),
                 userDetails.getRole().name(),
                 userDetails.getRoleName(),
-                userDetails.getPermissionNames()
+                userDetails.getPermissionNames(),
+                userDetails.getLaboratoryId(),
+                userDetails.getLaboratoryName()
         );
         return new ResponseEntity<>(response, HttpStatus.OK);
     }
@@ -136,7 +219,9 @@ public class AuthController {
                 userDetails.getUsername(),
                 userDetails.getRole().name(),
                 userDetails.getRoleName(),
-                userDetails.getPermissionNames()
+                userDetails.getPermissionNames(),
+                userDetails.getLaboratoryId(),
+                userDetails.getLaboratoryName()
         );
     }
 }

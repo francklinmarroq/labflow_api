@@ -1,5 +1,6 @@
 package marroquinsoftware.labflowapi.security;
 
+import io.jsonwebtoken.Claims;
 import io.jsonwebtoken.ExpiredJwtException;
 import io.jsonwebtoken.Jwts;
 import io.jsonwebtoken.MalformedJwtException;
@@ -25,6 +26,10 @@ public class JwtUtils {
 
     @Value("${spring.app.jwtExpirationMs}")
     private int jwtExpirationMs;
+
+    // El token de selección solo sirve para escoger laboratorio justo tras el
+    // login; vive poco a propósito porque no autentica ninguna ruta de datos.
+    private static final long SELECTION_TOKEN_EXPIRATION_MS = 5 * 60 * 1000L;
 
     public String getJwtFromHeader(HttpServletRequest request) {
         String bearerToken = request.getHeader("Authorization");
@@ -57,8 +62,39 @@ public class JwtUtils {
                 .compact();
     }
 
+    /**
+     * Token corto que acredita que el usuario ya validó credenciales, para que
+     * elija en cuál de sus laboratorios entrar. No lleva labId ni permisos y no
+     * autentica ninguna ruta de datos (ver AuthTokenFilter); solo lo consume
+     * POST /auth/login/select.
+     */
+    public String generateSelectionToken(String username) {
+        return Jwts.builder()
+                .subject(username)
+                .claim("sel", true)
+                .issuedAt(new Date())
+                .expiration(new Date(System.currentTimeMillis() + SELECTION_TOKEN_EXPIRATION_MS))
+                .signWith(key())
+                .compact();
+    }
+
     public String getUsernameFromJwtToken(String token) {
-        return Jwts.parser().verifyWith((SecretKey) key()).build().parseSignedClaims(token).getPayload().getSubject();
+        return parseClaims(token).getSubject();
+    }
+
+    /** labId embebido en el token (fuente de verdad del tenant); null si es un token de selección. */
+    public Long getLaboratoryIdFromJwtToken(String token) {
+        Object value = parseClaims(token).get("labId");
+        return value == null ? null : ((Number) value).longValue();
+    }
+
+    /** ¿Es un token de selección de laboratorio (no un JWT de sesión completo)? */
+    public boolean isSelectionToken(String token) {
+        return Boolean.TRUE.equals(parseClaims(token).get("sel"));
+    }
+
+    private Claims parseClaims(String token) {
+        return Jwts.parser().verifyWith((SecretKey) key()).build().parseSignedClaims(token).getPayload();
     }
 
     public Key key() {

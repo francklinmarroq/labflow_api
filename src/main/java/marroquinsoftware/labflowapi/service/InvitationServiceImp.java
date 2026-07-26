@@ -32,7 +32,8 @@ public class InvitationServiceImp implements InvitationService {
         return new InvitationInfoResponse(
                 user.getUsername(),
                 user.getLaboratory() != null ? user.getLaboratory().getName() : null,
-                user.getAppRole() != null ? user.getAppRole().getName() : null
+                user.getAppRole() != null ? user.getAppRole().getName() : null,
+                hasExistingAccount(user.getUsername())
         );
     }
 
@@ -40,11 +41,28 @@ public class InvitationServiceImp implements InvitationService {
     @Transactional
     public User acceptInvitation(String rawToken, String password) {
         User user = loadValidInvitation(rawToken);
-        user.setPassword(bCryptPasswordEncoder.encode(password));
+        // Si el correo ya tiene cuenta activa en otro laboratorio, se reusa su hash
+        // (invariante: mismo correo, mismo hash de contraseña) y solo se confirma
+        // la unión; no se pide contraseña. Si es una identidad nueva, la define.
+        User existing = userRepository.findFirstByUsernameAndEnabledTrueOrderById(user.getUsername())
+                .orElse(null);
+        if (existing != null) {
+            user.setPassword(existing.getPassword());
+        } else {
+            if (password == null || password.length() < 8) {
+                throw new APIException("La contraseña es obligatoria y debe tener al menos 8 caracteres.");
+            }
+            user.setPassword(bCryptPasswordEncoder.encode(password));
+        }
         user.setEnabled(true);
         user.setInvitationTokenHash(null);
         user.setInvitationExpiresAt(null);
         return userRepository.save(user);
+    }
+
+    /** ¿El correo ya tiene una cuenta activa (con contraseña) en algún laboratorio? */
+    private boolean hasExistingAccount(String username) {
+        return userRepository.findFirstByUsernameAndEnabledTrueOrderById(username).isPresent();
     }
 
     private User loadValidInvitation(String rawToken) {

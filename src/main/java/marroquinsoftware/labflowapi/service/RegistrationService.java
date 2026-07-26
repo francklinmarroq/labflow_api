@@ -2,8 +2,10 @@ package marroquinsoftware.labflowapi.service;
 
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.model.Laboratory;
+import marroquinsoftware.labflowapi.model.OnboardingSeedStatus;
 import marroquinsoftware.labflowapi.model.Role;
 import marroquinsoftware.labflowapi.model.User;
+import marroquinsoftware.labflowapi.payload.LaboratoryDTO;
 import marroquinsoftware.labflowapi.payload.RegisterRequest;
 import marroquinsoftware.labflowapi.repositories.LaboratoryRepository;
 import marroquinsoftware.labflowapi.repositories.UserRepository;
@@ -61,6 +63,37 @@ public class RegistrationService {
         // seedStatus = PENDING; la primera vez que el dueño entra autenticado, la app
         // le ofrece cargar los datos de inicio y el sembrado corre con el tenant
         // correcto (ver LaboratoryService#chooseStarterData).
+        return user;
+    }
+
+    /**
+     * Crea un laboratorio adicional para un propietario ya autenticado, reutilizando
+     * su identidad (mismo correo): se crea una nueva fila de usuario OWNER en el nuevo
+     * laboratorio, copiando el hash de contraseña de la cuenta actual (invariante:
+     * mismo correo, mismo hash). El laboratorio nace con seedStatus = PENDING; el
+     * onboarding le ofrecerá cargar los datos de inicio al entrar.
+     */
+    @Transactional
+    public User createAdditionalLaboratory(String username, LaboratoryDTO dto) {
+        User current = userRepository.findFirstByUsernameAndEnabledTrueOrderById(username)
+                .orElseThrow(() -> new APIException("No se encontró una cuenta activa para este correo."));
+
+        Laboratory laboratory = modelMapper.map(dto, Laboratory.class);
+        laboratory.setId(null);
+        laboratory.setSeedStatus(OnboardingSeedStatus.PENDING);
+        laboratory = laboratoryRepository.save(laboratory);
+
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(current.getPassword());
+        user.setEnabled(true);
+        user.setRole(Role.OWNER);
+        user.setLaboratory(laboratory);
+        user = userRepository.save(user);
+
+        laboratory.setOwner(user);
+        laboratoryRepository.save(laboratory);
+
         return user;
     }
 }

@@ -9,15 +9,15 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
-import org.springframework.security.core.userdetails.UserDetails;
-import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.web.authentication.WebAuthenticationDetailsSource;
 import org.springframework.web.filter.OncePerRequestFilter;
+import marroquinsoftware.labflowapi.model.User;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.UserRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 
 import java.io.IOException;
+import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -32,8 +32,6 @@ public class AuthTokenFilter extends OncePerRequestFilter {
     @Autowired
     private JwtUtils jwtUtils;
     @Autowired
-    private UserDetailsService userDetailsService;
-    @Autowired
     private UserRepository userRepository;
     @Autowired
     private LabOrderRepository labOrderRepository;
@@ -43,16 +41,24 @@ public class AuthTokenFilter extends OncePerRequestFilter {
         LOGGER.debug("AuthTokenFilter called for URI: {}", request.getRequestURI());
         try {
             String jwt = parseJwt(request);
-            if (jwt != null && jwtUtils.validateJwtToken(jwt)) {
+            if (jwt != null && jwtUtils.validateJwtToken(jwt) && !jwtUtils.isSelectionToken(jwt)) {
+                // El labId del token es la fuente de verdad del tenant: se carga la
+                // membresía EXACTA (username, labId), porque un mismo correo puede
+                // tener varias filas (una por laboratorio). Si la membresía ya no
+                // existe (revocada), no se autentica -> 401.
                 String username = jwtUtils.getUsernameFromJwtToken(jwt);
-                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
-                UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
-                authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authentication);
-                if (userDetails instanceof AppUserDetails appUser) {
-                    TenantContext.setLaboratoryId(appUser.getLaboratoryId());
+                Long labId = jwtUtils.getLaboratoryIdFromJwtToken(jwt);
+                Optional<User> membership = labId == null
+                        ? Optional.empty()
+                        : userRepository.findByUsernameAndLaboratoryId(username, labId);
+                if (membership.isPresent()) {
+                    AppUserDetails userDetails = new AppUserDetails(membership.get());
+                    UsernamePasswordAuthenticationToken authentication = new UsernamePasswordAuthenticationToken(userDetails, null, userDetails.getAuthorities());
+                    authentication.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authentication);
+                    TenantContext.setLaboratoryId(userDetails.getLaboratoryId());
+                    LOGGER.debug("Roles from JWT: {}", userDetails.getAuthorities());
                 }
-                LOGGER.debug("Roles from JWT: {}", userDetails.getAuthorities());
             } else {
                 // Petición pública de invitación: no hay JWT ni tenant. Se resuelve
                 // el laboratorio del invitado desde el token y se fija el

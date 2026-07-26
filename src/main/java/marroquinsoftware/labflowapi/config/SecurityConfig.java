@@ -62,10 +62,12 @@ public class SecurityConfig {
                 .cors(cors -> cors.configurationSource(corsConfigurationSource()))
                 .csrf(AbstractHttpConfigurer::disable)
                 .authorizeHttpRequests(requests -> requests
-                        // Login, registro y aceptación de invitaciones son públicos;
-                        // /auth/me requiere sesión.
-                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/register",
-                                "/api/v1/auth/invitation/**", "/error").permitAll()
+                        // Login, selección de laboratorio, registro y aceptación de
+                        // invitaciones son públicos; /auth/me y /auth/laboratories
+                        // requieren sesión. La selección se valida con el token de
+                        // selección dentro del propio controlador.
+                        .requestMatchers("/api/v1/auth/login", "/api/v1/auth/login/select",
+                                "/api/v1/auth/register", "/api/v1/auth/invitation/**", "/error").permitAll()
                         // Reporte público de resultados por token (enlace/QR del paciente).
                         // El tenant lo resuelve AuthTokenFilter desde el token.
                         .requestMatchers("/api/v1/public/**").permitAll()
