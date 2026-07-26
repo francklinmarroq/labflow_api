@@ -15,6 +15,7 @@ import marroquinsoftware.labflowapi.model.TestRun;
 import marroquinsoftware.labflowapi.payload.ReferenceRangeDTO;
 import marroquinsoftware.labflowapi.payload.TestResultDTO;
 import marroquinsoftware.labflowapi.payload.TestRunDTO;
+import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabTestRepository;
 import marroquinsoftware.labflowapi.repositories.ParameterRepository;
 import marroquinsoftware.labflowapi.repositories.ReferenceRangeRepository;
@@ -33,6 +34,9 @@ public class TestRunServiceImp implements TestRunService {
 
     @Autowired
     private LabTestRepository labTestRepository;
+
+    @Autowired
+    private LabOrderRepository labOrderRepository;
 
     @Autowired
     private TestRunRepository testRunRepository;
@@ -55,6 +59,16 @@ public class TestRunServiceImp implements TestRunService {
             throw new ResourceNotFoundException("LabTest", "testId", testId);
         }
         return testRunRepository.findByTest_IdOrderByRunNumberAsc(testId).stream().map(this::toDTO).toList();
+    }
+
+    // Devuelve las corridas de TODA la orden en una sola llamada, equivalente a
+    // haber pedido getRunsByTest por cada examen. El front las reagrupa por testId.
+    @Override
+    public List<TestRunDTO> getRunsByOrder(Long orderId) {
+        if (!labOrderRepository.existsById(orderId)) {
+            throw new ResourceNotFoundException("LabOrder", "orderId", orderId);
+        }
+        return testRunRepository.findByOrderIdWithResults(orderId).stream().map(this::toDTO).toList();
     }
 
     /**
