@@ -10,10 +10,35 @@ import java.util.Optional;
 
 @Repository
 public interface UserRepository extends JpaRepository<User, Long> {
-    Optional<User> findByUsername(String username);
+    // Un correo puede tener varias filas (una por laboratorio), así que la
+    // búsqueda por username ya no es única.
+
+    /** Membresía concreta del usuario en un laboratorio (carga por request). */
+    Optional<User> findByUsernameAndLaboratoryId(String username, Long laboratoryId);
+
+    /** ¿El correo ya es miembro de ESTE laboratorio? (unicidad por-lab en invitaciones). */
+    boolean existsByUsernameAndLaboratoryId(String username, Long laboratoryId);
+
+    /** ¿El correo existe en cualquier laboratorio? (registro público de identidad nueva). */
     boolean existsByUsername(String username);
 
-    // app_user no usa @TenantId (el login busca por username global),
+    /**
+     * Cualquier fila del correo. Sirve para reusar el hash al invitar/crear un lab
+     * para un correo ya existente.
+     */
+    Optional<User> findFirstByUsernameOrderById(String username);
+
+    /**
+     * Primera membresía HABILITADA del correo. Se prefiere para el chequeo de
+     * contraseña del login: todas las filas activas comparten el hash, y así se
+     * ignoran las invitaciones pendientes (deshabilitadas, con hash provisional).
+     */
+    Optional<User> findFirstByUsernameAndEnabledTrueOrderById(String username);
+
+    /** Todas las membresías del correo (para armar el selector de laboratorio al iniciar sesión). */
+    List<User> findByUsernameOrderById(String username);
+
+    // app_user no usa @TenantId (el login busca por username),
     // así que el laboratorio se filtra explícitamente.
     List<User> findByLaboratoryIdOrderByUsername(Long laboratoryId);
     long countByAppRole_Id(Long roleId);

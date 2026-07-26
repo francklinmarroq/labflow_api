@@ -6,6 +6,7 @@ import marroquinsoftware.labflowapi.repositories.BillingSpecifications;
 import marroquinsoftware.labflowapi.repositories.ExpenseRepository;
 import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
+import marroquinsoftware.labflowapi.repositories.TestRunRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import marroquinsoftware.labflowapi.tenant.TenantIdentifierResolver;
 import org.junit.jupiter.api.AfterAll;
@@ -61,6 +62,7 @@ class PostgresQueryCompatibilityTest {
     @Autowired InvoiceRepository invoiceRepository;
     @Autowired JournalEntryRepository journalEntryRepository;
     @Autowired ExpenseRepository expenseRepository;
+    @Autowired TestRunRepository testRunRepository;
 
     @BeforeAll
     static void requirePostgres() {
@@ -118,6 +120,14 @@ class PostgresQueryCompatibilityTest {
                     LocalDate.now().minusMonths(1), LocalDate.now(), JournalSourceType.FACTURA),
                     PageRequest.of(0, 50));
         });
+    }
+
+    // El detalle de orden trae todas las corridas de la orden en una sola consulta
+    // con fetch joins (examen + resultados + parámetro). Valida que el JPQL con
+    // DISTINCT + JOIN FETCH de colección compile y ejecute contra Postgres real.
+    @Test
+    void loadsAllRunsOfAnOrderWithFetchJoins() {
+        assertDoesNotThrow(() -> testRunRepository.findByOrderIdWithResults(1L));
     }
 
     @Test

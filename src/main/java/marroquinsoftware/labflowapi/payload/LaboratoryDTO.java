@@ -41,6 +41,11 @@ public class LaboratoryDTO {
     private String regSag;
     private String ordenCompraExenta;
 
+    // Solo de lectura: true mientras el laboratorio no haya decidido si carga los
+    // datos de inicio (onboarding). El frontend muestra el modal mientras sea true.
+    // No se acepta del cliente; la decisión se toma por POST /laboratory/onboarding.
+    private Boolean seedChoicePending;
+
     // Solo de lectura: la API la firma en cada respuesta y vence a la hora. No se
     // guarda en la base ni se acepta del cliente; el logo se cambia por
     // POST /laboratory/logo.

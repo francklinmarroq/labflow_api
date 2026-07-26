@@ -70,8 +70,10 @@ public class UserAdminServiceImp implements UserAdminService {
     @Override
     @Transactional
     public UserAccountDTO createUser(CreateUserRequest request) {
-        if (userRepository.existsByUsername(request.getUsername())) {
-            throw new APIException("Ya existe un usuario con el correo: " + request.getUsername());
+        // Unicidad por laboratorio (no global): un mismo correo puede ser miembro
+        // de varios laboratorios, pero no dos veces del mismo.
+        if (userRepository.existsByUsernameAndLaboratoryId(request.getUsername(), TenantContext.getLaboratoryId())) {
+            throw new APIException("Ya existe un usuario con el correo: " + request.getUsername() + " en este laboratorio.");
         }
         Laboratory laboratory = laboratoryRepository.getReferenceById(TenantContext.getLaboratoryId());
         User user = new User();

@@ -2,12 +2,13 @@ package marroquinsoftware.labflowapi.service;
 
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.model.Laboratory;
+import marroquinsoftware.labflowapi.model.OnboardingSeedStatus;
 import marroquinsoftware.labflowapi.model.Role;
 import marroquinsoftware.labflowapi.model.User;
+import marroquinsoftware.labflowapi.payload.LaboratoryDTO;
 import marroquinsoftware.labflowapi.payload.RegisterRequest;
 import marroquinsoftware.labflowapi.repositories.LaboratoryRepository;
 import marroquinsoftware.labflowapi.repositories.UserRepository;
-import marroquinsoftware.labflowapi.tenant.TenantContext;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -29,11 +30,6 @@ public class RegistrationService {
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
-    @Autowired
-    private CatalogSeeder catalogSeeder;
-
-    @Autowired
-    private AccountSeeder accountSeeder;
 
     /**
      * Crea, en una sola transacción, el laboratorio (tenant) y su usuario dueño.
@@ -61,21 +57,42 @@ public class RegistrationService {
         laboratory.setOwner(user);
         laboratoryRepository.save(laboratory);
 
-        // Siembra el catálogo por defecto para el laboratorio nuevo. Se fija el
-        // TenantContext al lab recién creado para que las entradas del catálogo
-        // reciban su laboratory_id (@TenantId) automáticamente; se restaura al final.
-        Long previousTenant = TenantContext.getLaboratoryId();
-        TenantContext.setLaboratoryId(laboratory.getId());
-        try {
-            catalogSeeder.seedDefaultCatalog();
-            accountSeeder.seedDefaultAccounts();
-        } finally {
-            if (previousTenant != null) {
-                TenantContext.setLaboratoryId(previousTenant);
-            } else {
-                TenantContext.clear();
-            }
-        }
+        // El catálogo por defecto NO se siembra aquí a propósito: esta petición es
+        // anónima, así que la sesión de Hibernate queda fijada a NO_TENANT y el
+        // sembrado caería bajo el tenant equivocado. El laboratorio nace con
+        // seedStatus = PENDING; la primera vez que el dueño entra autenticado, la app
+        // le ofrece cargar los datos de inicio y el sembrado corre con el tenant
+        // correcto (ver LaboratoryService#chooseStarterData).
+        return user;
+    }
+
+    /**
+     * Crea un laboratorio adicional para un propietario ya autenticado, reutilizando
+     * su identidad (mismo correo): se crea una nueva fila de usuario OWNER en el nuevo
+     * laboratorio, copiando el hash de contraseña de la cuenta actual (invariante:
+     * mismo correo, mismo hash). El laboratorio nace con seedStatus = PENDING; el
+     * onboarding le ofrecerá cargar los datos de inicio al entrar.
+     */
+    @Transactional
+    public User createAdditionalLaboratory(String username, LaboratoryDTO dto) {
+        User current = userRepository.findFirstByUsernameAndEnabledTrueOrderById(username)
+                .orElseThrow(() -> new APIException("No se encontró una cuenta activa para este correo."));
+
+        Laboratory laboratory = modelMapper.map(dto, Laboratory.class);
+        laboratory.setId(null);
+        laboratory.setSeedStatus(OnboardingSeedStatus.PENDING);
+        laboratory = laboratoryRepository.save(laboratory);
+
+        User user = new User();
+        user.setUsername(username);
+        user.setPassword(current.getPassword());
+        user.setEnabled(true);
+        user.setRole(Role.OWNER);
+        user.setLaboratory(laboratory);
+        user = userRepository.save(user);
+
+        laboratory.setOwner(user);
+        laboratoryRepository.save(laboratory);
 
         return user;
     }

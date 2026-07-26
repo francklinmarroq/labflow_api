@@ -13,9 +13,19 @@ import java.time.Instant;
  * Usuario de la aplicación. Sustituye a la tabla {@code users} de
  * JdbcUserDetailsManager para poder ligar cada usuario a su laboratorio (tenant).
  * El {@code username} es el correo.
+ *
+ * <p>Un mismo correo puede pertenecer a VARIOS laboratorios: hay una fila por
+ * (correo, laboratorio), cada una con su rol y su membresía. Por eso el
+ * {@code username} NO es único global, sino único por laboratorio
+ * ({@code username + laboratory_id}). Todas las filas de un mismo correo
+ * comparten el mismo hash de contraseña (ver InvitationServiceImp y
+ * RegistrationService).
  */
 @Entity
-@Table(name = "app_user")
+@Table(name = "app_user",
+        uniqueConstraints = @UniqueConstraint(
+                name = "uk_app_user_username_per_lab",
+                columnNames = {"username", "laboratory_id"}))
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
@@ -27,7 +37,7 @@ public class User {
 
     @NotBlank
     @Email
-    @Column(unique = true, nullable = false, length = 255)
+    @Column(nullable = false, length = 255)
     private String username;
 
     @NotBlank

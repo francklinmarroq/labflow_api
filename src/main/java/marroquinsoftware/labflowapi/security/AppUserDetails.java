@@ -24,6 +24,7 @@ public class AppUserDetails implements UserDetails {
     private final String password;
     private final boolean enabled;
     private final Long laboratoryId;
+    private final String laboratoryName;
     private final Role role;
     private final String roleName;
     private final Set<Permission> permissions;
@@ -35,6 +36,7 @@ public class AppUserDetails implements UserDetails {
         this.password = user.getPassword();
         this.enabled = user.isEnabled();
         this.laboratoryId = user.getLaboratory() != null ? user.getLaboratory().getId() : null;
+        this.laboratoryName = user.getLaboratory() != null ? user.getLaboratory().getName() : null;
         this.role = user.getRole();
         this.roleName = user.getAppRole() != null ? user.getAppRole().getName() : null;
         if (user.getRole() == Role.OWNER) {
@@ -56,6 +58,10 @@ public class AppUserDetails implements UserDetails {
 
     public Long getLaboratoryId() {
         return laboratoryId;
+    }
+
+    public String getLaboratoryName() {
+        return laboratoryName;
     }
 
     public Role getRole() {

@@ -1,13 +1,14 @@
 package marroquinsoftware.labflowapi.payload;
 
-import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.Size;
 import lombok.Data;
 
-/** Contraseña que el usuario invitado define al aceptar. */
+/**
+ * Contraseña que el usuario invitado define al aceptar. Es opcional a nivel de
+ * DTO porque, si el correo ya tiene cuenta en otro laboratorio, no se pide (se
+ * reusa la existente). La obligatoriedad y el mínimo de 8 caracteres para una
+ * identidad nueva se validan en InvitationServiceImp.acceptInvitation.
+ */
 @Data
 public class AcceptInvitationRequest {
-    @NotBlank(message = "La contraseña es obligatoria")
-    @Size(min = 8, message = "La contraseña debe tener al menos 8 caracteres")
     private String password;
 }

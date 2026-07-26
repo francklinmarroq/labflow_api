@@ -15,4 +15,7 @@ public class JwtResponse {
     /** Nombre del rol configurable asignado, o {@code null} para el OWNER. */
     private String roleName;
     private List<String> permissions;
+    /** Laboratorio (tenant) activo de esta sesión. */
+    private Long laboratoryId;
+    private String laboratoryName;
 }
