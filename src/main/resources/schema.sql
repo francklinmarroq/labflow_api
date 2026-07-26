@@ -52,6 +52,16 @@ alter table if exists pathology drop constraint if exists uklby58lspcse6fgiy34dk
 alter table if exists age_range drop constraint if exists ukqql5fyaatfi5srbbc3vex478n;
 alter table if exists test_config drop constraint if exists ukbqi8wvsabhl626um5wpbognna;
 
+-- Mismo drift en customer: national_id_number y tax_number eran @Column(unique=true)
+-- (unique GLOBAL) antes del multi-tenant; ahora la unicidad es por laboratorio
+-- (uk_customer_national_id_per_lab / uk_customer_tax_number_per_lab). El unique global
+-- viejo sobrevive en bases previas y hace que registrar un paciente con un DNI/NIT que
+-- otro laboratorio ya usa reviente con "violates unique constraint" -> 409. Se eliminan.
+-- Nombres deterministas que genera Hibernate para @Column(unique=true) (hash de
+-- tabla+columna). "if exists" en tabla y constraint lo hace idempotente en bases nuevas.
+alter table if exists customer drop constraint if exists ukfgxric7ry73qwno3m6rfn3b6i;
+alter table if exists customer drop constraint if exists uk9qjuu5myqtv2ojkfcoonu931a;
+
 -- Enlace público de resultados: la columna lab_orders.public_token la declara la
 -- entidad LabOrder, pero ddl-auto=update no siempre la aplica sobre bases ya
 -- existentes; sin ella, TODA consulta a lab_orders (que ahora mapea la columna)
@@ -75,3 +85,15 @@ alter table if exists laboratory add column if not exists tax_name varchar(255);
 alter table if exists laboratory add column if not exists tax_address varchar(255);
 alter table if exists invoices add column if not exists lab_tax_name varchar(255);
 alter table if exists invoices add column if not exists lab_tax_address varchar(255);
+
+-- Onboarding de datos de inicio: laboratory.seed_status guarda si el laboratorio
+-- ya decidió cargar (o no) el catálogo por defecto. Reemplaza al sembrado en el
+-- registro (que corría con el tenant equivocado). Se agrega idempotente; los labs
+-- que YA tienen exámenes se dan por decididos (ACCEPTED) para no mostrarles el
+-- modal, y los que quedaron vacíos (incluidos los rotos por el bug anterior) se
+-- dejan en PENDING para que el modal les ofrezca sembrar ahora. Se trata null
+-- como PENDING en el código, así que el orden respecto a ddl-auto no importa.
+alter table if exists laboratory add column if not exists seed_status varchar(20);
+update laboratory set seed_status = 'ACCEPTED'
+  where seed_status is null and id in (select distinct laboratory_id from tests where laboratory_id > 0);
+update laboratory set seed_status = 'PENDING' where seed_status is null;

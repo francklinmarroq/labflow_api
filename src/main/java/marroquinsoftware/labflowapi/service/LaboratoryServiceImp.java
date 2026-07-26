@@ -3,12 +3,14 @@ package marroquinsoftware.labflowapi.service;
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Laboratory;
+import marroquinsoftware.labflowapi.model.OnboardingSeedStatus;
 import marroquinsoftware.labflowapi.payload.LaboratoryDTO;
 import marroquinsoftware.labflowapi.repositories.LaboratoryRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
@@ -44,6 +46,12 @@ public class LaboratoryServiceImp implements LaboratoryService {
     @Autowired
     private FileStorageService fileStorageService;
 
+    @Autowired
+    private CatalogSeeder catalogSeeder;
+
+    @Autowired
+    private AccountSeeder accountSeeder;
+
     @Override
     public LaboratoryDTO getLaboratory() {
         return toDto(findOwn());
@@ -67,13 +75,39 @@ public class LaboratoryServiceImp implements LaboratoryService {
         // El owner no viene en el DTO, así que modelMapper no lo toca y se conserva.
         String logoKey = laboratory.getLogoObjectKey();
         String stampKey = laboratory.getStampObjectKey();
+        // El estado de onboarding es config invisible: nunca se edita desde este DTO.
+        OnboardingSeedStatus seedStatus = laboratory.getSeedStatus();
         modelMapper.map(dto, laboratory);
         laboratory.setId(id);
         // Ni el logo ni el sello viajan en el DTO (solo sus URL firmadas, que son de
         // lectura): se reponen las llaves que ya estaban guardadas.
         laboratory.setLogoObjectKey(logoKey);
         laboratory.setStampObjectKey(stampKey);
+        laboratory.setSeedStatus(seedStatus);
         return toDto(laboratoryRepository.save(laboratory));
+    }
+
+    @Override
+    @Transactional
+    public LaboratoryDTO chooseStarterData(boolean accept) {
+        Laboratory laboratory = findOwn();
+        OnboardingSeedStatus status = laboratory.getSeedStatus();
+        // Idempotente: si ya se decidió (double-click, reintento tras timeout), no
+        // se re-siembra ni se cambia el estado; se devuelve como está.
+        if (status == null || status == OnboardingSeedStatus.PENDING) {
+            if (accept) {
+                // Autenticado: la sesión ya tiene el tenant correcto, así que el
+                // catálogo se siembra bajo este laboratorio. Los seeders son
+                // idempotentes (no duplican si por lo que sea ya hubiera datos).
+                catalogSeeder.seedDefaultCatalog();
+                accountSeeder.seedDefaultAccounts();
+                laboratory.setSeedStatus(OnboardingSeedStatus.ACCEPTED);
+            } else {
+                laboratory.setSeedStatus(OnboardingSeedStatus.DECLINED);
+            }
+            laboratory = laboratoryRepository.save(laboratory);
+        }
+        return toDto(laboratory);
     }
 
     @Override
@@ -186,6 +220,9 @@ public class LaboratoryServiceImp implements LaboratoryService {
         LaboratoryDTO dto = modelMapper.map(laboratory, LaboratoryDTO.class);
         dto.setLogoUrl(fileStorageService.signedUrl(laboratory.getLogoObjectKey(), LOGO_URL_TTL));
         dto.setStampUrl(fileStorageService.signedUrl(laboratory.getStampObjectKey(), LOGO_URL_TTL));
+        // null == PENDING (filas anteriores a la columna): sigue pendiente de decidir.
+        OnboardingSeedStatus status = laboratory.getSeedStatus();
+        dto.setSeedChoicePending(status == null || status == OnboardingSeedStatus.PENDING);
         return dto;
     }
 

@@ -8,6 +8,14 @@ public interface LaboratoryService {
     LaboratoryDTO createLaboratory(LaboratoryDTO dto);
     LaboratoryDTO updateLaboratory(LaboratoryDTO dto, Long id);
 
+    /**
+     * Registra la decisión de datos de inicio del laboratorio de la sesión. Si
+     * {@code accept} es true, siembra el catálogo por defecto (exámenes y cuentas);
+     * si es false, el laboratorio empieza vacío. Idempotente: si ya se decidió, no
+     * hace nada. Corre autenticado, así que el tenant de la sesión es el correcto.
+     */
+    LaboratoryDTO chooseStarterData(boolean accept);
+
     /** Sube (o reemplaza) el logo del laboratorio de la sesión. */
     LaboratoryDTO uploadLogo(MultipartFile file);
 

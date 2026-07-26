@@ -7,7 +7,6 @@ import marroquinsoftware.labflowapi.model.User;
 import marroquinsoftware.labflowapi.payload.RegisterRequest;
 import marroquinsoftware.labflowapi.repositories.LaboratoryRepository;
 import marroquinsoftware.labflowapi.repositories.UserRepository;
-import marroquinsoftware.labflowapi.tenant.TenantContext;
 import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
@@ -29,11 +28,6 @@ public class RegistrationService {
     @Autowired
     private BCryptPasswordEncoder bCryptPasswordEncoder;
 
-    @Autowired
-    private CatalogSeeder catalogSeeder;
-
-    @Autowired
-    private AccountSeeder accountSeeder;
 
     /**
      * Crea, en una sola transacción, el laboratorio (tenant) y su usuario dueño.
@@ -61,22 +55,12 @@ public class RegistrationService {
         laboratory.setOwner(user);
         laboratoryRepository.save(laboratory);
 
-        // Siembra el catálogo por defecto para el laboratorio nuevo. Se fija el
-        // TenantContext al lab recién creado para que las entradas del catálogo
-        // reciban su laboratory_id (@TenantId) automáticamente; se restaura al final.
-        Long previousTenant = TenantContext.getLaboratoryId();
-        TenantContext.setLaboratoryId(laboratory.getId());
-        try {
-            catalogSeeder.seedDefaultCatalog();
-            accountSeeder.seedDefaultAccounts();
-        } finally {
-            if (previousTenant != null) {
-                TenantContext.setLaboratoryId(previousTenant);
-            } else {
-                TenantContext.clear();
-            }
-        }
-
+        // El catálogo por defecto NO se siembra aquí a propósito: esta petición es
+        // anónima, así que la sesión de Hibernate queda fijada a NO_TENANT y el
+        // sembrado caería bajo el tenant equivocado. El laboratorio nace con
+        // seedStatus = PENDING; la primera vez que el dueño entra autenticado, la app
+        // le ofrece cargar los datos de inicio y el sembrado corre con el tenant
+        // correcto (ver LaboratoryService#chooseStarterData).
         return user;
     }
 }
