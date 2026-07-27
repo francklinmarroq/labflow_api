@@ -46,11 +46,42 @@ mantiene el fallback funcional solo si el endpoint existe; ver PR del front.
 SUCCESS (JDK 25). Latencia real pendiente de confirmación humana (no hay entorno con
 API + BD para medir).
 
+### 2026-07-27 — `customerName` embebido en el DTO de la orden (listado sin 2.ª llamada) · cross-repo
+**Archivos:** `LabOrderDTO`, `LabOrderRepository`, `LabOrderServiceImp`.
+**Problema:** el listado de órdenes del front (pantalla de alto tráfico) bajaba
+`GET /customers?pageSize=1000` **en paralelo** a `GET /orders` solo para resolver el
+nombre del paciente por fila. Era una 2.ª invocación de Worker/Durable Object/
+contenedor (piso de ~0.7 s) y una consulta a Postgres que trae **todos** los
+clientes del laboratorio aunque la página muestre 15. Además, el mapeo del listado
+llamaba `order.getCustomer()` sobre un `@ManyToOne` sin `JOIN FETCH`, con riesgo de
+N+1 al inicializar el paciente de cada orden.
+**Cambio:** `LabOrderDTO` ahora incluye `customerName` (solo lectura; se ignora al
+crear/actualizar, la orden se sigue vinculando por `customerId`). `toDTO` lo puebla
+con `order.getCustomer().getName()`. Para el listado se agrega
+`findByStatusNotFetchCustomer` con `LEFT JOIN FETCH o.customer`, que trae órdenes +
+paciente en **una sola consulta**; al ser un `@ManyToOne` (fetch to-one, no multiplica
+filas) la paginación por SQL sigue siendo correcta y respeta el `@TenantId` (JPQL
+sobre la entidad lo hereda). Mismos datos y mismo orden observables.
+**Impacto esperado:** el listado de órdenes baja de **2 → 1** llamada al API por
+apertura (**−1 request** ≈ **−1 invocación de Cloudflare**), y se elimina una consulta
+`SELECT * FROM customers` completa (potencialmente cientos/miles de filas) por otra
+que ya venía embebida en el fetch join. Del lado de Postgres el listado pasa de
+"1 query de órdenes + 1 query de todos los clientes (+ posible N+1 del paciente)" a
+**1 sola consulta** con join.
+**Acople de despliegue:** **API primero.** El front
+(`labflow_frontend`, rama `claude/inspiring-ramanujan-t5vhv9`) deja de pedir
+`/customers` y lee `customerName` del DTO; tiene fallback `Paciente #{id}` si el
+nombre no viene, así que no rompe si el front sale antes, pero para ver los nombres
+la API debe desplegarse **primero**.
+**Verificación:** `mvn test -Dtest=!LabflowapiApplicationTests -Djava.version=21` →
+52 tests, BUILD SUCCESS. (El pom apunta a Java 25; este entorno solo tiene JDK 21, así
+que se compiló con release 21 vía override de línea de comandos —sin tocar el pom—; el
+cambio es compatible con ambas versiones.) Latencia real pendiente de confirmación
+humana (no hay entorno con API + BD para medir).
+
 ## Inventario de oportunidades (pendientes, una por corrida futura)
 
-- [ ] **`customerName` embebido en la página de órdenes:** el listado del front baja
-  `/customers?pageSize=1000` solo para resolver nombres. Si `LabOrderResponse`
-  incluyera el nombre del cliente por fila se ahorraría esa 2.ª llamada. Cross-repo.
+- [x] **`customerName` embebido en la página de órdenes** (hecho 2026-07-27, ver arriba).
 - [ ] **Datos mínimos del paciente en el DTO de la orden:** el detalle pide
   `GET /customers/{id}` en serie tras `GET /orders/{id}` (necesita sexo/edad para
   los rangos). Embeber sexo/edad en `LabOrderDTO` ahorraría 1 round-trip serial.

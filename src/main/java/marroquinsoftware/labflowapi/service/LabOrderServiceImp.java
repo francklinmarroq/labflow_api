@@ -42,7 +42,7 @@ public class LabOrderServiceImp implements LabOrderService {
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         // El laboratorio (tenant) lo filtra Hibernate por @TenantId; aquí solo se
         // excluyen las canceladas (borrado lógico).
-        Page<LabOrder> page = labOrderRepository.findByStatusNot(OrderStatus.CANCELLED, pageable);
+        Page<LabOrder> page = labOrderRepository.findByStatusNotFetchCustomer(OrderStatus.CANCELLED, pageable);
         List<LabOrderDTO> dtos = page.getContent().stream().map(this::toDTO).toList();
         LabOrderResponse response = new LabOrderResponse();
         response.setContent(dtos);
@@ -150,6 +150,7 @@ public class LabOrderServiceImp implements LabOrderService {
         dto.setOrderNumber(order.getOrderNumber());
         dto.setPublicToken(order.getPublicToken());
         dto.setCustomerId(order.getCustomer().getId());
+        dto.setCustomerName(order.getCustomer().getName());
         dto.setRequestedAt(order.getRequestedAt());
         dto.setStatus(order.getStatus());
         dto.setNotes(order.getNotes());

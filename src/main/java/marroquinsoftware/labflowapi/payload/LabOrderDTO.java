@@ -21,6 +21,10 @@ public class LabOrderDTO {
     private String publicToken;
     @NotNull(message = "Debe seleccionar un paciente")
     private Long customerId;
+    // Nombre del paciente, embebido de solo lectura (se ignora al crear/actualizar;
+    // la orden se vincula por customerId). Permite que el listado de órdenes muestre
+    // el nombre sin una segunda llamada a /customers. Ver LabOrderServiceImp.toDTO.
+    private String customerName;
     private Instant requestedAt;
     private OrderStatus status;
     private String notes;
