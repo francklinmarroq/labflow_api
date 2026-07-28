@@ -151,6 +151,10 @@ public class LabOrderServiceImp implements LabOrderService {
         dto.setPublicToken(order.getPublicToken());
         dto.setCustomerId(order.getCustomer().getId());
         dto.setCustomerName(order.getCustomer().getName());
+        // Sexo/edad del mismo Customer ya cargado (sin query extra): dejan al front
+        // resolver los rangos aplicables sin la llamada serial a GET /customers/{id}.
+        dto.setCustomerSex(order.getCustomer().getSex());
+        dto.setCustomerAgeInDays(order.getCustomer().getAgeInDays());
         dto.setRequestedAt(order.getRequestedAt());
         dto.setStatus(order.getStatus());
         dto.setNotes(order.getNotes());

@@ -14,6 +14,34 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-07-28 — Sexo/edad del paciente embebidos en `LabOrderDTO` (habilita 2→1 serial en el front) · cross-repo
+**Archivos:** `LabOrderDTO` (`customerSex`, `customerAgeInDays`), `LabOrderServiceImp.toDTO`.
+**Problema:** el detalle de la orden en el front pedía `GET /customers/{id}` **en
+serie** tras `GET /orders/{id}` solo para conocer `sex`/`ageInDays` del paciente
+(necesarios para elegir los rangos de referencia aplicables). Ese round-trip serial
+paga íntegro el piso de ~0.7 s y es otra invocación Worker→DO→contenedor.
+**Cambio:** `LabOrderDTO` ahora expone `customerSex` (enum `Sex`) y
+`customerAgeInDays` (`Integer`), embebidos de **solo lectura** igual que
+`customerName`: se ignoran al crear/actualizar (la orden se vincula por `customerId`)
+y se **leen del mismo `Customer` que `toDTO` ya cargaba** para el nombre —**sin
+consulta extra** a Postgres. En el listado el paciente ya venía por
+`LEFT JOIN FETCH o.customer` (una sola query, sin N+1); en el detalle
+(`findById` → `getOrderById`) es el mismo proxy ya accedido para `getName()`. El
+resto del DTO y el comportamiento observable no cambian.
+**Impacto esperado:** habilita que el detalle de la orden en el front elimine la
+llamada serial a `GET /customers/{id}` (**2 llamadas seriales → 1**): **−1
+invocación de Cloudflare** por apertura y ~**0.7 s** menos en la ruta crítica del
+montaje (el request serial no se solapaba con nada). Del lado de Postgres: **0
+queries nuevas** (mismos campos del `Customer` ya materializado).
+**Acople de despliegue:** **API primero.** El consumidor
+(`labflow_frontend`, rama `claude/inspiring-ramanujan-dv7ly5`) usa
+`customerSex`/`customerAgeInDays`; debe desplegarse **después** de esta API. El front
+mantiene fallback a `/customers/{id}` mientras la API vieja no los envíe.
+**Verificación:** `mvn test -Dtest=!LabflowapiApplicationTests` → 52 tests, BUILD
+SUCCESS. (En este entorno solo hay JDK 21; se compiló con `-Dmaven.compiler.release=21`
+—el cambio es solo agregar dos campos/setters, 100% compatible con el target Java 25
+del `pom`.) Latencia real pendiente de confirmación humana.
+
 ### 2026-07-26 — Endpoint por lote de corridas: `GET /orders/{orderId}/runs`
 **Archivos:** `TestRunRepository`, `TestRunService(+Imp)`, `LabOrderController`.
 **Problema:** el detalle y la impresión de una orden pedían las corridas de
@@ -82,10 +110,10 @@ humana (no hay entorno con API + BD para medir).
 ## Inventario de oportunidades (pendientes, una por corrida futura)
 
 - [x] **`customerName` embebido en la página de órdenes** (hecho 2026-07-27, ver arriba).
-- [ ] **Datos mínimos del paciente en el DTO de la orden:** el detalle pide
-  `GET /customers/{id}` en serie tras `GET /orders/{id}` (necesita sexo/edad para
-  los rangos). Embeber sexo/edad en `LabOrderDTO` ahorraría 1 round-trip serial.
-  Evaluar contra el costo de agrandar el DTO. Cross-repo.
+- [x] **Datos mínimos del paciente en el DTO de la orden:** hecho 2026-07-28 —
+  `LabOrderDTO` embebe `customerSex`/`customerAgeInDays` (sin query extra) y el front
+  eliminó la llamada serial a `GET /customers/{id}` en el detalle (2→1 serial). Ver
+  entrada en «Hecho».
 - [ ] **Revisar N+1 en otros mapeos a DTO** (facturas, remisiones, journal): mismas
   colecciones lazy recorridas en `toDTO`; auditar con logging de Hibernate.
 - [ ] **Config HikariCP/JPA:** revisar `spring.jpa.open-in-view`, tamaño del pool y

@@ -5,6 +5,7 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import marroquinsoftware.labflowapi.model.OrderStatus;
+import marroquinsoftware.labflowapi.model.Sex;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -25,6 +26,12 @@ public class LabOrderDTO {
     // la orden se vincula por customerId). Permite que el listado de órdenes muestre
     // el nombre sin una segunda llamada a /customers. Ver LabOrderServiceImp.toDTO.
     private String customerName;
+    // Sexo y edad del paciente, embebidos de solo lectura (igual que customerName:
+    // se ignoran al crear/actualizar). Se leen del mismo Customer ya cargado, sin
+    // consulta extra. Permiten que el detalle/impresión de la orden elija los rangos
+    // de referencia aplicables sin una llamada serial a GET /customers/{id}.
+    private Sex customerSex;
+    private Integer customerAgeInDays;
     private Instant requestedAt;
     private OrderStatus status;
     private String notes;
