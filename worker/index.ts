@@ -22,10 +22,7 @@ interface Env {
 export class LabflowApiContainer extends Container<Env> {
   defaultPort = 8080;
 
-  // Al ser un binario nativo con GraalVM, el contenedor arranca en menos de 1 segundo.
-  // Podemos permitir que se duerma rápidamente (por ejemplo, a los 5 o 10 minutos)
-  // sin que suponga ningún problema de rendimiento para el usuario.
-  sleepAfter = "5m";
+  sleepAfter = "10m";
 
   envVars = {
     DB_URL: this.env.DB_URL,
@@ -41,19 +38,12 @@ export class LabflowApiContainer extends Container<Env> {
     R2_SECRET_ACCESS_KEY: this.env.R2_SECRET_ACCESS_KEY,
   };
 
-  // Como el binario nativo levanta casi instantáneamente, ya no necesitamos
-  // esperar 5 minutos (300,000 ms) para que el puerto abra. Reducimos los tiempos
-  // a valores normales y seguros.
   override async fetch(request: Request): Promise<Response> {
-    await this.startAndWaitForPorts(this.defaultPort, {
-      instanceGetTimeoutMS: 10_000,
-      portReadyTimeoutMS: 15_000,
-    });
     return this.containerFetch(request, this.defaultPort);
   }
 
   override onStart() {
-    console.log("labflow-api: contenedor nativo arriba");
+    console.log("labflow-api: contenedor nativo iniciado correctamente");
   }
 
   override onStop() {
@@ -67,9 +57,17 @@ export class LabflowApiContainer extends Container<Env> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
+    if (request.method === "OPTIONS") {
+      return new Response(null, {
+        status: 204,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Access-Control-Allow-Methods": "GET, POST, PUT, DELETE, OPTIONS",
+          "Access-Control-Allow-Headers": "Content-Type, Authorization",
+        },
+      });
+    }
+
     return getContainer(env.API_CONTAINER).fetch(request);
   },
-
-  // Eliminamos por completo la función `scheduled` (el cron), ya que
-  // al no mantener el contenedor despierto artificialmente, ya no es necesaria.
 } satisfies ExportedHandler<Env>;
