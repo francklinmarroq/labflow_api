@@ -7,16 +7,8 @@
   "containers": [
     {
       "class_name": "LabflowApiContainer",
-      // wrangler construye este Dockerfile y sube la imagen al registry de
-      // Cloudflare en cada `wrangler deploy`.
-      "image": "./Dockerfile",
-      // standard-2 = 1 vCPU, 6 GiB, 12 GB de disco. La RAM sobra de lejos; el
-      // vCPU es lo que manda, porque arrancar la JVM es trabajo de CPU puro y
-      // con el medio vCPU de standard-1 el arranque en frio se va a varios
-      // minutos.
+      "image": "docker.io/francklinmarroq/labflow-api:v1.0.13",
       "instance_type": "standard-2",
-      // Una sola instancia: el Worker rutea todo al mismo contenedor, que
-      // mantiene su pool de conexiones contra Postgres.
       "max_instances": 1
     }
   ],
@@ -38,12 +30,8 @@
   ],
 
   "vars": {
-    // Configuracion no sensible. Lo secreto (DB_URL, DB_USERNAME, DB_PASSWORD,
-    // JWT_SECRET, RESEND_API_KEY, R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY) va con
-    // `wrangler secret put`, nunca aca.
-    "MAIL_FROM": "no-reply@fmarroquin.com",
+    "MAIL_FROM": "no-reply@labflowcloud.com",
     "FRONTEND_BASE_URL": "https://labflow-frontend.pages.dev/",
-    // Endpoint S3 de la cuenta (sin el bucket al final) y nombre del bucket.
     "R2_ENDPOINT": "https://22d53d9fdf065447b515a924fdabbc2d.r2.cloudflarestorage.com",
     "R2_BUCKET": "labflow-files"
   },

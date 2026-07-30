@@ -5,6 +5,7 @@ import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.AgeRange;
 import marroquinsoftware.labflowapi.model.Parameter;
+import marroquinsoftware.labflowapi.model.ReferenceContextKind;
 import marroquinsoftware.labflowapi.model.ReferenceRange;
 import marroquinsoftware.labflowapi.model.Sex;
 import marroquinsoftware.labflowapi.payload.ReferenceRangeDTO;
@@ -90,6 +91,9 @@ public class ReferenceRangeServiceImp implements ReferenceRangeService {
         ReferenceRange range = modelMapper.map(dto, ReferenceRange.class);
         range.setParameter(parameter);
         range.setAgeRange(resolveAgeRange(dto.getAgeRangeId()));
+        if (range.getContextKind() == null) {
+            range.setContextKind(ReferenceContextKind.NONE);
+        }
 
         return toDTO(referenceRangeRepository.save(range));
     }
@@ -107,10 +111,14 @@ public class ReferenceRangeServiceImp implements ReferenceRangeService {
         }
 
         Parameter parameter = range.getParameter();
+        range.setAgeRange(null); // evita que ModelMapper flatee ageRangeId → ageRange.id mutando el AgeRange gestionado
         modelMapper.map(dto, range);
         range.setId(rangeId);
         range.setParameter(parameter);
         range.setAgeRange(resolveAgeRange(dto.getAgeRangeId()));
+        if (range.getContextKind() == null) {
+            range.setContextKind(ReferenceContextKind.NONE);
+        }
 
         return toDTO(referenceRangeRepository.save(range));
     }
@@ -152,6 +160,8 @@ public class ReferenceRangeServiceImp implements ReferenceRangeService {
         ReferenceRangeDTO dto = modelMapper.map(range, ReferenceRangeDTO.class);
         dto.setParameterId(range.getParameter().getId());
         dto.setAgeRangeId(range.getAgeRange() != null ? range.getAgeRange().getId() : null);
+        dto.setContextKind(range.getContextKind() != null
+                ? range.getContextKind() : ReferenceContextKind.NONE);
         return dto;
     }
 }

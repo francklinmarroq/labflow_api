@@ -11,7 +11,11 @@ import marroquinsoftware.labflowapi.repositories.TestRepository;
 import marroquinsoftware.labflowapi.repositories.UnitRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aot.hint.MemberCategory;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -37,6 +41,7 @@ import java.util.Map;
  * {@code idOriginal -> entidad nueva} para reconstruir las llaves foráneas.
  */
 @Service
+@ImportRuntimeHints(CatalogSeeder.NativeHints.class)
 public class CatalogSeeder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(CatalogSeeder.class);
@@ -204,4 +209,34 @@ public class CatalogSeeder {
 
     private record TestConfigParameterRow(
             Long test_config_id, Long parameter_id, Integer display_order, BigDecimal chart_x_value) {}
+
+    /**
+     * Hints para la imagen nativa de GraalVM. Dos cosas que en JVM salen gratis y en
+     * el binario nativo hay que declarar explícitamente:
+     *
+     * <ul>
+     *   <li>El JSON {@code default-catalog.json} debe embeberse como recurso; si no,
+     *       {@code ClassPathResource#getInputStream} no lo encuentra en runtime.</li>
+     *   <li>Jackson deserializa los {@code record} de abajo por reflexión (constructor
+     *       canónico + accesores). Sin registrarlos, native-image no incluye esos
+     *       miembros y {@code readValue} falla con una excepción de Jackson que —al ser
+     *       {@code RuntimeException} en Jackson 3— ni siquiera atrapa el catch de
+     *       {@code readCatalog}, así que llega al usuario como "error inesperado".</li>
+     * </ul>
+     */
+    static class NativeHints implements RuntimeHintsRegistrar {
+        @Override
+        public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+            hints.resources().registerPattern(CATALOG_RESOURCE);
+            List<Class<?>> catalogRecords = List.of(
+                    Catalog.class, UnitRow.class, AgeRangeRow.class, PathologyRow.class,
+                    ParameterRow.class, ReferenceRangeRow.class, TestRow.class,
+                    TestConfigRow.class, TestConfigParameterRow.class);
+            for (Class<?> record : catalogRecords) {
+                hints.reflection().registerType(record,
+                        MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                        MemberCategory.INVOKE_PUBLIC_METHODS);
+            }
+        }
+    }
 }
