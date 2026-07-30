@@ -7,7 +7,7 @@
   "containers": [
     {
       "class_name": "LabflowApiContainer",
-      "image": "docker.io/francklinmarroq/labflow-api:v1.0.13",
+      "image": "docker.io/francklinmarroq/labflow-api:v1.0.14",
       "instance_type": "standard-2",
       "max_instances": 1
     }
