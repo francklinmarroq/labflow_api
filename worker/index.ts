@@ -22,7 +22,7 @@ interface Env {
 export class LabflowApiContainer extends Container<Env> {
   defaultPort = 8080;
 
-  sleepAfter = "10m";
+  sleepAfter = "1m";
 
   envVars = {
     DB_URL: this.env.DB_URL,
