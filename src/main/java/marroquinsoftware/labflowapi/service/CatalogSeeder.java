@@ -235,8 +235,7 @@ public class CatalogSeeder {
             for (Class<?> record : catalogRecords) {
                 hints.reflection().registerType(record,
                         MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
-                        MemberCategory.INVOKE_PUBLIC_METHODS,
-                        MemberCategory.DECLARED_FIELDS);
+                        MemberCategory.INVOKE_PUBLIC_METHODS);
             }
         }
     }

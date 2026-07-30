@@ -7,7 +7,11 @@ import marroquinsoftware.labflowapi.model.SystemAccountKey;
 import marroquinsoftware.labflowapi.repositories.AccountRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.aot.hint.MemberCategory;
+import org.springframework.aot.hint.RuntimeHints;
+import org.springframework.aot.hint.RuntimeHintsRegistrar;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.ImportRuntimeHints;
 import org.springframework.core.io.ClassPathResource;
 import org.springframework.stereotype.Service;
 import tools.jackson.databind.ObjectMapper;
@@ -29,6 +33,7 @@ import java.util.List;
  * ubicar; ver {@link SystemAccountKey}.
  */
 @Service
+@ImportRuntimeHints(AccountSeeder.NativeHints.class)
 public class AccountSeeder {
 
     private static final Logger LOGGER = LoggerFactory.getLogger(AccountSeeder.class);
@@ -109,4 +114,27 @@ public class AccountSeeder {
     record Accounts(List<AccountRow> accounts) {}
 
     record AccountRow(String code, String name, String type, String system_key) {}
+
+    /**
+     * Hints para la imagen nativa de GraalVM. Ídem {@link CatalogSeeder.NativeHints}.
+     * <ul>
+     *   <li>{@code default-accounts.json} no se incluye automáticamente en la
+     *       imagen nativa; hay que registrarlo como recurso.</li>
+     *   <li>Jackson deserializa los records {@code Accounts} y {@code AccountRow}
+     *       por reflexión (constructor canónico + accesores). Sin registrarlos,
+     *       native-image no incluye esos miembros y {@code readValue} falla.</li>
+     * </ul>
+     */
+    static class NativeHints implements RuntimeHintsRegistrar {
+        @Override
+        public void registerHints(RuntimeHints hints, ClassLoader classLoader) {
+            hints.resources().registerPattern(ACCOUNTS_RESOURCE);
+            hints.reflection().registerType(Accounts.class,
+                    MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                    MemberCategory.INVOKE_PUBLIC_METHODS);
+            hints.reflection().registerType(AccountRow.class,
+                    MemberCategory.INVOKE_DECLARED_CONSTRUCTORS,
+                    MemberCategory.INVOKE_PUBLIC_METHODS);
+        }
+    }
 }

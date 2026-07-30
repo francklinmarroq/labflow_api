@@ -1,5 +1,7 @@
 package marroquinsoftware.labflowapi.payload;
 
+import com.fasterxml.jackson.annotation.JsonSetter;
+import com.fasterxml.jackson.annotation.Nulls;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -30,6 +32,7 @@ public class ReferenceRangeDTO {
     private BigDecimal criticalHigh;
     private String interpretationText;
 
+    @JsonSetter(nulls = Nulls.SKIP)
     private ReferenceContextKind contextKind = ReferenceContextKind.NONE;
     private String contextLabel;
     private Integer contextMin;

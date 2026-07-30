@@ -26,13 +26,19 @@ import java.math.BigDecimal;
 @NoArgsConstructor
 public class TestConfigParameter {
 
+    // Asociaciones de identidad (parte de la clave compuesta). Se dejan en EAGER
+    // (el default de @ManyToOne) a proposito: en la imagen nativa de GraalVM el
+    // BytecodeProvider es 'none' y Hibernate no puede generar proxies de lazy
+    // loading en runtime, asi que un @ManyToOne(LAZY) revienta con
+    // "Generation of HibernateProxy instances at runtime is not allowed" al
+    // tocar la asociacion (p.ej. cp.getParameter().getId() en TestConfigServiceImp.toDTO).
     @Id
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "test_config_id")
     private TestConfig testConfig;
 
     @Id
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "parameter_id")
     private Parameter parameter;
 
