@@ -14,6 +14,39 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-07-29 — Crear orden con sus exámenes en 1 request: `POST /orders` acepta `testIds` (N+1→1) · cross-repo
+**Archivos:** `LabOrderDTO` (campo `testIds`, solo escritura), `LabOrderServiceImp`
+(`createOrder` + helper `attachTests`).
+**Problema:** el alta de una orden desde el front (`ordenes/nueva.vue`, pantalla de
+alto tráfico) hacía `POST /orders` y **luego un `POST /orders/{id}/tests` por examen,
+en SERIE** (bucle N+1 del lado cliente). Cada request paga el piso de ~0.7 s
+(navegador → Worker → Durable Object → contenedor) y es una invocación de Cloudflare.
+Una orden de 8 exámenes = **1 + 8 = 9 requests seriales** ≈ **~6.3 s** solo en red
+encolada, y 9 invocaciones de Worker/DO/contenedor.
+**Cambio:** `LabOrderDTO` acepta un `testIds` **opcional y de solo escritura** (se
+ignora al leer y al actualizar). `createOrder` crea la orden y, en la **misma
+transacción**, arma los `LabTest` de cada examen y los persiste por `cascade` al
+guardar la orden. Se replica exactamente el alta por examen: `testConfig=null`, sin
+notas ni tipo de muestra, y **en el mismo orden** recibido, así el detalle muestra
+los mismos exámenes en la misma secuencia. Si un `testId` no existe se lanza la misma
+`ResourceNotFoundException("Test","testId",…)` que el alta individual y **toda la
+creación se revierte** (atómica). El endpoint por examen `POST /orders/{id}/tests` se
+conserva intacto para agregar un examen a una orden ya existente (lo usa el detalle).
+**Impacto esperado:** el alta de orden baja de **N+1 → 1** request. En una orden de 8
+exámenes: de 9 a 1 llamada → **−8 requests ≈ −8 invocaciones de Cloudflare** y hasta
+**~5.6 s** menos de red serial por alta. Del lado de Postgres no cambia la cantidad de
+`INSERT` (1 orden + N exámenes), pero pasan a **una sola transacción** en vez de N+1
+transacciones/round-trips HTTP separados.
+**Acople de despliegue:** **API primero.** El consumidor
+(`labflow_frontend`, rama `claude/inspiring-ramanujan-knfnzz`,
+`ordenes/nueva.vue`) envía `testIds` en el cuerpo de `POST /orders`. Desplegar la API
+**antes** que el front; si el front sale primero, el API viejo ignoraría `testIds` y
+la orden se crearía **sin exámenes** (regresión funcional). Ver PR del front.
+**Verificación:** `mvn test "-Dtest=!LabflowapiApplicationTests"` → 52 tests, BUILD
+SUCCESS (en este entorno solo hay JDK 21; se compiló/testeó con override
+`-Dmaven.compiler.release=21`, **sin** tocar el pom, que sigue en Java 25). Latencia
+real pendiente de confirmación humana (no hay entorno con API + BD para medir).
+
 ### 2026-07-28 — Sexo/edad del paciente embebidos en `LabOrderDTO` (habilita 2→1 serial en el front) · cross-repo
 **Archivos:** `LabOrderDTO` (`customerSex`, `customerAgeInDays`), `LabOrderServiceImp.toDTO`.
 **Problema:** el detalle de la orden en el front pedía `GET /customers/{id}` **en
