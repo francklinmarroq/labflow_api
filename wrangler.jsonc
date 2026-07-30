@@ -30,7 +30,7 @@
   ],
 
   "vars": {
-    "MAIL_FROM": "no-reply@fmarroquin.com",
+    "MAIL_FROM": "no-reply@labflowcloud.com",
     "FRONTEND_BASE_URL": "https://labflow-frontend.pages.dev/",
     "R2_ENDPOINT": "https://22d53d9fdf065447b515a924fdabbc2d.r2.cloudflarestorage.com",
     "R2_BUCKET": "labflow-files"
