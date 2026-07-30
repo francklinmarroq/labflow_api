@@ -20,17 +20,13 @@ interface Env {
 }
 
 export class LabflowApiContainer extends Container<Env> {
-  // Tiene que coincidir con SERVER_PORT del Dockerfile.
   defaultPort = 8080;
 
-  // Arrancar la JVM y que Hibernate valide el esquema cuesta bastante mas que
-  // arrancar un proceso Node, asi que conviene que el contenedor no se duerma
-  // apenas hay una pausa: cada siesta se paga con un arranque en frio completo
-  // en el siguiente request.
-  sleepAfter = "30m";
+  // Al ser un binario nativo con GraalVM, el contenedor arranca en menos de 1 segundo.
+  // Podemos permitir que se duerma rápidamente (por ejemplo, a los 5 o 10 minutos)
+  // sin que suponga ningún problema de rendimiento para el usuario.
+  sleepAfter = "5m";
 
-  // Spring lee estas variables desde application.properties. Van por aca y no
-  // en el Dockerfile para que las credenciales no queden dentro de la imagen.
   envVars = {
     DB_URL: this.env.DB_URL,
     DB_USERNAME: this.env.DB_USERNAME,
@@ -39,27 +35,25 @@ export class LabflowApiContainer extends Container<Env> {
     RESEND_API_KEY: this.env.RESEND_API_KEY,
     MAIL_FROM: this.env.MAIL_FROM,
     FRONTEND_BASE_URL: this.env.FRONTEND_BASE_URL,
-    // R2 se habla por su API de S3 sobre HTTPS, no por binding: los bindings no
-    // llegan al contenedor (mismo motivo por el que Hyperdrive no sirve acá).
     R2_ENDPOINT: this.env.R2_ENDPOINT,
     R2_BUCKET: this.env.R2_BUCKET,
     R2_ACCESS_KEY_ID: this.env.R2_ACCESS_KEY_ID,
     R2_SECRET_ACCESS_KEY: this.env.R2_SECRET_ACCESS_KEY,
   };
 
-  // El `fetch` que trae Container espera 20 s a que el puerto abra y despues se
-  // rinde. La JVM tarda bastante mas que eso, asi que hay que ampliar la espera
-  // a mano o el primer request siempre falla con "error connecting to the port".
+  // Como el binario nativo levanta casi instantáneamente, ya no necesitamos
+  // esperar 5 minutos (300,000 ms) para que el puerto abra. Reducimos los tiempos
+  // a valores normales y seguros.
   override async fetch(request: Request): Promise<Response> {
     await this.startAndWaitForPorts(this.defaultPort, {
-      instanceGetTimeoutMS: 30_000,
-      portReadyTimeoutMS: 300_000,
+      instanceGetTimeoutMS: 10_000,
+      portReadyTimeoutMS: 15_000,
     });
     return this.containerFetch(request, this.defaultPort);
   }
 
   override onStart() {
-    console.log("labflow-api: contenedor arriba");
+    console.log("labflow-api: contenedor nativo arriba");
   }
 
   override onStop() {
@@ -73,30 +67,9 @@ export class LabflowApiContainer extends Container<Env> {
 
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
-    // Instancia unica: todos los requests van al mismo contenedor, que conserva
-    // su pool de conexiones a Postgres entre llamadas.
     return getContainer(env.API_CONTAINER).fetch(request);
   },
 
-  // Warm-up: arrancar la JVM cuesta ~28 s y ese costo lo paga entero el primer
-  // usuario que entra despues de una pausa. El cron le pega a /health cada pocos
-  // minutos para que el contenedor no llegue a dormirse (ver sleepAfter arriba).
-  //
-  // Los horarios estan en wrangler.jsonc y cubren solo el horario de atencion:
-  // mantener vivo un standard-2 las 24 h se paga, y de madrugada nadie entra. Si
-  // alguien entra fuera de ese rango, sigue funcionando — solo espera el arranque.
-  async scheduled(_event: ScheduledController, env: Env, ctx: ExecutionContext): Promise<void> {
-    ctx.waitUntil(
-      getContainer(env.API_CONTAINER)
-        .fetch(new Request("https://labflow-api.internal/api/v1/health"))
-        .then(async (res) => {
-          console.log(`labflow-api: warm-up ${res.status}`);
-        })
-        .catch((error) => {
-          // Que falle un warm-up no es critico: el proximo cron reintenta y, en
-          // el peor caso, el usuario paga el arranque en frio como antes.
-          console.error("labflow-api: warm-up fallido", error);
-        }),
-    );
-  },
+  // Eliminamos por completo la función `scheduled` (el cron), ya que
+  // al no mantener el contenedor despierto artificialmente, ya no es necesaria.
 } satisfies ExportedHandler<Env>;

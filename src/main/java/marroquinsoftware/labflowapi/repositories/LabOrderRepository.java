@@ -15,7 +15,12 @@ public interface LabOrderRepository extends JpaRepository<LabOrder, Long> {
     List<LabOrder> findByCustomer_Id(Long customerId);
 
     // El laboratorio (tenant) lo filtra Hibernate por @TenantId; solo excluimos canceladas.
-    Page<LabOrder> findByStatusNot(OrderStatus status, Pageable pageable);
+    // LEFT JOIN FETCH del paciente para traer nombre + datos de cada orden en UNA sola
+    // consulta (evita N+1 al mapear customerName en el listado). El fetch de un @ManyToOne
+    // no multiplica filas, así que la paginación por SQL sigue siendo correcta.
+    @Query(value = "SELECT o FROM LabOrder o LEFT JOIN FETCH o.customer WHERE o.status <> :status",
+            countQuery = "SELECT COUNT(o) FROM LabOrder o WHERE o.status <> :status")
+    Page<LabOrder> findByStatusNotFetchCustomer(@Param("status") OrderStatus status, Pageable pageable);
 
     // Orden por token del enlace público. El @TenantId sigue filtrando: se usa una
     // vez que el TenantContext ya quedó fijado con el laboratorio del token.
