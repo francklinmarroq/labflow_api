@@ -14,6 +14,43 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-08-01 — Batch fetching global: matar el N+1 de `invoice.order` en el listado de facturas y cuentas por cobrar
+**Archivo:** `src/main/resources/application.properties`
+(`spring.jpa.properties.hibernate.default_batch_fetch_size=50`).
+**Problema:** el listado de facturas (`GET /invoices`, pantalla de alto tráfico que el
+front pide con `pageSize=500`) y las cuentas por cobrar (`GET /invoices/receivables`)
+mapean **cada** factura de la página con `toDTO(i, false)`, que dereferencia
+`invoice.getOrder().getOrderNumber()`. `order` es un `@ManyToOne` **lazy** sin batch
+fetching, así que al recorrer la página se dispara **una consulta por factura** solo
+para inicializar el proxy de la orden — un N+1 clásico del lado de Postgres dentro de un
+**único** request (que ya paga el piso de ~0.7 s navegador → Worker → DO → contenedor).
+Una página de 500 facturas = **1 consulta de la página + 500 consultas de `order`**
+(las colecciones `items` ya venían con `@BatchSize(50)`, no así el `@ManyToOne`). En una
+instancia de 1 vCPU esos 500 round-trips seriales a Postgres inflan de forma notable el
+tiempo de respuesta de esa pantalla.
+**Cambio:** se activa `hibernate.default_batch_fetch_size=50` de forma **global**. Al
+inicializar un proxy/colección lazy, Hibernate agrupa hasta 50 pendientes del mismo tipo
+en un solo `... WHERE fk IN (?, ?, …)` en vez de una consulta por entidad. Solo cambia
+**cómo** se cargan los datos, nunca **qué** datos ni el resultado observable; los DTO,
+los endpoints, la paginación y el scoping por `@TenantId` quedan idénticos. Las
+colecciones con `@BatchSize(50)` explícito (`Invoice.items`, `Quote.tests`,
+`JournalEntry.lines`) conservan su tamaño (la anotación gana sobre el default); este
+default cubre los huecos, empezando por el `@ManyToOne` `Invoice.order`.
+**Impacto esperado:** el listado de facturas y las cuentas por cobrar bajan de
+**1 + N → 1 + ⌈N/50⌉** consultas a Postgres por request (N = facturas en la página). En
+una página de 500: de **501 → 11** consultas → **−490 round-trips a Postgres** en un
+solo request, sin cambiar el número de llamadas HTTP (mismo 1 request) ni el payload.
+Además, cualquier otro `@ManyToOne`/colección lazy sin batch explícito recorrido por
+fila queda cubierto por el mismo default (p. ej. remisiones). **No** cambia la cantidad
+de invocaciones de Cloudflare (es una mejora intra-request de CPU/BD del contenedor),
+pero recorta el tiempo de respuesta de una pantalla de alto tráfico.
+**Acople de despliegue:** **ninguno.** Cambio solo de la API (config), sin contrato ni
+consumidor en el front. Se despliega de forma independiente.
+**Verificación:** `mvn test "-Dtest=!LabflowapiApplicationTests" -Dmaven.compiler.release=21`
+→ **52 tests, BUILD SUCCESS** (en este entorno solo hay JDK 21; se compiló con override
+`-Dmaven.compiler.release=21`, **sin** tocar el `pom`, que sigue en Java 25). Latencia
+real pendiente de confirmación humana (no hay entorno con API + BD para medir).
+
 ### 2026-07-29 — Crear orden con sus exámenes en 1 request: `POST /orders` acepta `testIds` (N+1→1) · cross-repo
 **Archivos:** `LabOrderDTO` (campo `testIds`, solo escritura), `LabOrderServiceImp`
 (`createOrder` + helper `attachTests`).
@@ -149,5 +186,9 @@ humana (no hay entorno con API + BD para medir).
   entrada en «Hecho».
 - [ ] **Revisar N+1 en otros mapeos a DTO** (facturas, remisiones, journal): mismas
   colecciones lazy recorridas en `toDTO`; auditar con logging de Hibernate.
-- [ ] **Config HikariCP/JPA:** revisar `spring.jpa.open-in-view`, tamaño del pool y
-  `default_batch_fetch_size`/`@BatchSize` para instancia única de 1 vCPU.
+- [~] **Config HikariCP/JPA:** `default_batch_fetch_size=50` activado 2026-08-01 (ver
+  «Hecho»: mata el N+1 de `Invoice.order` en el listado de facturas y cuentas por
+  cobrar). Pendiente aún: revisar `spring.jpa.open-in-view` (hoy default `true`; para
+  apagarlo hay que anotar `@Transactional(readOnly=true)` los métodos que mapean a DTO
+  fuera de transacción, p. ej. `getAllInvoices`) y el tamaño del pool de HikariCP para
+  la instancia única de 1 vCPU.
