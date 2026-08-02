@@ -75,7 +75,12 @@ public class UserAdminServiceImp implements UserAdminService {
         if (userRepository.existsByUsernameAndLaboratoryId(request.getUsername(), TenantContext.getLaboratoryId())) {
             throw new APIException("Ya existe un usuario con el correo: " + request.getUsername() + " en este laboratorio.");
         }
-        Laboratory laboratory = laboratoryRepository.getReferenceById(TenantContext.getLaboratoryId());
+        // findById y no getReferenceById: este ultimo devuelve un proxy que Hibernate
+        // genera con ByteBuddy en tiempo de ejecucion, y la imagen nativa de GraalVM
+        // no puede definir clases nuevas en runtime (revienta al crear el proxy).
+        Long laboratoryId = TenantContext.getLaboratoryId();
+        Laboratory laboratory = laboratoryRepository.findById(laboratoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Laboratory", "laboratoryId", laboratoryId));
         User user = new User();
         user.setUsername(request.getUsername());
         // Contraseña inutilizable hasta que el usuario acepte y defina la suya;
