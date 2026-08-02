@@ -5,6 +5,7 @@ import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Max;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -54,6 +55,13 @@ public class LaboratoryDTO {
     // Sello del regente, mismo esquema de solo lectura que logoUrl. Se cambia por
     // POST /laboratory/stamp y se imprime en la firma del reporte de resultados.
     private String stampUrl;
+
+    // Colores del reporte de resultados (hex #RRGGBB). Nulos ⇒ el frontend usa los
+    // colores por defecto. ModelMapper los copia entidad↔DTO automáticamente.
+    @Pattern(regexp = "^#([0-9a-fA-F]{6})$", message = "El color primario debe ser un hexadecimal válido (#RRGGBB)")
+    private String reportPrimaryColor;
+    @Pattern(regexp = "^#([0-9a-fA-F]{6})$", message = "El color secundario debe ser un hexadecimal válido (#RRGGBB)")
+    private String reportSecondaryColor;
 
     private String cai1;
     private LocalDate cai1ExpirationDate;

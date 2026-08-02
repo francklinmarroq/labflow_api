@@ -73,6 +73,13 @@ public class LabOrder {
     @Column(nullable = false)
     private boolean menopausal;
 
+    // Auditoría de la cancelación (borrado lógico a CANCELLED), espejo de los
+    // campos annulled* de Invoice: quién la canceló, cuándo y por qué. Nulos
+    // mientras la orden esté activa.
+    private Instant cancelledAt;
+    private String cancelledByUsername;
+    private String cancellationReason;
+
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

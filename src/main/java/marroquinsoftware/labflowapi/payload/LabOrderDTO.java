@@ -40,6 +40,11 @@ public class LabOrderDTO {
     private boolean pregnant;
     private Integer gestationalWeeks;
     private boolean menopausal;
+    // Auditoría de la cancelación (solo lectura; la asigna la API al cancelar).
+    // Permite mostrar quién/cuándo/por qué en la pestaña de órdenes canceladas.
+    private Instant cancelledAt;
+    private String cancelledByUsername;
+    private String cancellationReason;
     // IDs de los exámenes a incluir al CREAR la orden (solo escritura, opcional; se
     // ignora al leer y al actualizar). Permite crear la orden y todos sus exámenes en
     // una sola llamada, en lugar de un POST /orders + N POST /orders/{id}/tests

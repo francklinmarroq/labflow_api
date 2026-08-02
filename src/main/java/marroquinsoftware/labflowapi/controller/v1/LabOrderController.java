@@ -2,6 +2,8 @@ package marroquinsoftware.labflowapi.controller.v1;
 
 import jakarta.validation.Valid;
 import marroquinsoftware.labflowapi.config.AppConstants;
+import marroquinsoftware.labflowapi.model.OrderStatus;
+import marroquinsoftware.labflowapi.payload.AnnulRequest;
 import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 import marroquinsoftware.labflowapi.payload.LabTestDTO;
@@ -36,8 +38,11 @@ public class LabOrderController {
             @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
             @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
             @RequestParam(defaultValue = AppConstants.SORT_ORDERS_BY) String sortBy,
-            @RequestParam(defaultValue = AppConstants.SORT_DIR) String sortOrder) {
-        return new ResponseEntity<>(labOrderService.getAllOrders(pageNumber, pageSize, sortBy, sortOrder), HttpStatus.OK);
+            @RequestParam(defaultValue = AppConstants.SORT_DIR) String sortOrder,
+            // Filtro de estado opcional: sin él se listan las activas; con CANCELLED
+            // se lista la pestaña de órdenes canceladas/archivadas.
+            @RequestParam(required = false) OrderStatus status) {
+        return new ResponseEntity<>(labOrderService.getAllOrders(pageNumber, pageSize, sortBy, sortOrder, status), HttpStatus.OK);
     }
 
     // Las pantallas de detalle/impresión solo necesitan una orden. Antes bajaban
@@ -62,10 +67,13 @@ public class LabOrderController {
         return new ResponseEntity<>(labOrderService.updateOrder(dto, orderId), HttpStatus.OK);
     }
 
-    @DeleteMapping("/{orderId}")
+    // Cancelar (anular) la orden: borrado lógico a CANCELLED con motivo y auditoría.
+    // Si la orden tiene factura viva, la anula en cascada (el servicio exige además
+    // el permiso de anular facturas en ese caso).
+    @PostMapping("/{orderId}/cancel")
     @PreAuthorize("hasAuthority('ORDERS_DELETE')")
-    public ResponseEntity<LabOrderDTO> deleteOrder(@PathVariable Long orderId) {
-        return new ResponseEntity<>(labOrderService.deleteOrder(orderId), HttpStatus.OK);
+    public ResponseEntity<LabOrderDTO> cancelOrder(@PathVariable Long orderId, @Valid @RequestBody AnnulRequest request) {
+        return new ResponseEntity<>(labOrderService.cancelOrder(orderId, request.getReason()), HttpStatus.OK);
     }
 
     @GetMapping("/{orderId}/tests")
