@@ -1,5 +1,6 @@
 package marroquinsoftware.labflowapi.repositories;
 
+import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
 import marroquinsoftware.labflowapi.model.Expense;
 import marroquinsoftware.labflowapi.model.Invoice;
@@ -35,6 +36,18 @@ public final class BillingSpecifications {
     public static Specification<Invoice> invoices(InvoiceStatus status, Long orderId,
                                                   Instant from, Instant to, String search) {
         return (root, query, cb) -> {
+            // El mapeo a DTO de cada factura del listado lee order.id/order.orderNumber
+            // y customer.id. Al ser @ManyToOne EAGER sin join, recorrer la página
+            // dispararía una consulta por factura para el pedido y otra para el cliente
+            // (N+1). Se traen ambos en la MISMA consulta de la página con un fetch join;
+            // son to-one (no multiplican filas), así que la paginación por SQL sigue
+            // siendo correcta y no aplica la paginación en memoria de los fetch de
+            // colección. Se omite en la consulta de conteo (getResultType == Long), que
+            // no navega esas relaciones.
+            if (query != null && query.getResultType() != Long.class && query.getResultType() != long.class) {
+                root.fetch("order", JoinType.LEFT);
+                root.fetch("customer", JoinType.LEFT);
+            }
             List<Predicate> predicates = new ArrayList<>();
             if (status != null) predicates.add(cb.equal(root.get("status"), status));
             if (orderId != null) predicates.add(cb.equal(root.get("order").get("id"), orderId));

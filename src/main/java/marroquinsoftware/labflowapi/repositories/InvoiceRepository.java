@@ -5,6 +5,7 @@ import marroquinsoftware.labflowapi.model.Invoice;
 import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Lock;
@@ -33,7 +34,13 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
     // BillingSpecifications.invoices() y se ejecuta con findAll(spec, pageable);
     // ahí está explicado por qué no se escribe como @Query.
 
-    /** Facturas con saldo abierto (cuentas por cobrar). */
+    /**
+     * Facturas con saldo abierto (cuentas por cobrar). El mapeo a DTO lee
+     * order.id/order.orderNumber y customer.id de cada fila; el {@link EntityGraph}
+     * trae ambos en la misma consulta de la página (son to-one, no multiplican
+     * filas) para evitar el N+1 que dispararía el @ManyToOne EAGER al recorrerla.
+     */
+    @EntityGraph(attributePaths = {"order", "customer"})
     @Query("select i from Invoice i where i.status in (marroquinsoftware.labflowapi.model.InvoiceStatus.PENDIENTE, marroquinsoftware.labflowapi.model.InvoiceStatus.PARCIAL)")
     Page<Invoice> findReceivables(Pageable pageable);
 
