@@ -13,12 +13,16 @@ import marroquinsoftware.labflowapi.payload.LabSummary;
 import marroquinsoftware.labflowapi.payload.LaboratoryDTO;
 import marroquinsoftware.labflowapi.payload.LoginRequest;
 import marroquinsoftware.labflowapi.payload.LoginSelectRequest;
+import marroquinsoftware.labflowapi.payload.PasswordResetInfoResponse;
+import marroquinsoftware.labflowapi.payload.PasswordResetRequest;
 import marroquinsoftware.labflowapi.payload.RegisterRequest;
+import marroquinsoftware.labflowapi.payload.SetPasswordRequest;
 import marroquinsoftware.labflowapi.payload.UserInfoResponse;
 import marroquinsoftware.labflowapi.repositories.UserRepository;
 import marroquinsoftware.labflowapi.security.AppUserDetails;
 import marroquinsoftware.labflowapi.security.JwtUtils;
 import marroquinsoftware.labflowapi.service.InvitationService;
+import marroquinsoftware.labflowapi.service.PasswordResetService;
 import marroquinsoftware.labflowapi.service.RegistrationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -54,6 +58,8 @@ public class AuthController {
     private RegistrationService registrationService;
     @Autowired
     private InvitationService invitationService;
+    @Autowired
+    private PasswordResetService passwordResetService;
     @Autowired
     private UserRepository userRepository;
 
@@ -211,6 +217,40 @@ public class AuthController {
         AppUserDetails userDetails = new AppUserDetails(user);
         String jwtToken = jwtUtils.generateToken(userDetails);
         return new ResponseEntity<>(buildJwtResponse(jwtToken, userDetails), HttpStatus.OK);
+    }
+
+    /**
+     * Solicitud pública de restablecimiento de contraseña. Responde SIEMPRE 200 con
+     * el mismo mensaje genérico, exista o no el correo, para no filtrar qué correos
+     * están registrados. El envío real ocurre solo si hay una cuenta habilitada.
+     */
+    @PostMapping("/password-reset")
+    public ResponseEntity<?> requestPasswordReset(@Valid @RequestBody PasswordResetRequest request) {
+        passwordResetService.requestReset(request.getEmail());
+        Map<String, Object> map = new HashMap<>();
+        map.put("message", "Si el correo está registrado, te enviamos las instrucciones para restablecer tu contraseña.");
+        map.put("status", true);
+        return new ResponseEntity<>(map, HttpStatus.OK);
+    }
+
+    /** Valida el enlace de restablecimiento y devuelve el correo asociado (público). */
+    @GetMapping("/password-reset/{token}")
+    public ResponseEntity<PasswordResetInfoResponse> getPasswordReset(@PathVariable String token) {
+        return new ResponseEntity<>(passwordResetService.getReset(token), HttpStatus.OK);
+    }
+
+    /**
+     * Fija la nueva contraseña con el token del enlace (público). No inicia sesión:
+     * el usuario vuelve al login con sus nuevas credenciales.
+     */
+    @PostMapping("/password-reset/{token}")
+    public ResponseEntity<?> resetPassword(@PathVariable String token,
+                                           @Valid @RequestBody SetPasswordRequest request) {
+        passwordResetService.resetPassword(token, request.getPassword());
+        Map<String, Object> map = new HashMap<>();
+        map.put("message", "Tu contraseña se actualizó. Ya puedes iniciar sesión.");
+        map.put("status", true);
+        return new ResponseEntity<>(map, HttpStatus.OK);
     }
 
     private JwtResponse buildJwtResponse(String jwtToken, AppUserDetails userDetails) {

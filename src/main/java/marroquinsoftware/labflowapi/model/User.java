@@ -76,6 +76,20 @@ public class User {
     @Column(name = "invitation_expires_at")
     private Instant invitationExpiresAt;
 
+    /**
+     * Hash SHA-256 del token de restablecimiento de contraseña (mismo esquema que
+     * el de invitación: se guarda hasheado). No nulo mientras haya un reset
+     * pendiente; se limpia al fijar la nueva contraseña. Como el correo puede tener
+     * varias filas (una por laboratorio) y comparten hash, el token se fija en
+     * todas ellas y se busca globalmente por su hash.
+     */
+    @Column(name = "reset_token_hash", length = 64)
+    private String resetTokenHash;
+
+    /** Fecha de expiración del token de restablecimiento pendiente. */
+    @Column(name = "reset_expires_at")
+    private Instant resetExpiresAt;
+
     /** ¿El usuario fue invitado y aún no acepta (no tiene contraseña propia)? */
     @Transient
     public boolean isInvitationPending() {

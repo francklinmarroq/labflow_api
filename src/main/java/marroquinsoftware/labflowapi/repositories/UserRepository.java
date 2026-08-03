@@ -2,9 +2,12 @@ package marroquinsoftware.labflowapi.repositories;
 
 import marroquinsoftware.labflowapi.model.User;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
+import java.time.Instant;
 import java.util.List;
 import java.util.Optional;
 
@@ -51,4 +54,34 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // TenantContext antes de cargar el usuario completo.
     @Query("select u.laboratory.id from User u where u.invitationTokenHash = :hash")
     Optional<Long> findLaboratoryIdByInvitationTokenHash(String hash);
+
+    // --- Restablecimiento de contraseña ---
+    // Todo el flujo público (validar token, fijar contraseña) usa proyecciones y
+    // updates masivos por username: nunca hidrata la entidad User ni su laboratorio,
+    // así el endpoint público funciona sin tenant y el cambio se propaga a TODAS las
+    // filas del correo (invariante de contraseña compartida entre laboratorios).
+
+    /** ¿El correo tiene una cuenta activa (con contraseña)? Sin hidratar entidades. */
+    boolean existsByUsernameAndEnabledTrue(String username);
+
+    /** Vista mínima del token de reset: username + expiración, sin cargar el User ni su AppRole. */
+    interface ResetTokenView {
+        String getUsername();
+        Instant getExpiresAt();
+    }
+
+    @Query("select u.username as username, u.resetExpiresAt as expiresAt from User u where u.resetTokenHash = :hash")
+    Optional<ResetTokenView> findResetByTokenHash(@Param("hash") String hash);
+
+    /** Fija el token de reset en TODAS las filas del correo. */
+    @Modifying
+    @Query("update User u set u.resetTokenHash = :hash, u.resetExpiresAt = :exp where u.username = :username")
+    int setResetTokenByUsername(@Param("username") String username,
+                                @Param("hash") String hash,
+                                @Param("exp") Instant exp);
+
+    /** Fija la nueva contraseña en TODAS las filas del correo y limpia el token de reset. */
+    @Modifying
+    @Query("update User u set u.password = :hash, u.resetTokenHash = null, u.resetExpiresAt = null where u.username = :username")
+    int updatePasswordByUsername(@Param("username") String username, @Param("hash") String hash);
 }

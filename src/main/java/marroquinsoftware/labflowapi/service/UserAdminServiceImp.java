@@ -53,6 +53,9 @@ public class UserAdminServiceImp implements UserAdminService {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private PasswordResetService passwordResetService;
+
     @Value("${app.frontendBaseUrl}")
     private String frontendBaseUrl;
 
@@ -144,6 +147,36 @@ public class UserAdminServiceImp implements UserAdminService {
         UserAccountDTO dto = toDto(user);
         userRepository.delete(user);
         return dto;
+    }
+
+    @Override
+    @Transactional
+    public UserAccountDTO setUserPassword(Long userId, String password) {
+        User user = loadUser(userId);
+        if (user.getRole() == Role.OWNER) {
+            throw new APIException("La contraseña del dueño del laboratorio no se puede cambiar desde aquí. "
+                    + "Usa el enlace de restablecimiento por correo.");
+        }
+        if (user.isInvitationPending()) {
+            throw new APIException("Este usuario aún no acepta su invitación. Reenvíale la invitación en su lugar.");
+        }
+        if (password == null || password.length() < 8) {
+            throw new APIException("La contraseña es obligatoria y debe tener al menos 8 caracteres.");
+        }
+        // Se propaga a TODAS las filas del correo (invariante de contraseña compartida).
+        userRepository.updatePasswordByUsername(user.getUsername(), bCryptPasswordEncoder.encode(password));
+        return toDto(user);
+    }
+
+    @Override
+    @Transactional
+    public UserAccountDTO sendPasswordReset(Long userId) {
+        User user = loadUser(userId);
+        if (user.isInvitationPending()) {
+            throw new APIException("Este usuario aún no acepta su invitación. Reenvíale la invitación en su lugar.");
+        }
+        passwordResetService.issueAndSend(user.getUsername());
+        return toDto(user);
     }
 
     /** Genera un token nuevo, guarda su hash y expiración en el usuario y devuelve el token en claro. */
