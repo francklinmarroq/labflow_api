@@ -97,3 +97,29 @@ alter table if exists laboratory add column if not exists seed_status varchar(20
 update laboratory set seed_status = 'ACCEPTED'
   where seed_status is null and id in (select distinct laboratory_id from tests where laboratory_id > 0);
 update laboratory set seed_status = 'PENDING' where seed_status is null;
+
+-- Rangos por edad y por contexto fisiológico (fase de ciclo, gestación, menopausia):
+-- estas columnas las declara la entidad ReferenceRange, pero ddl-auto=update no las
+-- agrega sobre una BD que ya tenía la tabla, y con esas columnas mapeadas TODA consulta
+-- a reference_range revienta con "no existe la columna ...". Efecto: en producción no
+-- aparece ningún valor de referencia al registrar/imprimir resultados (el frontend se
+-- traga el error). Se agregan idempotentes. Las NOT NULL llevan default para que las
+-- filas existentes queden como rango común (context_kind='NONE', exclusividad false).
+-- "if exists" evita fallar en BD nuevas (Hibernate crea la tabla completa).
+alter table if exists reference_range add column if not exists min_age_days integer;
+alter table if exists reference_range add column if not exists max_age_days integer;
+alter table if exists reference_range add column if not exists lower_exclusive boolean not null default false;
+alter table if exists reference_range add column if not exists upper_exclusive boolean not null default false;
+alter table if exists reference_range add column if not exists critical_low numeric(38,2);
+alter table if exists reference_range add column if not exists critical_high numeric(38,2);
+alter table if exists reference_range add column if not exists interpretation_text varchar(255);
+alter table if exists reference_range add column if not exists context_kind varchar(20) not null default 'NONE';
+alter table if exists reference_range add column if not exists context_label varchar(255);
+alter table if exists reference_range add column if not exists context_min integer;
+alter table if exists reference_range add column if not exists context_max integer;
+
+-- Nombre de la persona en app_user: la entidad User lo mapea (para mostrarlo en la app
+-- y en los documentos en vez del correo), pero ddl-auto=update no agrega la columna en
+-- bases existentes; sin ella, TODA consulta a app_user (login incluido) fallaría. Se
+-- agrega idempotente y nullable; los usuarios previos quedan sin nombre y caen al correo.
+alter table if exists app_user add column if not exists name varchar(255);

@@ -44,6 +44,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
     // app_user no usa @TenantId (el login busca por username),
     // así que el laboratorio se filtra explícitamente.
     List<User> findByLaboratoryIdOrderByUsername(Long laboratoryId);
+
+    /**
+     * Nombre de la persona por (correo, laboratorio), para mostrar en documentos en
+     * vez del correo. Proyección escalar: no hidrata el User ni su AppRole. Devuelve
+     * vacío si no hay fila o si el nombre es nulo (el llamador cae al username).
+     */
+    @Query("select u.name from User u where u.username = :username and u.laboratory.id = :laboratoryId")
+    Optional<String> findNameByUsernameAndLaboratoryId(@Param("username") String username,
+                                                       @Param("laboratoryId") Long laboratoryId);
     long countByAppRole_Id(Long roleId);
 
     // Búsqueda global por token de invitación (endpoint público sin tenant).

@@ -40,6 +40,15 @@ public class User {
     @Column(nullable = false, length = 255)
     private String username;
 
+    /**
+     * Nombre de la persona (para mostrar en la app y en los documentos, en vez del
+     * correo). Nullable: los usuarios creados antes de esta columna no lo tienen y
+     * caen al {@code username} al mostrarse. Como el correo puede tener varias filas
+     * (una por laboratorio), cada fila lleva su propio nombre.
+     */
+    @Column(name = "name", length = 255)
+    private String name;
+
     @NotBlank
     @Column(nullable = false)
     private String password;

@@ -191,6 +191,7 @@ public class AuthController {
     public ResponseEntity<UserInfoResponse> me(@AuthenticationPrincipal AppUserDetails userDetails) {
         UserInfoResponse response = new UserInfoResponse(
                 userDetails.getUsername(),
+                userDetails.getName(),
                 userDetails.getRole().name(),
                 userDetails.getRoleName(),
                 userDetails.getPermissionNames(),
@@ -257,6 +258,7 @@ public class AuthController {
         return new JwtResponse(
                 jwtToken,
                 userDetails.getUsername(),
+                userDetails.getName(),
                 userDetails.getRole().name(),
                 userDetails.getRoleName(),
                 userDetails.getPermissionNames(),

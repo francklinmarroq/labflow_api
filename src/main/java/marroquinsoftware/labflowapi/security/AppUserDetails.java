@@ -21,6 +21,7 @@ public class AppUserDetails implements UserDetails {
 
     private final Long userId;
     private final String username;
+    private final String name;
     private final String password;
     private final boolean enabled;
     private final Long laboratoryId;
@@ -33,6 +34,7 @@ public class AppUserDetails implements UserDetails {
     public AppUserDetails(User user) {
         this.userId = user.getId();
         this.username = user.getUsername();
+        this.name = user.getName();
         this.password = user.getPassword();
         this.enabled = user.isEnabled();
         this.laboratoryId = user.getLaboratory() != null ? user.getLaboratory().getId() : null;
@@ -54,6 +56,11 @@ public class AppUserDetails implements UserDetails {
 
     public Long getUserId() {
         return userId;
+    }
+
+    /** Nombre de la persona, o {@code null} si el usuario no lo tiene (usuarios antiguos). */
+    public String getName() {
+        return name;
     }
 
     public Long getLaboratoryId() {

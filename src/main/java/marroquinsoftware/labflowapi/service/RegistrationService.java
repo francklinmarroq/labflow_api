@@ -47,6 +47,7 @@ public class RegistrationService {
 
         User user = new User();
         user.setUsername(request.getUsername());
+        user.setName(request.getName());
         user.setPassword(bCryptPasswordEncoder.encode(request.getPassword()));
         user.setEnabled(true);
         user.setRole(Role.OWNER);
@@ -85,6 +86,7 @@ public class RegistrationService {
 
         User user = new User();
         user.setUsername(username);
+        user.setName(current.getName());
         user.setPassword(current.getPassword());
         user.setEnabled(true);
         user.setRole(Role.OWNER);

@@ -9,6 +9,10 @@ import lombok.Data;
 
 @Data
 public class RegisterRequest {
+    @NotBlank(message = "El nombre es obligatorio")
+    @Size(max = 255, message = "El nombre no puede tener más de 255 caracteres")
+    private String name;
+
     @NotBlank(message = "El correo es obligatorio")
     @Email(message = "El correo no es válido")
     @Size(max = 255, message = "El correo no puede tener más de 255 caracteres")

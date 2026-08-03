@@ -49,6 +49,18 @@ public class InvoiceServiceImp implements InvoiceService {
     @Autowired private InvoiceTotalsCalculator invoiceTotalsCalculator;
     @Autowired private AmountInWordsConverter amountInWordsConverter;
     @Autowired private JournalService journalService;
+    @Autowired private UserRepository userRepository;
+
+    /**
+     * Nombre para mostrar de quien hizo una acción (emitir/anular): el nombre de la
+     * persona, o el correo si no tiene nombre (usuarios antiguos) o ya no existe.
+     */
+    private String displayName(String username) {
+        if (username == null) return null;
+        return userRepository.findNameByUsernameAndLaboratoryId(username, TenantContext.getLaboratoryId())
+                .filter(n -> !n.isBlank())
+                .orElse(username);
+    }
 
     @Override
     public InvoicePreviewDTO previewInvoice(Long orderId) {
@@ -611,6 +623,7 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getCustomerRtn(),
                 invoice.getIssuedAt(),
                 invoice.getIssuedByUsername(),
+                displayName(invoice.getIssuedByUsername()),
                 invoice.getStatus(),
                 invoice.getStatus().getLabel(),
                 invoice.getSaleCondition(),

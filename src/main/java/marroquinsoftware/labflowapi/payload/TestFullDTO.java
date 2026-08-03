@@ -1,7 +1,6 @@
 package marroquinsoftware.labflowapi.payload;
 
 import jakarta.validation.Valid;
-import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.constraints.NotNull;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -48,7 +47,8 @@ public class TestFullDTO {
     private String chartXAxisLabel;
 
     // --- Parámetros del perfil, en el orden del reporte ---
-    @NotEmpty(message = "Debe agregar al menos un parámetro")
+    // Puede ir vacío: un examen sin parámetros es válido (p. ej. para vaciarlo antes
+    // de borrarlo). El perfil se guarda con la lista de parámetros que venga.
     @Valid
     private List<TestFullParameterDTO> parameters = new ArrayList<>();
 }

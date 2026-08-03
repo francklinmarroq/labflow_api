@@ -13,6 +13,7 @@ import marroquinsoftware.labflowapi.repositories.LaboratoryRepository;
 import marroquinsoftware.labflowapi.repositories.QuoteCounterRepository;
 import marroquinsoftware.labflowapi.repositories.QuoteRepository;
 import marroquinsoftware.labflowapi.repositories.TestRepository;
+import marroquinsoftware.labflowapi.repositories.UserRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Page;
@@ -53,6 +54,20 @@ public class QuoteServiceImp implements QuoteService {
 
     @Autowired
     private LaboratoryRepository laboratoryRepository;
+
+    @Autowired
+    private UserRepository userRepository;
+
+    /**
+     * Nombre para mostrar de quien elaboró la cotización: el nombre de la persona, o
+     * el correo si no tiene nombre (usuarios antiguos) o ya no existe.
+     */
+    private String displayName(String username) {
+        if (username == null) return null;
+        return userRepository.findNameByUsernameAndLaboratoryId(username, TenantContext.getLaboratoryId())
+                .filter(n -> !n.isBlank())
+                .orElse(username);
+    }
 
     @Override
     public QuoteResponse getAllQuotes(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
@@ -223,6 +238,7 @@ public class QuoteServiceImp implements QuoteService {
                 quote.getQuotedAt(),
                 quote.getNotes(),
                 quote.getCreatedByUsername(),
+                displayName(quote.getCreatedByUsername()),
                 kind,
                 kind.getLabel(),
                 quote.getDiscountPercent(),

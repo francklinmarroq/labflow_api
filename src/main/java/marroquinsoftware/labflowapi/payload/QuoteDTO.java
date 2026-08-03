@@ -22,6 +22,8 @@ public class QuoteDTO {
     private Instant quotedAt;
     private String notes;
     private String createdByUsername;
+    /** Nombre de quien elaboró (o el correo si no tiene nombre). */
+    private String createdByName;
     private AgeDiscountKind discountKind;
     /** Etiqueta lista para mostrar del descuento aplicado (ej. "Tercera edad"). */
     private String discountLabel;

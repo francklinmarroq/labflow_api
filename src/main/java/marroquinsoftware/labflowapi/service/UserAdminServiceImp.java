@@ -86,6 +86,7 @@ public class UserAdminServiceImp implements UserAdminService {
                 .orElseThrow(() -> new ResourceNotFoundException("Laboratory", "laboratoryId", laboratoryId));
         User user = new User();
         user.setUsername(request.getUsername());
+        user.setName(request.getName());
         // Contraseña inutilizable hasta que el usuario acepte y defina la suya;
         // además queda deshabilitado, así que no puede iniciar sesión.
         user.setPassword(bCryptPasswordEncoder.encode(UUID.randomUUID().toString()));
@@ -224,6 +225,7 @@ public class UserAdminServiceImp implements UserAdminService {
         return new UserAccountDTO(
                 user.getId(),
                 user.getUsername(),
+                user.getName(),
                 user.isEnabled(),
                 user.getRole(),
                 user.getAppRole() != null ? user.getAppRole().getId() : null,
