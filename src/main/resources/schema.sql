@@ -132,3 +132,14 @@ alter table if exists app_user add column if not exists name varchar(255);
 -- vacío y el sobre cae a la distribución 'classic').
 alter table if exists lab_tests add column if not exists method varchar(255);
 alter table if exists laboratory add column if not exists envelope_layout varchar(255);
+
+-- Restablecimiento de contraseña (app_user.reset_token_hash / reset_expires_at): la
+-- entidad User mapea estas dos columnas (token SHA-256 con caducidad), pero el commit
+-- que las introdujo NO las registró aquí ni las corrió en prod. Mismo caso que la
+-- columna 'name' de arriba: ddl-auto=update no agrega columnas en bases existentes, y
+-- con ellas mapeadas TODA consulta a app_user (LOGIN incluido) revienta con "no existe
+-- la columna reset_token_hash" -> nadie puede iniciar sesión. Se agregan idempotentes y
+-- nullable. El tipo timestamp(6) with time zone es el que Hibernate usa para Instant
+-- (igual que invitation_expires_at).
+alter table if exists app_user add column if not exists reset_token_hash varchar(64);
+alter table if exists app_user add column if not exists reset_expires_at timestamp(6) with time zone;
