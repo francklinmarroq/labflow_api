@@ -44,6 +44,11 @@ public class LabTest {
     @Column(length = 255)
     private String sampleType;
 
+    // Método/técnica del examen (ej. ELISA, Quimioluminiscencia); mismo esquema
+    // que sampleType: opcional y solo se imprime en el reporte si se establece.
+    @Column(length = 255)
+    private String method;
+
     @OneToMany(mappedBy = "test", cascade = CascadeType.ALL, orphanRemoval = true)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude

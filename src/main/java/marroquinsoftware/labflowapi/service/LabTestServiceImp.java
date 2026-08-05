@@ -95,6 +95,17 @@ public class LabTestServiceImp implements LabTestService {
     }
 
     @Override
+    public LabTestDTO updateMethod(Long orderId, Long labTestId, String method) {
+        LabTest labTest = labTestRepository.findById(labTestId)
+                .orElseThrow(() -> new ResourceNotFoundException("LabTest", "labTestId", labTestId));
+        if (!labTest.getOrder().getId().equals(orderId)) {
+            throw new APIException("El examen no pertenece a la orden indicada. Recargue la página e intente de nuevo.");
+        }
+        labTest.setMethod(method);
+        return toDTO(labTestRepository.save(labTest));
+    }
+
+    @Override
     public LabTestDTO removeTestFromOrder(Long orderId, Long testId) {
         LabTest labTest = labTestRepository.findById(testId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "testId", testId));

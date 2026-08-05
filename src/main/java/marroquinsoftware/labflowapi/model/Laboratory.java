@@ -64,6 +64,11 @@ public class Laboratory {
     private String reportPrimaryColor;
     private String reportSecondaryColor;
 
+    // Distribución visual del sobre postal (classic | centered | window). Se guarda
+    // como texto (no enum) para evitar el drift del check-constraint de @Enumerated.
+    // Nulo ⇒ el frontend usa 'classic' (la distribución actual).
+    private String envelopeLayout;
+
     // CAI 1
     private String cai1;
     private LocalDate cai1ExpirationDate;

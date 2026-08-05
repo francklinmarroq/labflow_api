@@ -63,6 +63,10 @@ public class LaboratoryDTO {
     @Pattern(regexp = "^#([0-9a-fA-F]{6})$", message = "El color secundario debe ser un hexadecimal válido (#RRGGBB)")
     private String reportSecondaryColor;
 
+    // Distribución visual del sobre postal. ModelMapper lo copia entidad↔DTO.
+    @Pattern(regexp = "^(classic|centered|window)$", message = "El diseño de sobre no es válido")
+    private String envelopeLayout;
+
     private String cai1;
     private LocalDate cai1ExpirationDate;
     private String cai1RangeFrom;

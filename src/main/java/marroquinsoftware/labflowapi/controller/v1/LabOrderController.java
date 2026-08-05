@@ -129,6 +129,15 @@ public class LabOrderController {
         return new ResponseEntity<>(labTestService.updateSampleType(orderId, labTestId, dto.getSampleType()), HttpStatus.OK);
     }
 
+    @PatchMapping("/{orderId}/tests/{labTestId}/method")
+    @PreAuthorize("hasAnyAuthority('ORDERS_CREATE','ORDERS_ENTER_RESULTS')")
+    public ResponseEntity<LabTestDTO> updateTestMethod(
+            @PathVariable Long orderId,
+            @PathVariable Long labTestId,
+            @RequestBody LabTestDTO dto) {
+        return new ResponseEntity<>(labTestService.updateMethod(orderId, labTestId, dto.getMethod()), HttpStatus.OK);
+    }
+
     @DeleteMapping("/{orderId}/tests/{testId}")
     @PreAuthorize("hasAnyAuthority('ORDERS_CREATE','ORDERS_DELETE')")
     public ResponseEntity<LabTestDTO> removeTestFromOrder(@PathVariable Long orderId, @PathVariable Long testId) {

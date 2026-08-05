@@ -123,3 +123,12 @@ alter table if exists reference_range add column if not exists context_max integ
 -- bases existentes; sin ella, TODA consulta a app_user (login incluido) fallaría. Se
 -- agrega idempotente y nullable; los usuarios previos quedan sin nombre y caen al correo.
 alter table if exists app_user add column if not exists name varchar(255);
+
+-- Método del examen (lab_tests.method) y diseño del sobre (laboratory.envelope_layout):
+-- columnas nuevas y nullable que declaran las entidades LabTest y Laboratory. Igual que
+-- las demás de este archivo, ddl-auto=update no siempre las agrega sobre bases ya
+-- existentes, y con ellas mapeadas TODA consulta a esas tablas fallaría. Se agregan
+-- idempotentes; las filas previas quedan en null (el reporte no imprime método si está
+-- vacío y el sobre cae a la distribución 'classic').
+alter table if exists lab_tests add column if not exists method varchar(255);
+alter table if exists laboratory add column if not exists envelope_layout varchar(255);
