@@ -1,5 +1,6 @@
 package marroquinsoftware.labflowapi.service;
 
+import marroquinsoftware.labflowapi.payload.TestDTO;
 import marroquinsoftware.labflowapi.payload.TestFullDTO;
 
 /**
@@ -13,4 +14,11 @@ public interface TestBuilderService {
     TestFullDTO createFull(TestFullDTO dto);
 
     TestFullDTO updateFull(TestFullDTO dto, Long testId);
+
+    /**
+     * Elimina el examen completo: su perfil y los parámetros/rangos que solo usa
+     * ese examen (los compartidos con otro perfil se conservan). Se bloquea si el
+     * examen está usado en alguna orden.
+     */
+    TestDTO deleteFull(Long testId);
 }

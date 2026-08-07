@@ -92,6 +92,7 @@ public class LabOrderServiceImp implements LabOrderService {
         order.setRequestedAt(dto.getRequestedAt() != null ? dto.getRequestedAt() : Instant.now());
         order.setStatus(dto.getStatus() != null ? dto.getStatus() : OrderStatus.PENDING);
         order.setNotes(dto.getNotes());
+        order.setReferringPhysician(trimToNull(dto.getReferringPhysician()));
         applyClinicalContext(order, dto);
         // Exámenes de la orden en la misma llamada (opcional). Antes el front creaba
         // la orden y luego hacía un POST /orders/{id}/tests por examen (N requests
@@ -166,6 +167,7 @@ public class LabOrderServiceImp implements LabOrderService {
         if (dto.getRequestedAt() != null) order.setRequestedAt(dto.getRequestedAt());
         if (dto.getStatus() != null) order.setStatus(dto.getStatus());
         order.setNotes(dto.getNotes());
+        order.setReferringPhysician(trimToNull(dto.getReferringPhysician()));
         applyClinicalContext(order, dto);
         return toDTO(labOrderRepository.save(order));
     }
@@ -208,6 +210,15 @@ public class LabOrderServiceImp implements LabOrderService {
         return toDTO(order);
     }
 
+    // Normaliza el texto opcional del médico solicitante: recorta espacios y trata
+    // el vacío como null, para que el reporte no imprima el rótulo con un valor en
+    // blanco (solo aparece si de verdad se llenó).
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
     private String currentUsername() {
         Authentication auth = SecurityContextHolder.getContext().getAuthentication();
         return auth != null ? auth.getName() : null;
@@ -243,6 +254,7 @@ public class LabOrderServiceImp implements LabOrderService {
         dto.setRequestedAt(order.getRequestedAt());
         dto.setStatus(order.getStatus());
         dto.setNotes(order.getNotes());
+        dto.setReferringPhysician(order.getReferringPhysician());
         dto.setLmpDate(order.getLmpDate());
         dto.setPregnant(order.isPregnant());
         dto.setGestationalWeeks(order.getGestationalWeeks());

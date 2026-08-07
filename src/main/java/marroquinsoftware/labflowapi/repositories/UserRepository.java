@@ -79,7 +79,12 @@ public interface UserRepository extends JpaRepository<User, Long> {
         Instant getExpiresAt();
     }
 
-    @Query("select u.username as username, u.resetExpiresAt as expiresAt from User u where u.resetTokenHash = :hash")
+    // El token de reset se fija en TODAS las filas del correo (setResetTokenByUsername),
+    // así que un correo multi-laboratorio devuelve varias filas con el MISMO hash. La
+    // proyección Optional espera 0/1: sin el límite, un usuario con >1 lab revienta con
+    // NonUniqueResultException (500). Todas las filas comparten username y expiresAt, así
+    // que basta una cualquiera; se ordena por id para que sea determinista.
+    @Query("select u.username as username, u.resetExpiresAt as expiresAt from User u where u.resetTokenHash = :hash order by u.id fetch first 1 rows only")
     Optional<ResetTokenView> findResetByTokenHash(@Param("hash") String hash);
 
     /** Fija el token de reset en TODAS las filas del correo. */

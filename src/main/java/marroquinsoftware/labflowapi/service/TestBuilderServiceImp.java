@@ -1,5 +1,6 @@
 package marroquinsoftware.labflowapi.service;
 
+import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Parameter;
 import marroquinsoftware.labflowapi.model.ReferenceRange;
@@ -12,7 +13,9 @@ import marroquinsoftware.labflowapi.payload.TestConfigDTO;
 import marroquinsoftware.labflowapi.payload.TestDTO;
 import marroquinsoftware.labflowapi.payload.TestFullDTO;
 import marroquinsoftware.labflowapi.payload.TestFullParameterDTO;
+import marroquinsoftware.labflowapi.repositories.LabTestRepository;
 import marroquinsoftware.labflowapi.repositories.ReferenceRangeRepository;
+import marroquinsoftware.labflowapi.repositories.TestConfigParameterRepository;
 import marroquinsoftware.labflowapi.repositories.TestConfigRepository;
 import marroquinsoftware.labflowapi.repositories.TestRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -57,6 +60,12 @@ public class TestBuilderServiceImp implements TestBuilderService {
 
     @Autowired
     private ReferenceRangeRepository referenceRangeRepository;
+
+    @Autowired
+    private LabTestRepository labTestRepository;
+
+    @Autowired
+    private TestConfigParameterRepository testConfigParameterRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -115,6 +124,58 @@ public class TestBuilderServiceImp implements TestBuilderService {
                 .stream().findFirst().map(TestConfig::getId).orElse(null);
 
         return persistProfile(dto, testId, existingConfigId);
+    }
+
+    @Override
+    @Transactional
+    public TestDTO deleteFull(Long testId) {
+        testRepository.findById(testId)
+                .orElseThrow(() -> new ResourceNotFoundException("Test", "id", testId));
+
+        // Bloqueo legítimo: un examen usado en una orden (aunque esté cancelada, la
+        // fila de lab_tests persiste) no se puede borrar. Mensaje claro en vez del
+        // genérico de integridad.
+        if (labTestRepository.existsByTest_Id(testId)) {
+            throw new APIException("No se puede eliminar el examen porque está usado en una o más "
+                    + "órdenes o resultados. Cancele o quite primero esas órdenes.");
+        }
+
+        // Perfiles del examen (la UI asume 1, pero se contemplan varios por robustez).
+        List<TestConfig> configs = testConfigRepository.findByTestId(testId, PageRequest.of(0, 1000))
+                .getContent();
+
+        // Parámetros que usaban esos perfiles (candidatos a borrarse si no los
+        // comparte otro perfil). Se recolectan ANTES de borrar los perfiles.
+        Set<Long> candidateParameterIds = new HashSet<>();
+        for (TestConfig config : configs) {
+            for (TestConfigParameter cp : config.getConfigParameters()) {
+                candidateParameterIds.add(cp.getParameter().getId());
+            }
+        }
+
+        // Borrar los perfiles: el cascade + orphanRemoval de configParameters elimina
+        // las filas de test_config_parameters. flush() para que la comprobación de
+        // exclusividad de abajo vea las uniones ya eliminadas.
+        for (TestConfig config : configs) {
+            testConfigRepository.delete(config);
+        }
+        testConfigRepository.flush();
+
+        // Borrar solo los parámetros propios: los que ningún otro perfil reutiliza.
+        // Sus rangos se borran primero porque reference_range tiene FK a parameter y
+        // deleteParameter no los limpia (mismo criterio que TestBuilder.syncRanges).
+        for (Long parameterId : candidateParameterIds) {
+            if (!testConfigParameterRepository.existsByParameter_Id(parameterId)) {
+                List<ReferenceRange> ranges = referenceRangeRepository
+                        .findByParameterId(parameterId, PageRequest.of(0, 1000)).getContent();
+                referenceRangeRepository.deleteAll(ranges);
+                parameterService.deleteParameter(parameterId);
+            }
+        }
+
+        // Ya sin perfiles que lo referencien, se borra el examen. Reutiliza el
+        // servicio, que mapea y devuelve el DTO del examen eliminado.
+        return testService.deleteTest(testId);
     }
 
     // Crea/actualiza los parámetros (con sus rangos) y luego el perfil que los une,

@@ -203,6 +203,7 @@ public class PublicReportServiceImp implements PublicReportService {
     private PublicReportDTO.Order toOrder(LabOrderDTO order) {
         return new PublicReportDTO.Order(
                 order.getOrderNumber(), order.getRequestedAt(), order.getStatus(), order.getNotes(),
+                order.getReferringPhysician(),
                 order.getLmpDate(), order.isPregnant(), order.getGestationalWeeks(), order.isMenopausal());
     }
 

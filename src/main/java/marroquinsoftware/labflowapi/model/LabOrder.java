@@ -60,6 +60,11 @@ public class LabOrder {
 
     private String notes;
 
+    // Médico solicitante (opcional): nombre de quien refiere la orden. Solo se
+    // captura si se llena y solo se imprime en el reporte cuando tiene valor.
+    @Column(name = "referring_physician", length = 150)
+    private String referringPhysician;
+
     // Contexto clínico de la visita, capturado una vez, del que se computa el día
     // del ciclo / semana gestacional para elegir el rango de referencia que aplica
     // en pruebas por fase (progesterona, FSH, LH, gestación…). Solo relevante para

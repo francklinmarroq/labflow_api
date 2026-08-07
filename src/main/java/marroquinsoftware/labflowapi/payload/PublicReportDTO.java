@@ -82,6 +82,7 @@ public class PublicReportDTO {
         private Instant requestedAt;
         private OrderStatus status;
         private String notes;
+        private String referringPhysician;
         private LocalDate lmpDate;
         private boolean pregnant;
         private Integer gestationalWeeks;

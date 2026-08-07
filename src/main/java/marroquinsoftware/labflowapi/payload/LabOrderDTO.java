@@ -36,6 +36,9 @@ public class LabOrderDTO {
     private Instant requestedAt;
     private OrderStatus status;
     private String notes;
+    // Médico solicitante (opcional): nombre de quien refiere la orden. Solo se
+    // muestra en el reporte si viene con valor.
+    private String referringPhysician;
     private LocalDate lmpDate;
     private boolean pregnant;
     private Integer gestationalWeeks;

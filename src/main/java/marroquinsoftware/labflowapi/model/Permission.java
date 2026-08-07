@@ -38,6 +38,8 @@ public enum Permission {
     ACCOUNTING_VIEW("Contabilidad", "Ver contabilidad"),
     ACCOUNTING_MANAGE("Contabilidad", "Gestionar cuentas y partidas manuales"),
 
+    REPORTS_VIEW("Reportería", "Ver reportería"),
+
     LAB_SETTINGS_VIEW("Configuración", "Ver datos del laboratorio"),
     LAB_SETTINGS_EDIT("Configuración", "Editar datos del laboratorio"),
 

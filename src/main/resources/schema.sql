@@ -143,3 +143,10 @@ alter table if exists laboratory add column if not exists envelope_layout varcha
 -- (igual que invitation_expires_at).
 alter table if exists app_user add column if not exists reset_token_hash varchar(64);
 alter table if exists app_user add column if not exists reset_expires_at timestamp(6) with time zone;
+
+-- Médico solicitante de la orden (lab_orders.referring_physician): columna nueva y
+-- nullable que declara la entidad LabOrder. Igual que las demás de este archivo,
+-- ddl-auto=update no siempre la agrega sobre bases ya existentes, y con ella mapeada
+-- TODA consulta a lab_orders fallaría. Se agrega idempotente; las órdenes previas
+-- quedan en null (el reporte no imprime el médico si está vacío).
+alter table if exists lab_orders add column if not exists referring_physician varchar(150);
