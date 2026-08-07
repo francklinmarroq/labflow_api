@@ -150,3 +150,11 @@ alter table if exists app_user add column if not exists reset_expires_at timesta
 -- TODA consulta a lab_orders fallaría. Se agrega idempotente; las órdenes previas
 -- quedan en null (el reporte no imprime el médico si está vacío).
 alter table if exists lab_orders add column if not exists referring_physician varchar(150);
+
+-- Correo del emisor en la factura (invoices.lab_email): el SAR exige el correo del
+-- laboratorio en la factura impresa. laboratory.email ya existe y es editable, pero
+-- nunca se agregó al snapshot fiscal que la entidad Invoice congela al emitir (a
+-- diferencia de lab_phone, lab_rtn, etc.). Columna nueva y nullable; mismo motivo de
+-- siempre, ddl-auto=update no la agrega sobre bases ya existentes. Las facturas ya
+-- emitidas quedan en null (el reporte no imprime el correo si está vacío).
+alter table if exists invoices add column if not exists lab_email varchar(255);

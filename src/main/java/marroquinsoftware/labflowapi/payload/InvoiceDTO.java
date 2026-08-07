@@ -30,6 +30,7 @@ public class InvoiceDTO {
     private String labAddress;
     private String labTaxAddress;
     private String labPhone;
+    private String labEmail;
     private String labHeadline;
     private String labFooterNote;
     private String labPacNumber;

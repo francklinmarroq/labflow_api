@@ -223,6 +223,7 @@ public class InvoiceServiceImp implements InvoiceService {
         invoice.setLabAddress(joinAddress(laboratory));
         invoice.setLabTaxAddress(laboratory.getTaxAddress());
         invoice.setLabPhone(laboratory.getPhone());
+        invoice.setLabEmail(laboratory.getEmail());
         invoice.setLabHeadline(laboratory.getInvoiceHeadline());
         invoice.setLabFooterNote(laboratory.getInvoiceFooterNote());
         invoice.setLabPacNumber(laboratory.getPacNumber());
@@ -610,6 +611,7 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getLabAddress(),
                 invoice.getLabTaxAddress(),
                 invoice.getLabPhone(),
+                invoice.getLabEmail(),
                 invoice.getLabHeadline(),
                 invoice.getLabFooterNote(),
                 invoice.getLabPacNumber(),

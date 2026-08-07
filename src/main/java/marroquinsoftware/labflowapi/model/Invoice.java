@@ -60,6 +60,7 @@ public class Invoice {
     private String labAddress;
     private String labTaxAddress;  // Dirección fiscal (puede diferir de la comercial)
     private String labPhone;
+    private String labEmail;
     private String labHeadline;
     private String labFooterNote;
     private String labPacNumber;
