@@ -12,6 +12,8 @@ import java.util.List;
 @AllArgsConstructor
 public class UserInfoResponse {
     private String username;
+    /** Nombre de la persona; puede ser null en usuarios antiguos. */
+    private String name;
     private String role;
     private String roleName;
     private List<String> permissions;

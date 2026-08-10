@@ -48,7 +48,9 @@ public class TestController {
     @DeleteMapping("/{testId}")
     @PreAuthorize("hasAuthority('CATALOG_DELETE')")
     public ResponseEntity<TestDTO> deleteTest(@PathVariable Long testId) {
-        return new ResponseEntity<>(testService.deleteTest(testId), HttpStatus.OK);
+        // Borra el examen completo: su perfil y los parámetros/rangos que solo él usa
+        // (los compartidos se conservan), y bloquea si está usado en órdenes.
+        return new ResponseEntity<>(testBuilderService.deleteFull(testId), HttpStatus.OK);
     }
 
     // --- Editor unificado: examen + perfil + parámetros con rangos en un solo paso ---

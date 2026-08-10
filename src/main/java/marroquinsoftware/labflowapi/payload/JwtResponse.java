@@ -10,6 +10,8 @@ import java.util.List;
 public class JwtResponse {
     private String token;
     private String username;
+    /** Nombre de la persona; puede ser null en usuarios antiguos. */
+    private String name;
     /** OWNER o STAFF. */
     private String role;
     /** Nombre del rol configurable asignado, o {@code null} para el OWNER. */

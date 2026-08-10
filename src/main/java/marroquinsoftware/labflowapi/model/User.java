@@ -40,6 +40,15 @@ public class User {
     @Column(nullable = false, length = 255)
     private String username;
 
+    /**
+     * Nombre de la persona (para mostrar en la app y en los documentos, en vez del
+     * correo). Nullable: los usuarios creados antes de esta columna no lo tienen y
+     * caen al {@code username} al mostrarse. Como el correo puede tener varias filas
+     * (una por laboratorio), cada fila lleva su propio nombre.
+     */
+    @Column(name = "name", length = 255)
+    private String name;
+
     @NotBlank
     @Column(nullable = false)
     private String password;
@@ -75,6 +84,20 @@ public class User {
     /** Fecha de expiración de la invitación pendiente. */
     @Column(name = "invitation_expires_at")
     private Instant invitationExpiresAt;
+
+    /**
+     * Hash SHA-256 del token de restablecimiento de contraseña (mismo esquema que
+     * el de invitación: se guarda hasheado). No nulo mientras haya un reset
+     * pendiente; se limpia al fijar la nueva contraseña. Como el correo puede tener
+     * varias filas (una por laboratorio) y comparten hash, el token se fija en
+     * todas ellas y se busca globalmente por su hash.
+     */
+    @Column(name = "reset_token_hash", length = 64)
+    private String resetTokenHash;
+
+    /** Fecha de expiración del token de restablecimiento pendiente. */
+    @Column(name = "reset_expires_at")
+    private Instant resetExpiresAt;
 
     /** ¿El usuario fue invitado y aún no acepta (no tiene contraseña propia)? */
     @Transient

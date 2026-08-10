@@ -2,6 +2,7 @@ package marroquinsoftware.labflowapi.controller.v1;
 
 import jakarta.validation.Valid;
 import marroquinsoftware.labflowapi.payload.CreateUserRequest;
+import marroquinsoftware.labflowapi.payload.SetPasswordRequest;
 import marroquinsoftware.labflowapi.payload.UpdateUserRequest;
 import marroquinsoftware.labflowapi.payload.UserAccountDTO;
 import marroquinsoftware.labflowapi.service.UserAdminService;
@@ -52,5 +53,20 @@ public class UserController {
     @PreAuthorize("hasAuthority('USERS_MANAGE')")
     public ResponseEntity<UserAccountDTO> deleteUser(@PathVariable Long userId) {
         return new ResponseEntity<>(userAdminService.deleteUser(userId), HttpStatus.OK);
+    }
+
+    // Cambio directo de contraseña por un administrador (no aplica al OWNER).
+    @PutMapping("/{userId}/password")
+    @PreAuthorize("hasAuthority('USERS_MANAGE')")
+    public ResponseEntity<UserAccountDTO> setUserPassword(@PathVariable Long userId,
+                                                          @Valid @RequestBody SetPasswordRequest request) {
+        return new ResponseEntity<>(userAdminService.setUserPassword(userId, request.getPassword()), HttpStatus.OK);
+    }
+
+    // Envía al usuario el correo con los pasos para restablecer su contraseña.
+    @PostMapping("/{userId}/send-password-reset")
+    @PreAuthorize("hasAuthority('USERS_MANAGE')")
+    public ResponseEntity<UserAccountDTO> sendPasswordReset(@PathVariable Long userId) {
+        return new ResponseEntity<>(userAdminService.sendPasswordReset(userId), HttpStatus.OK);
     }
 }

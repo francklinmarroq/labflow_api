@@ -68,6 +68,41 @@ public class EmailService {
     }
 
     /**
+     * Envía el correo de restablecimiento de contraseña, mismo transporte y estilo
+     * que la invitación. Asíncrono: si Resend falla, no tumba la petición (el
+     * usuario puede volver a solicitarlo).
+     */
+    @Async
+    public void sendPasswordReset(String to, String resetUrl) {
+        if (resendApiKey == null || resendApiKey.isBlank()) {
+            LOGGER.warn("RESEND_API_KEY vacío. No se envió el restablecimiento a {}. "
+                    + "Enlace de restablecimiento: {}", to, resetUrl);
+            return;
+        }
+        try {
+            Map<String, Object> payload = Map.of(
+                    "from", from,
+                    "to", List.of(to),
+                    "subject", "Restablece tu contraseña de LabFlow",
+                    "html", PASSWORD_RESET_TEMPLATE.replace("{{resetUrl}}", resetUrl)
+            );
+            restClient.post()
+                    .uri(RESEND_ENDPOINT)
+                    .header("Authorization", "Bearer " + resendApiKey)
+                    .contentType(MediaType.APPLICATION_JSON)
+                    .body(payload)
+                    .retrieve()
+                    .toBodilessEntity();
+            LOGGER.info("Restablecimiento de contraseña enviado a {}", to);
+        } catch (RestClientResponseException e) {
+            LOGGER.error("Resend rechazó el restablecimiento a {}: {} {}",
+                    to, e.getStatusCode(), e.getResponseBodyAsString());
+        } catch (Exception e) {
+            LOGGER.error("No se pudo enviar el restablecimiento a {}: {}", to, e.getMessage());
+        }
+    }
+
+    /**
      * Plantilla del correo de invitación. Se usa una estructura basada en tablas
      * con estilos en línea (lo único que renderizan de forma consistente los
      * clientes de correo como Gmail y Outlook) y la paleta de LabFlow (índigo
@@ -165,6 +200,89 @@ public class EmailService {
                           <p style="margin:0; font-size:12px; line-height:1.6; color:#94a3b8;">
                             Por seguridad, este enlace caduca. Si ya expiró, pide al administrador de tu
                             laboratorio que te reenvíe la invitación. Si no esperabas este correo, puedes ignorarlo.
+                          </p>
+                        </td>
+                      </tr>
+                    </table>
+                    <p style="margin:16px 0 0; font-size:12px; color:#94a3b8; font-family:'Segoe UI', Arial, sans-serif;">
+                      LabFlow &middot; Gestión de laboratorio clínico
+                    </p>
+                  </td>
+                </tr>
+              </table>
+            </body>
+            </html>
+            """;
+
+    /**
+     * Plantilla del correo de restablecimiento de contraseña. Misma maqueta e
+     * identidad visual que la invitación (índigo {@code #4f46e5}); solo cambia el
+     * copy y el único placeholder es {@code {{resetUrl}}}.
+     */
+    private static final String PASSWORD_RESET_TEMPLATE = """
+            <!DOCTYPE html>
+            <html lang="es">
+            <head>
+              <meta charset="utf-8">
+              <meta name="viewport" content="width=device-width, initial-scale=1.0">
+              <meta name="color-scheme" content="light">
+            </head>
+            <body style="margin:0; padding:0; background-color:#f1f5f9;">
+              <!-- Texto de vista previa (oculto) -->
+              <div style="display:none; max-height:0; overflow:hidden; opacity:0;">
+                Solicitaste restablecer tu contraseña de LabFlow. Crea una nueva con el enlace del correo.
+              </div>
+              <table role="presentation" width="100%" cellpadding="0" cellspacing="0"
+                     style="background-color:#f1f5f9; padding:32px 12px;">
+                <tr>
+                  <td align="center">
+                    <table role="presentation" width="480" cellpadding="0" cellspacing="0"
+                           style="max-width:480px; width:100%; background-color:#ffffff; border-radius:16px;
+                                  overflow:hidden; box-shadow:0 1px 3px rgba(15,23,42,0.08);
+                                  font-family:'Segoe UI', Arial, sans-serif;">
+                      <!-- Encabezado de marca -->
+                      <tr>
+                        <td style="background-color:#4f46e5; padding:24px 32px;">
+                          <span style="font-size:20px; font-weight:bold; color:#ffffff; letter-spacing:0.3px;">
+                            LabFlow
+                          </span>
+                        </td>
+                      </tr>
+                      <!-- Cuerpo -->
+                      <tr>
+                        <td style="padding:32px;">
+                          <h1 style="margin:0 0 8px; font-size:22px; color:#1e293b;">Restablece tu contraseña</h1>
+                          <p style="margin:0 0 28px; font-size:15px; line-height:1.6; color:#475569;">
+                            Recibimos una solicitud para restablecer la contraseña de tu cuenta de LabFlow.
+                            Crea una nueva contraseña con el siguiente botón:
+                          </p>
+                          <!-- Botón -->
+                          <table role="presentation" cellpadding="0" cellspacing="0" align="center" style="margin:0 auto;">
+                            <tr>
+                              <td align="center" bgcolor="#4f46e5" style="border-radius:8px;">
+                                <a href="{{resetUrl}}"
+                                   style="display:inline-block; padding:14px 32px; font-size:16px; font-weight:bold;
+                                          color:#ffffff; text-decoration:none; border-radius:8px;">
+                                  Restablecer contraseña
+                                </a>
+                              </td>
+                            </tr>
+                          </table>
+                          <p style="margin:28px 0 0; font-size:13px; line-height:1.6; color:#64748b;">
+                            Si el botón no funciona, copia y pega este enlace en tu navegador:
+                          </p>
+                          <p style="margin:4px 0 0; font-size:13px; word-break:break-all;">
+                            <a href="{{resetUrl}}" style="color:#4f46e5;">{{resetUrl}}</a>
+                          </p>
+                        </td>
+                      </tr>
+                      <!-- Pie -->
+                      <tr>
+                        <td style="padding:20px 32px; background-color:#f8fafc; border-top:1px solid #e2e8f0;">
+                          <p style="margin:0; font-size:12px; line-height:1.6; color:#94a3b8;">
+                            Por seguridad, este enlace caduca pronto. Si ya expiró, solicita el
+                            restablecimiento de nuevo. Si no lo pediste, puedes ignorar este correo:
+                            tu contraseña no cambiará.
                           </p>
                         </td>
                       </tr>

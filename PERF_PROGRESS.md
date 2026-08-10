@@ -14,6 +14,49 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-07-31 — Listado de facturas y cuentas por cobrar: fetch join de `order`+`customer` (N+1 de Postgres → 1)
+**Archivos:** `BillingSpecifications.invoices()` (fetch join condicional),
+`InvoiceRepository.findReceivables` (`@EntityGraph`).
+**Problema:** `GET /api/v1/invoices` (listado, el front pide `pageSize=500`) y
+`GET /api/v1/reports/receivables` (cuentas por cobrar, también `pageSize=500`) mapean
+cada `Invoice` a DTO leyendo `order.id`/`order.orderNumber` y `customer.id`. Ambas son
+`@ManyToOne` **EAGER sin fetch join ni `@BatchSize`**, así que recorrer la página
+disparaba **una consulta por factura para el pedido y otra para el cliente** — un N+1
+clásico de Postgres: una página llena de 500 facturas hacía ≈ 1 (página) + 500 (order)
++ 500 (customer) + ~10 (items, ya batcheados por `@BatchSize(50)`) ≈ **~1011 consultas**
+contra el contenedor de 1 vCPU e instancia única. (La colección `items` ya estaba
+batcheada; el N+1 vivo era solo el de los dos to-one.)
+**Cambio:** el listado dinámico trae `order` y `customer` en la **misma consulta** de la
+página con un `fetch join` LEFT dentro de `BillingSpecifications.invoices()`, aplicado
+solo cuando el `getResultType()` **no** es `Long` (se omite en la consulta de conteo de
+la paginación, que no navega esas relaciones). Son relaciones **to-one**: no multiplican
+filas, así que la paginación por SQL sigue siendo correcta y no se dispara la paginación
+en memoria (la de `HHH000104`, exclusiva de los fetch de colección). `findReceivables`
+usa un `@EntityGraph(attributePaths = {"order","customer"})` para el mismo efecto. El
+predicado de filtro por `orderId` ya resolvía `order.id` a la columna FK (sin join), así
+que no se duplican joins. Mismos DTO, mismos datos, mismo orden y misma paginación
+observables; solo cambia **cómo** se cargan las relaciones.
+**Impacto esperado:** el listado de facturas y el de cuentas por cobrar bajan de
+**≈ 1 + 2N + ceil(N/50)** a **≈ 1 + ceil(N/50)** consultas a Postgres por carga
+(**−2N** round-trips a la base): para una página llena de 500 facturas, de **~1011 a ~11
+consultas** (**≈ −1000**). No cambia la cantidad de requests HTTP/invocaciones de
+Cloudflare (es un solo endpoint por pantalla), pero **reduce fuertemente los round-trips
+a Postgres** y la contención del contenedor de 1 vCPU, acelerando cada respuesta del
+listado (la pantalla de facturación es de alto tráfico). Es una optimización
+**solo de la API**, sin acople con el front (la forma del DTO es idéntica).
+**Acople de despliegue:** ninguno. Cambio interno de la API; el contrato HTTP y los DTO
+no cambian, así que se puede desplegar de forma independiente del front.
+**Verificación:** `mvn test "-Dtest=!LabflowapiApplicationTests" -Dmaven.compiler.release=21`
+→ **52 tests, BUILD SUCCESS**. `InvoiceAccountingTest` (18 tests) ejercita
+`getAllInvoices` (con filtros + paginación, que fuerza la consulta de conteo y su guarda)
+y `getReceivables`, verificando conteos y contenido: confirma que los resultados no
+cambian y que la consulta de conteo sigue funcionando bajo H2. (En este entorno solo hay
+JDK 21; el pom apunta a Java 25, así que se compiló con `-Dmaven.compiler.release=21` sin
+tocar el pom; el cambio es 100% compatible con ambos targets.) `PostgresQueryCompatibilityTest`
+cubre estas mismas consultas contra Postgres real pero se salta sin BD en este entorno
+(0 tests). Latencia real pendiente de confirmación humana (no hay entorno con API + BD
+para medir).
+
 ### 2026-07-29 — Crear orden con sus exámenes en 1 request: `POST /orders` acepta `testIds` (N+1→1) · cross-repo
 **Archivos:** `LabOrderDTO` (campo `testIds`, solo escritura), `LabOrderServiceImp`
 (`createOrder` + helper `attachTests`).
@@ -147,7 +190,11 @@ humana (no hay entorno con API + BD para medir).
   `LabOrderDTO` embebe `customerSex`/`customerAgeInDays` (sin query extra) y el front
   eliminó la llamada serial a `GET /customers/{id}` en el detalle (2→1 serial). Ver
   entrada en «Hecho».
-- [ ] **Revisar N+1 en otros mapeos a DTO** (facturas, remisiones, journal): mismas
+- [~] **Revisar N+1 en otros mapeos a DTO** (facturas, remisiones, journal): mismas
   colecciones lazy recorridas en `toDTO`; auditar con logging de Hibernate.
+  **Facturas hecho 2026-07-31** — el listado de facturas y cuentas por cobrar traían
+  `order`/`customer` (`@ManyToOne` EAGER) con N+1; ahora van por fetch join /
+  `@EntityGraph` (ver «Hecho»). Pendiente auditar remisiones (`Referral`) y el diario
+  (`JournalEntry`) con la misma lupa.
 - [ ] **Config HikariCP/JPA:** revisar `spring.jpa.open-in-view`, tamaño del pool y
   `default_batch_fetch_size`/`@BatchSize` para instancia única de 1 vCPU.

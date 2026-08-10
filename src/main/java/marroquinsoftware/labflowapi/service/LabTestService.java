@@ -10,5 +10,6 @@ public interface LabTestService {
     LabTestDTO assignTestConfig(Long orderId, Long labTestId, Long testConfigId);
     LabTestDTO updateNotes(Long orderId, Long labTestId, String notes);
     LabTestDTO updateSampleType(Long orderId, Long labTestId, String sampleType);
+    LabTestDTO updateMethod(Long orderId, Long labTestId, String method);
     LabTestDTO removeTestFromOrder(Long orderId, Long testId);
 }

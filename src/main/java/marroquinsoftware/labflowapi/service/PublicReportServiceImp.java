@@ -190,7 +190,9 @@ public class PublicReportServiceImp implements PublicReportService {
         if (lab == null) return null;
         return new PublicReportDTO.Lab(
                 lab.getName(), lab.getAddress1(), lab.getAddress2(),
-                lab.getPhone(), lab.getEmail(), lab.getRtn(), lab.getLogoUrl(), lab.getStampUrl());
+                lab.getPhone(), lab.getEmail(), lab.getRtn(), lab.getInvoiceFooterNote(),
+                lab.getLogoUrl(), lab.getStampUrl(),
+                lab.getReportPrimaryColor(), lab.getReportSecondaryColor());
     }
 
     private PublicReportDTO.Patient toPatient(CustomerDTO customer) {
@@ -202,6 +204,7 @@ public class PublicReportServiceImp implements PublicReportService {
     private PublicReportDTO.Order toOrder(LabOrderDTO order) {
         return new PublicReportDTO.Order(
                 order.getOrderNumber(), order.getRequestedAt(), order.getStatus(), order.getNotes(),
+                order.getReferringPhysician(),
                 order.getLmpDate(), order.isPregnant(), order.getGestationalWeeks(), order.isMenopausal());
     }
 

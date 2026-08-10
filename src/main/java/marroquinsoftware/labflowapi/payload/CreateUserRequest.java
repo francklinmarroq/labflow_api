@@ -11,6 +11,9 @@ import lombok.Data;
  */
 @Data
 public class CreateUserRequest {
+    @NotBlank(message = "El nombre es obligatorio")
+    private String name;
+
     @NotBlank(message = "El correo es obligatorio")
     @Email(message = "El correo no es válido")
     private String username;

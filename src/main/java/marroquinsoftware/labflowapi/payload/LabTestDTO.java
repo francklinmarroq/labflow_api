@@ -20,4 +20,6 @@ public class LabTestDTO {
     private String notes;
 
     private String sampleType;
+
+    private String method;
 }

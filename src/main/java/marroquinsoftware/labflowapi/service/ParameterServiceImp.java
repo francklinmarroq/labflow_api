@@ -1,6 +1,5 @@
 package marroquinsoftware.labflowapi.service;
 
-import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Parameter;
 import marroquinsoftware.labflowapi.model.Unit;
@@ -52,10 +51,11 @@ public class ParameterServiceImp implements ParameterService {
 
     @Override
     public ParameterDTO createParameter(ParameterDTO parameterDTO) {
-        Parameter existing = parameterRepository.findByName(parameterDTO.getName());
-        if (existing != null) {
-            throw new APIException("Ya existe un parámetro con el nombre '" + parameterDTO.getName() + "'.");
-        }
+        // A propósito no se valida unicidad del nombre: un mismo nombre (p. ej. "Glucosa")
+        // puede corresponder a parámetros distintos según el examen —numérico en química
+        // sanguínea y cualitativo (Negativo/Positivo) en general de orina—, cada uno con su
+        // tipo de valor, unidad y rangos. Los perfiles enlazan parámetros por id, no por
+        // nombre, así que los homónimos no colisionan.
         Parameter parameter = modelMapper.map(parameterDTO, Parameter.class);
         if (parameterDTO.getUnitId() != null) {
             Unit unit = unitRepository.findById(parameterDTO.getUnitId())

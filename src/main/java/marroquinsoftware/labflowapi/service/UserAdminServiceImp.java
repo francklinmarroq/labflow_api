@@ -53,6 +53,9 @@ public class UserAdminServiceImp implements UserAdminService {
     @Autowired
     private EmailService emailService;
 
+    @Autowired
+    private PasswordResetService passwordResetService;
+
     @Value("${app.frontendBaseUrl}")
     private String frontendBaseUrl;
 
@@ -83,6 +86,7 @@ public class UserAdminServiceImp implements UserAdminService {
                 .orElseThrow(() -> new ResourceNotFoundException("Laboratory", "laboratoryId", laboratoryId));
         User user = new User();
         user.setUsername(request.getUsername());
+        user.setName(request.getName());
         // Contraseña inutilizable hasta que el usuario acepte y defina la suya;
         // además queda deshabilitado, así que no puede iniciar sesión.
         user.setPassword(bCryptPasswordEncoder.encode(UUID.randomUUID().toString()));
@@ -146,6 +150,36 @@ public class UserAdminServiceImp implements UserAdminService {
         return dto;
     }
 
+    @Override
+    @Transactional
+    public UserAccountDTO setUserPassword(Long userId, String password) {
+        User user = loadUser(userId);
+        if (user.getRole() == Role.OWNER) {
+            throw new APIException("La contraseña del dueño del laboratorio no se puede cambiar desde aquí. "
+                    + "Usa el enlace de restablecimiento por correo.");
+        }
+        if (user.isInvitationPending()) {
+            throw new APIException("Este usuario aún no acepta su invitación. Reenvíale la invitación en su lugar.");
+        }
+        if (password == null || password.length() < 8) {
+            throw new APIException("La contraseña es obligatoria y debe tener al menos 8 caracteres.");
+        }
+        // Se propaga a TODAS las filas del correo (invariante de contraseña compartida).
+        userRepository.updatePasswordByUsername(user.getUsername(), bCryptPasswordEncoder.encode(password));
+        return toDto(user);
+    }
+
+    @Override
+    @Transactional
+    public UserAccountDTO sendPasswordReset(Long userId) {
+        User user = loadUser(userId);
+        if (user.isInvitationPending()) {
+            throw new APIException("Este usuario aún no acepta su invitación. Reenvíale la invitación en su lugar.");
+        }
+        passwordResetService.issueAndSend(user.getUsername());
+        return toDto(user);
+    }
+
     /** Genera un token nuevo, guarda su hash y expiración en el usuario y devuelve el token en claro. */
     private String issueInvitationToken(User user) {
         String rawToken = InvitationTokens.newRawToken();
@@ -191,6 +225,7 @@ public class UserAdminServiceImp implements UserAdminService {
         return new UserAccountDTO(
                 user.getId(),
                 user.getUsername(),
+                user.getName(),
                 user.isEnabled(),
                 user.getRole(),
                 user.getAppRole() != null ? user.getAppRole().getId() : null,

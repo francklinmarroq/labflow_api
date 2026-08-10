@@ -3,14 +3,18 @@ package marroquinsoftware.labflowapi.service;
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Customer;
+import marroquinsoftware.labflowapi.model.Invoice;
+import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.model.LabOrder;
 import marroquinsoftware.labflowapi.model.LabOrderCounter;
 import marroquinsoftware.labflowapi.model.LabTest;
 import marroquinsoftware.labflowapi.model.OrderStatus;
+import marroquinsoftware.labflowapi.model.Permission;
 import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 import marroquinsoftware.labflowapi.repositories.CustomerRepository;
+import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderCounterRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.TestRepository;
@@ -20,6 +24,8 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.domain.Sort;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -43,13 +49,22 @@ public class LabOrderServiceImp implements LabOrderService {
     @Autowired
     private TestRepository testRepository;
 
+    @Autowired
+    private InvoiceRepository invoiceRepository;
+
+    @Autowired
+    private InvoiceService invoiceService;
+
     @Override
-    public LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
+    public LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir, OrderStatus status) {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
-        // El laboratorio (tenant) lo filtra Hibernate por @TenantId; aquí solo se
-        // excluyen las canceladas (borrado lógico).
-        Page<LabOrder> page = labOrderRepository.findByStatusNotFetchCustomer(OrderStatus.CANCELLED, pageable);
+        // El laboratorio (tenant) lo filtra Hibernate por @TenantId. Sin filtro de
+        // estado se listan las órdenes activas (excluye canceladas, borrado lógico);
+        // con un estado concreto se listan solo esas (p. ej. la pestaña de canceladas).
+        Page<LabOrder> page = status != null
+                ? labOrderRepository.findByStatusFetchCustomer(status, pageable)
+                : labOrderRepository.findByStatusNotFetchCustomer(OrderStatus.CANCELLED, pageable);
         List<LabOrderDTO> dtos = page.getContent().stream().map(this::toDTO).toList();
         LabOrderResponse response = new LabOrderResponse();
         response.setContent(dtos);
@@ -77,6 +92,7 @@ public class LabOrderServiceImp implements LabOrderService {
         order.setRequestedAt(dto.getRequestedAt() != null ? dto.getRequestedAt() : Instant.now());
         order.setStatus(dto.getStatus() != null ? dto.getStatus() : OrderStatus.PENDING);
         order.setNotes(dto.getNotes());
+        order.setReferringPhysician(trimToNull(dto.getReferringPhysician()));
         applyClinicalContext(order, dto);
         // Exámenes de la orden en la misma llamada (opcional). Antes el front creaba
         // la orden y luego hacía un POST /orders/{id}/tests por examen (N requests
@@ -151,6 +167,7 @@ public class LabOrderServiceImp implements LabOrderService {
         if (dto.getRequestedAt() != null) order.setRequestedAt(dto.getRequestedAt());
         if (dto.getStatus() != null) order.setStatus(dto.getStatus());
         order.setNotes(dto.getNotes());
+        order.setReferringPhysician(trimToNull(dto.getReferringPhysician()));
         applyClinicalContext(order, dto);
         return toDTO(labOrderRepository.save(order));
     }
@@ -162,14 +179,55 @@ public class LabOrderServiceImp implements LabOrderService {
     }
 
     @Override
-    public LabOrderDTO deleteOrder(Long id) {
+    @Transactional
+    public LabOrderDTO cancelOrder(Long id, String reason) {
         LabOrder order = labOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", id));
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new APIException("La orden ya está cancelada.");
+        }
+
+        // Si la orden tiene una factura viva, cancelar la orden implica anularla en
+        // cascada: la anulación revierte los pagos y la emisión con contra-asientos
+        // (reutiliza InvoiceService.annulInvoice). Como toca la contabilidad, exige
+        // además el permiso de anular facturas; una orden sin factura no lo requiere.
+        invoiceRepository.findFirstByOrderIdAndStatusNotOrderByIssuedAtDesc(id, InvoiceStatus.ANULADA)
+                .ifPresent(invoice -> {
+                    if (!hasAuthority(Permission.INVOICES_ANNUL)) {
+                        throw new APIException("No tiene permiso para anular la factura de esta orden. "
+                                + "Anule primero la factura o solicite el permiso correspondiente.");
+                    }
+                    invoiceService.annulInvoice(invoice.getId(), reason);
+                });
+
         // Borrado lógico: se marca como cancelada en vez de eliminarla, para que
         // su folio quede consumido y el correlativo no se reutilice ni deje huecos.
         order.setStatus(OrderStatus.CANCELLED);
+        order.setCancelledAt(Instant.now());
+        order.setCancelledByUsername(currentUsername());
+        order.setCancellationReason(reason != null ? reason.trim() : null);
         labOrderRepository.save(order);
         return toDTO(order);
+    }
+
+    // Normaliza el texto opcional del médico solicitante: recorta espacios y trata
+    // el vacío como null, para que el reporte no imprima el rótulo con un valor en
+    // blanco (solo aparece si de verdad se llenó).
+    private String trimToNull(String value) {
+        if (value == null) return null;
+        String trimmed = value.trim();
+        return trimmed.isEmpty() ? null : trimmed;
+    }
+
+    private String currentUsername() {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null ? auth.getName() : null;
+    }
+
+    private boolean hasAuthority(Permission permission) {
+        Authentication auth = SecurityContextHolder.getContext().getAuthentication();
+        return auth != null && auth.getAuthorities().stream()
+                .anyMatch(a -> permission.name().equals(a.getAuthority()));
     }
 
     // El contexto clínico se guarda tal cual llega del formulario (la orden envía
@@ -196,10 +254,14 @@ public class LabOrderServiceImp implements LabOrderService {
         dto.setRequestedAt(order.getRequestedAt());
         dto.setStatus(order.getStatus());
         dto.setNotes(order.getNotes());
+        dto.setReferringPhysician(order.getReferringPhysician());
         dto.setLmpDate(order.getLmpDate());
         dto.setPregnant(order.isPregnant());
         dto.setGestationalWeeks(order.getGestationalWeeks());
         dto.setMenopausal(order.isMenopausal());
+        dto.setCancelledAt(order.getCancelledAt());
+        dto.setCancelledByUsername(order.getCancelledByUsername());
+        dto.setCancellationReason(order.getCancellationReason());
         return dto;
     }
 }

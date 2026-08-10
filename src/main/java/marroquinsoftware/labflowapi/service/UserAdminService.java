@@ -16,4 +16,10 @@ public interface UserAdminService {
     UserAccountDTO updateUser(UpdateUserRequest request, Long userId);
 
     UserAccountDTO deleteUser(Long userId);
+
+    /** Fija directamente la contraseña de un usuario (no OWNER) del laboratorio en sesión. */
+    UserAccountDTO setUserPassword(Long userId, String password);
+
+    /** Envía a un usuario del laboratorio en sesión el correo para restablecer su contraseña. */
+    UserAccountDTO sendPasswordReset(Long userId);
 }

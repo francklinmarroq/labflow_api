@@ -22,6 +22,12 @@ public interface LabOrderRepository extends JpaRepository<LabOrder, Long> {
             countQuery = "SELECT COUNT(o) FROM LabOrder o WHERE o.status <> :status")
     Page<LabOrder> findByStatusNotFetchCustomer(@Param("status") OrderStatus status, Pageable pageable);
 
+    // Órdenes en un estado concreto (p. ej. la pestaña de canceladas/archivadas).
+    // Mismo LEFT JOIN FETCH del paciente que la consulta activa para evitar el N+1.
+    @Query(value = "SELECT o FROM LabOrder o LEFT JOIN FETCH o.customer WHERE o.status = :status",
+            countQuery = "SELECT COUNT(o) FROM LabOrder o WHERE o.status = :status")
+    Page<LabOrder> findByStatusFetchCustomer(@Param("status") OrderStatus status, Pageable pageable);
+
     // Orden por token del enlace público. El @TenantId sigue filtrando: se usa una
     // vez que el TenantContext ya quedó fijado con el laboratorio del token.
     Optional<LabOrder> findByPublicToken(String publicToken);

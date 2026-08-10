@@ -30,6 +30,7 @@ public class InvoiceDTO {
     private String labAddress;
     private String labTaxAddress;
     private String labPhone;
+    private String labEmail;
     private String labHeadline;
     private String labFooterNote;
     private String labPacNumber;
@@ -46,6 +47,8 @@ public class InvoiceDTO {
 
     private Instant issuedAt;
     private String issuedByUsername;
+    /** Nombre de quien emitió (o el correo si no tiene nombre). */
+    private String issuedByName;
     private InvoiceStatus status;
     private String statusLabel;
     private SaleCondition saleCondition;

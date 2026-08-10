@@ -97,3 +97,64 @@ alter table if exists laboratory add column if not exists seed_status varchar(20
 update laboratory set seed_status = 'ACCEPTED'
   where seed_status is null and id in (select distinct laboratory_id from tests where laboratory_id > 0);
 update laboratory set seed_status = 'PENDING' where seed_status is null;
+
+-- Rangos por edad y por contexto fisiológico (fase de ciclo, gestación, menopausia):
+-- estas columnas las declara la entidad ReferenceRange, pero ddl-auto=update no las
+-- agrega sobre una BD que ya tenía la tabla, y con esas columnas mapeadas TODA consulta
+-- a reference_range revienta con "no existe la columna ...". Efecto: en producción no
+-- aparece ningún valor de referencia al registrar/imprimir resultados (el frontend se
+-- traga el error). Se agregan idempotentes. Las NOT NULL llevan default para que las
+-- filas existentes queden como rango común (context_kind='NONE', exclusividad false).
+-- "if exists" evita fallar en BD nuevas (Hibernate crea la tabla completa).
+alter table if exists reference_range add column if not exists min_age_days integer;
+alter table if exists reference_range add column if not exists max_age_days integer;
+alter table if exists reference_range add column if not exists lower_exclusive boolean not null default false;
+alter table if exists reference_range add column if not exists upper_exclusive boolean not null default false;
+alter table if exists reference_range add column if not exists critical_low numeric(38,2);
+alter table if exists reference_range add column if not exists critical_high numeric(38,2);
+alter table if exists reference_range add column if not exists interpretation_text varchar(255);
+alter table if exists reference_range add column if not exists context_kind varchar(20) not null default 'NONE';
+alter table if exists reference_range add column if not exists context_label varchar(255);
+alter table if exists reference_range add column if not exists context_min integer;
+alter table if exists reference_range add column if not exists context_max integer;
+
+-- Nombre de la persona en app_user: la entidad User lo mapea (para mostrarlo en la app
+-- y en los documentos en vez del correo), pero ddl-auto=update no agrega la columna en
+-- bases existentes; sin ella, TODA consulta a app_user (login incluido) fallaría. Se
+-- agrega idempotente y nullable; los usuarios previos quedan sin nombre y caen al correo.
+alter table if exists app_user add column if not exists name varchar(255);
+
+-- Método del examen (lab_tests.method) y diseño del sobre (laboratory.envelope_layout):
+-- columnas nuevas y nullable que declaran las entidades LabTest y Laboratory. Igual que
+-- las demás de este archivo, ddl-auto=update no siempre las agrega sobre bases ya
+-- existentes, y con ellas mapeadas TODA consulta a esas tablas fallaría. Se agregan
+-- idempotentes; las filas previas quedan en null (el reporte no imprime método si está
+-- vacío y el sobre cae a la distribución 'classic').
+alter table if exists lab_tests add column if not exists method varchar(255);
+alter table if exists laboratory add column if not exists envelope_layout varchar(255);
+
+-- Restablecimiento de contraseña (app_user.reset_token_hash / reset_expires_at): la
+-- entidad User mapea estas dos columnas (token SHA-256 con caducidad), pero el commit
+-- que las introdujo NO las registró aquí ni las corrió en prod. Mismo caso que la
+-- columna 'name' de arriba: ddl-auto=update no agrega columnas en bases existentes, y
+-- con ellas mapeadas TODA consulta a app_user (LOGIN incluido) revienta con "no existe
+-- la columna reset_token_hash" -> nadie puede iniciar sesión. Se agregan idempotentes y
+-- nullable. El tipo timestamp(6) with time zone es el que Hibernate usa para Instant
+-- (igual que invitation_expires_at).
+alter table if exists app_user add column if not exists reset_token_hash varchar(64);
+alter table if exists app_user add column if not exists reset_expires_at timestamp(6) with time zone;
+
+-- Médico solicitante de la orden (lab_orders.referring_physician): columna nueva y
+-- nullable que declara la entidad LabOrder. Igual que las demás de este archivo,
+-- ddl-auto=update no siempre la agrega sobre bases ya existentes, y con ella mapeada
+-- TODA consulta a lab_orders fallaría. Se agrega idempotente; las órdenes previas
+-- quedan en null (el reporte no imprime el médico si está vacío).
+alter table if exists lab_orders add column if not exists referring_physician varchar(150);
+
+-- Correo del emisor en la factura (invoices.lab_email): el SAR exige el correo del
+-- laboratorio en la factura impresa. laboratory.email ya existe y es editable, pero
+-- nunca se agregó al snapshot fiscal que la entidad Invoice congela al emitir (a
+-- diferencia de lab_phone, lab_rtn, etc.). Columna nueva y nullable; mismo motivo de
+-- siempre, ddl-auto=update no la agrega sobre bases ya existentes. Las facturas ya
+-- emitidas quedan en null (el reporte no imprime el correo si está vacío).
+alter table if exists invoices add column if not exists lab_email varchar(255);

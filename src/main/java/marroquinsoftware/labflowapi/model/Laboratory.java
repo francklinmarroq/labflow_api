@@ -58,6 +58,17 @@ public class Laboratory {
     // el campo de firma y sello del reporte de resultados.
     private String stampObjectKey;
 
+    // Colores del reporte de resultados (hex #RRGGBB). Primario: títulos y líneas
+    // estructurales; secundario: nombres de parámetros y resultados. Nulos ⇒ el
+    // frontend usa los colores por defecto (los actuales), no un color forzado.
+    private String reportPrimaryColor;
+    private String reportSecondaryColor;
+
+    // Distribución visual del sobre postal (classic | centered | window). Se guarda
+    // como texto (no enum) para evitar el drift del check-constraint de @Enumerated.
+    // Nulo ⇒ el frontend usa 'classic' (la distribución actual).
+    private String envelopeLayout;
+
     // CAI 1
     private String cai1;
     private LocalDate cai1ExpirationDate;

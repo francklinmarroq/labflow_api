@@ -54,8 +54,15 @@ public class PublicReportDTO {
         private String phone;
         private String email;
         private String rtn;
+        // Lema del laboratorio (el nombre del campo viene de la factura, pero se
+        // reutiliza en el encabezado de todos los reportes). No es dato fiscal.
+        private String invoiceFooterNote;
         private String logoUrl; // URL firmada con vencimiento (bucket privado)
         private String stampUrl; // sello del regente, misma firma temporal
+        // Colores del reporte (hex #RRGGBB) para que el reporte público del paciente
+        // respete la personalización del laboratorio; nulos ⇒ colores por defecto.
+        private String reportPrimaryColor;
+        private String reportSecondaryColor;
     }
 
     /** Datos del paciente que salen en el reporte (sin teléfono/correo/fiscales). */
@@ -78,6 +85,7 @@ public class PublicReportDTO {
         private Instant requestedAt;
         private OrderStatus status;
         private String notes;
+        private String referringPhysician;
         private LocalDate lmpDate;
         private boolean pregnant;
         private Integer gestationalWeeks;

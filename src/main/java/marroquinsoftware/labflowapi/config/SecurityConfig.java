@@ -67,7 +67,8 @@ public class SecurityConfig {
                         // requieren sesión. La selección se valida con el token de
                         // selección dentro del propio controlador.
                         .requestMatchers("/api/v1/auth/login", "/api/v1/auth/login/select",
-                                "/api/v1/auth/register", "/api/v1/auth/invitation/**", "/error").permitAll()
+                                "/api/v1/auth/register", "/api/v1/auth/invitation/**",
+                                "/api/v1/auth/password-reset/**", "/error").permitAll()
                         // Reporte público de resultados por token (enlace/QR del paciente).
                         // El tenant lo resuelve AuthTokenFilter desde el token.
                         .requestMatchers("/api/v1/public/**").permitAll()

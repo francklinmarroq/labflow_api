@@ -12,6 +12,8 @@ import marroquinsoftware.labflowapi.model.Role;
 public class UserAccountDTO {
     private Long id;
     private String username;
+    /** Nombre de la persona; puede ser null en usuarios antiguos. */
+    private String name;
     private boolean enabled;
     private Role role;
     private Long roleId;
