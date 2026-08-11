@@ -32,6 +32,10 @@ alter table if exists app_role_permission drop constraint if exists app_role_per
 alter table if exists accounts drop constraint if exists accounts_system_key_check;
 alter table if exists journal_entries drop constraint if exists journal_entries_source_type_check;
 
+-- Y lo mismo con tests.area (enum TestArea) al agregar el área INMUNOLOGIA: sin
+-- esto, guardar un examen de esa área falla con "violates check constraint".
+alter table if exists tests drop constraint if exists tests_area_check;
+
 -- Drift de restricciones UNIQUE al migrar a multi-tenant (commit dc5c260): estas
 -- entidades tenían un unique GLOBAL en "name" (@Column(unique=true)) que se cambió
 -- por uno compuesto por laboratorio (laboratory_id, name). Pero ddl-auto=update
