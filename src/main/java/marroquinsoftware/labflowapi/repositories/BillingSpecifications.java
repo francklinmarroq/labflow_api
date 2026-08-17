@@ -33,8 +33,15 @@ public final class BillingSpecifications {
 
     private BillingSpecifications() {}
 
+    /**
+     * @param tagId etiqueta de la ORDEN de la que salió la factura (convenio,
+     *              campaña…); null = todas. Las etiquetas viven en la orden y no se
+     *              copian a la factura: no son un dato fiscal, son una clasificación
+     *              del laboratorio, y así renombrar una etiqueta se refleja en todo
+     *              lo ya facturado sin tocar el documento congelado.
+     */
     public static Specification<Invoice> invoices(InvoiceStatus status, Long orderId,
-                                                  Instant from, Instant to, String search) {
+                                                  Instant from, Instant to, String search, Long tagId) {
         return (root, query, cb) -> {
             // El mapeo a DTO de cada factura del listado lee order.id/order.orderNumber
             // y customer.id. Al ser @ManyToOne EAGER sin join, recorrer la página
@@ -60,6 +67,17 @@ public final class BillingSpecifications {
                 predicates.add(cb.or(
                         cb.like(cb.lower(root.get("invoiceNumber")), pattern),
                         cb.like(cb.lower(root.get("customerName")), pattern)));
+            }
+            if (tagId != null) {
+                // La etiqueta cuelga de la orden, así que hay que llegar hasta ella.
+                // Se agrega un join propio (no se reutiliza el fetch de arriba) para
+                // que el filtro también valga en la consulta de conteo, que no lleva
+                // fetch. Como se filtra por UNA etiqueta, el join no puede duplicar
+                // filas —una orden no tiene dos veces la misma— y la paginación
+                // sigue siendo correcta.
+                predicates.add(cb.equal(
+                        root.join("order", JoinType.INNER).join("tags", JoinType.INNER).get("id"),
+                        tagId));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

@@ -1,32 +1,18 @@
 package marroquinsoftware.labflowapi.repositories;
 
 import marroquinsoftware.labflowapi.model.LabOrder;
-import marroquinsoftware.labflowapi.model.OrderStatus;
-import org.springframework.data.domain.Page;
-import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
 
-public interface LabOrderRepository extends JpaRepository<LabOrder, Long> {
+// El listado paginado (con sus filtros de estado y etiqueta) se arma con
+// LabOrderSpecifications, de ahí el JpaSpecificationExecutor.
+public interface LabOrderRepository extends JpaRepository<LabOrder, Long>, JpaSpecificationExecutor<LabOrder> {
     List<LabOrder> findByCustomer_Id(Long customerId);
-
-    // El laboratorio (tenant) lo filtra Hibernate por @TenantId; solo excluimos canceladas.
-    // LEFT JOIN FETCH del paciente para traer nombre + datos de cada orden en UNA sola
-    // consulta (evita N+1 al mapear customerName en el listado). El fetch de un @ManyToOne
-    // no multiplica filas, así que la paginación por SQL sigue siendo correcta.
-    @Query(value = "SELECT o FROM LabOrder o LEFT JOIN FETCH o.customer WHERE o.status <> :status",
-            countQuery = "SELECT COUNT(o) FROM LabOrder o WHERE o.status <> :status")
-    Page<LabOrder> findByStatusNotFetchCustomer(@Param("status") OrderStatus status, Pageable pageable);
-
-    // Órdenes en un estado concreto (p. ej. la pestaña de canceladas/archivadas).
-    // Mismo LEFT JOIN FETCH del paciente que la consulta activa para evitar el N+1.
-    @Query(value = "SELECT o FROM LabOrder o LEFT JOIN FETCH o.customer WHERE o.status = :status",
-            countQuery = "SELECT COUNT(o) FROM LabOrder o WHERE o.status = :status")
-    Page<LabOrder> findByStatusFetchCustomer(@Param("status") OrderStatus status, Pageable pageable);
 
     // Orden por token del enlace público. El @TenantId sigue filtrando: se usa una
     // vez que el TenantContext ya quedó fijado con el laboratorio del token.

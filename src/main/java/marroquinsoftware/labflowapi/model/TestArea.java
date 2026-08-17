@@ -8,5 +8,6 @@ public enum TestArea {
     PRUEBAS_ESPECIALES,
     UROANALISIS,
     PARASITOLOGIA,
-    QUIMICA
+    QUIMICA,
+    INMUNOLOGIA
 }

@@ -79,4 +79,12 @@ public class InvoiceDTO {
     private List<InvoiceItemDTO> items;
     /** Solo viene en el detalle; null en los listados. */
     private List<PaymentDTO> payments;
+
+    /**
+     * Etiquetas de la ORDEN de la que salió la factura (convenio, campaña…). Se
+     * leen en vivo de la orden, no se congelan con el documento: no son un dato
+     * fiscal sino una clasificación del laboratorio, así que renombrar una etiqueta
+     * se refleja en todo lo ya facturado. Solo lectura.
+     */
+    private List<OrderTagDTO> tags;
 }

@@ -7,7 +7,9 @@ import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 public interface LabOrderService {
     // status == null: órdenes activas (excluye canceladas). status != null: solo
     // las de ese estado (p. ej. CANCELLED para la pestaña de archivadas).
-    LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir, OrderStatus status);
+    // tagId == null: todas; con valor, solo las órdenes con esa etiqueta.
+    LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
+                                  OrderStatus status, Long tagId);
     LabOrderDTO createOrder(LabOrderDTO dto);
     LabOrderDTO updateOrder(LabOrderDTO dto, Long id);
     LabOrderDTO getOrderById(Long id);

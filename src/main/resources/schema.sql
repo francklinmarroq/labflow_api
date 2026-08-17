@@ -32,6 +32,10 @@ alter table if exists app_role_permission drop constraint if exists app_role_per
 alter table if exists accounts drop constraint if exists accounts_system_key_check;
 alter table if exists journal_entries drop constraint if exists journal_entries_source_type_check;
 
+-- Y lo mismo con tests.area (enum TestArea) al agregar el área INMUNOLOGIA: sin
+-- esto, guardar un examen de esa área falla con "violates check constraint".
+alter table if exists tests drop constraint if exists tests_area_check;
+
 -- Drift de restricciones UNIQUE al migrar a multi-tenant (commit dc5c260): estas
 -- entidades tenían un unique GLOBAL en "name" (@Column(unique=true)) que se cambió
 -- por uno compuesto por laboratorio (laboratory_id, name). Pero ddl-auto=update
@@ -158,3 +162,35 @@ alter table if exists lab_orders add column if not exists referring_physician va
 -- siempre, ddl-auto=update no la agrega sobre bases ya existentes. Las facturas ya
 -- emitidas quedan en null (el reporte no imprime el correo si está vacío).
 alter table if exists invoices add column if not exists lab_email varchar(255);
+
+-- Etiquetas de orden (convenios como "IHSS", campañas, empresas): tablas NUEVAS,
+-- no columnas, así que van con "create table if not exists". Igual que el resto de
+-- este archivo hay que correrlas a mano en prod con la credencial admin: ddl-auto
+-- no tiene permisos DDL ahí, y sin estas tablas TODA consulta a lab_orders revienta
+-- (la entidad LabOrder mapea la relación) y con ella se cae órdenes, facturas y el
+-- enlace público de resultados.
+--
+-- La unicidad del nombre es POR LABORATORIO y sobre normalized_name (el nombre sin
+-- tildes, sin espacios de más y en minúsculas), para que "IHSS", "ihss" e "Ihss"
+-- sean la misma etiqueta y no tres. name guarda cómo se escribió y es lo que se
+-- muestra.
+create table if not exists order_tags (
+  id bigserial primary key,
+  laboratory_id bigint,
+  name varchar(60) not null,
+  normalized_name varchar(60) not null,
+  color varchar(7)
+);
+create unique index if not exists uk_order_tag_name_per_lab on order_tags (laboratory_id, normalized_name);
+
+-- Tabla de unión orden <-> etiqueta. La llave primaria compuesta impide que una
+-- orden lleve dos veces la misma etiqueta. El borrado de una etiqueta limpia sus
+-- filas aquí desde el servicio (la dueña de la relación es LabOrder, así que
+-- Hibernate no lo hace solo); el índice por tag_id es el que usa ese borrado y el
+-- filtro "órdenes/facturas con la etiqueta X".
+create table if not exists lab_order_tags (
+  order_id bigint not null references lab_orders(id),
+  tag_id bigint not null references order_tags(id),
+  primary key (order_id, tag_id)
+);
+create index if not exists ix_lab_order_tags_tag on lab_order_tags (tag_id);

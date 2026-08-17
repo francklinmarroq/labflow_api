@@ -59,4 +59,13 @@ public class LabOrderDTO {
     // observable. El endpoint por examen se conserva para agregar exámenes a una
     // orden ya existente.
     private List<Long> testIds;
+    // Etiquetas de la orden (convenio, campaña, empresa…). Se leen en `tags`, ya
+    // resueltas con su id y color para pintarlas, y se escriben en `tagNames`, con
+    // los nombres tal como se escribieron: las que aún no existan en el laboratorio
+    // se crean solas al guardar. Esa asimetría es a propósito — quien levanta la
+    // orden escribe "IHSS" sin haber pasado antes por el catálogo. Si `tagNames`
+    // viene nulo al actualizar, las etiquetas de la orden se dejan como estaban;
+    // una lista vacía sí las quita todas.
+    private List<OrderTagDTO> tags;
+    private List<String> tagNames;
 }

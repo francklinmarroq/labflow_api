@@ -6,12 +6,15 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.TenantId;
 
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 
 @Entity
 @Table(name = "lab_orders", uniqueConstraints = @UniqueConstraint(
@@ -89,4 +92,22 @@ public class LabOrder {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<LabTest> tests;
+
+    /**
+     * Etiquetas con las que se clasifica la orden (convenios, campañas, empresas).
+     * Sin cascade a propósito: la etiqueta vive en el catálogo del laboratorio y
+     * se reutiliza entre órdenes; borrar o editar la orden no debe tocarla. Lo que
+     * se crea o se borra aquí son las filas de la tabla de unión.
+     *
+     * <p>El listado devuelve cada orden con sus etiquetas; sin el @BatchSize eso
+     * sería una consulta por orden al recorrer la página (igual que InvoiceItem).
+     */
+    @ManyToMany
+    @JoinTable(name = "lab_order_tags",
+            joinColumns = @JoinColumn(name = "order_id"),
+            inverseJoinColumns = @JoinColumn(name = "tag_id"))
+    @BatchSize(size = 50)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private Set<OrderTag> tags = new LinkedHashSet<>();
 }

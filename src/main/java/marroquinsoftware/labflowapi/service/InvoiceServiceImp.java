@@ -273,7 +273,7 @@ public class InvoiceServiceImp implements InvoiceService {
     @Override
     public InvoiceResponse getAllInvoices(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
                                           InvoiceStatus status, Long orderId, LocalDate from, LocalDate to,
-                                          String search) {
+                                          String search, Long tagId) {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         // El rango es [from 00:00, to+1 00:00) en hora de Honduras; el límite
@@ -281,7 +281,7 @@ public class InvoiceServiceImp implements InvoiceService {
         Instant fromInstant = from != null ? from.atStartOfDay(LAB_ZONE).toInstant() : null;
         Instant toInstant = to != null ? to.plusDays(1).atStartOfDay(LAB_ZONE).toInstant() : null;
         Page<Invoice> page = invoiceRepository.findAll(
-                BillingSpecifications.invoices(status, orderId, fromInstant, toInstant, search), pageable);
+                BillingSpecifications.invoices(status, orderId, fromInstant, toInstant, search, tagId), pageable);
         InvoiceResponse response = new InvoiceResponse();
         response.setContent(page.getContent().stream().map(i -> toDTO(i, false)).toList());
         response.setPageNumber(page.getNumber());
@@ -649,6 +649,22 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getAnnulledByUsername(),
                 invoice.getAnnulmentReason(),
                 itemDTOs,
-                paymentDTOs);
+                paymentDTOs,
+                orderTags(invoice));
+    }
+
+    /**
+     * Etiquetas de la orden de la que salió la factura, para poder distinguir de un
+     * vistazo lo del convenio en el listado. Se resuelven por lotes gracias al
+     * @BatchSize de LabOrder.tags, así que una página de facturas no dispara una
+     * consulta por cada una.
+     */
+    private List<OrderTagDTO> orderTags(Invoice invoice) {
+        if (invoice.getOrder() == null || invoice.getOrder().getTags() == null) {
+            return List.of();
+        }
+        return invoice.getOrder().getTags().stream()
+                .map(t -> new OrderTagDTO(t.getId(), t.getName(), t.getColor(), null))
+                .toList();
     }
 }

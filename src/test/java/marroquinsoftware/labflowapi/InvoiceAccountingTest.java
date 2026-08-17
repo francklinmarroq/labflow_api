@@ -448,27 +448,27 @@ class InvoiceAccountingTest {
         InvoiceDTO issued = invoiceService.createInvoice(contado(order.getId(), "500.00"));
 
         InvoiceResponse all = invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, null, null, null, null);
+                null, null, null, null, null, null);
         assertEquals(1, all.getContent().size(), "el listado sin filtros debe devolver la factura");
         assertEquals(issued.getInvoiceNumber(), all.getContent().get(0).getInvoiceNumber());
 
         InvoiceResponse byStatus = invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                InvoiceStatus.PAGADA, null, null, null, null);
+                InvoiceStatus.PAGADA, null, null, null, null, null);
         assertEquals(1, byStatus.getContent().size());
         assertEquals(0, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                InvoiceStatus.ANULADA, null, null, null, null).getContent().size());
+                InvoiceStatus.ANULADA, null, null, null, null, null).getContent().size());
 
         assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, order.getId(), null, null, null).getContent().size());
+                null, order.getId(), null, null, null, null).getContent().size());
 
         // La búsqueda matchea número de factura o nombre del paciente.
         assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, null, null, null, "Paciente").getContent().size());
+                null, null, null, null, "Paciente", null).getContent().size());
         assertEquals(0, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, null, null, null, "no-existe").getContent().size());
+                null, null, null, null, "no-existe", null).getContent().size());
 
         assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, null, LocalDate.now().minusDays(1), LocalDate.now(), null).getContent().size());
+                null, null, LocalDate.now().minusDays(1), LocalDate.now(), null, null).getContent().size());
     }
 
     @Test
