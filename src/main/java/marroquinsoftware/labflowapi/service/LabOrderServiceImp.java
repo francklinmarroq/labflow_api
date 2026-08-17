@@ -9,14 +9,17 @@ import marroquinsoftware.labflowapi.model.LabOrder;
 import marroquinsoftware.labflowapi.model.LabOrderCounter;
 import marroquinsoftware.labflowapi.model.LabTest;
 import marroquinsoftware.labflowapi.model.OrderStatus;
+import marroquinsoftware.labflowapi.model.OrderTag;
 import marroquinsoftware.labflowapi.model.Permission;
 import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
+import marroquinsoftware.labflowapi.payload.OrderTagDTO;
 import marroquinsoftware.labflowapi.repositories.CustomerRepository;
 import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderCounterRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
+import marroquinsoftware.labflowapi.repositories.LabOrderSpecifications;
 import marroquinsoftware.labflowapi.repositories.TestRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -31,7 +34,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.UUID;
 
 @Service
@@ -55,16 +60,20 @@ public class LabOrderServiceImp implements LabOrderService {
     @Autowired
     private InvoiceService invoiceService;
 
+    @Autowired
+    private OrderTagService orderTagService;
+
     @Override
-    public LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir, OrderStatus status) {
+    @Transactional(readOnly = true)
+    public LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
+                                         OrderStatus status, Long tagId) {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         // El laboratorio (tenant) lo filtra Hibernate por @TenantId. Sin filtro de
         // estado se listan las órdenes activas (excluye canceladas, borrado lógico);
         // con un estado concreto se listan solo esas (p. ej. la pestaña de canceladas).
-        Page<LabOrder> page = status != null
-                ? labOrderRepository.findByStatusFetchCustomer(status, pageable)
-                : labOrderRepository.findByStatusNotFetchCustomer(OrderStatus.CANCELLED, pageable);
+        Page<LabOrder> page = labOrderRepository.findAll(
+                LabOrderSpecifications.orders(status, tagId), pageable);
         List<LabOrderDTO> dtos = page.getContent().stream().map(this::toDTO).toList();
         LabOrderResponse response = new LabOrderResponse();
         response.setContent(dtos);
@@ -94,6 +103,7 @@ public class LabOrderServiceImp implements LabOrderService {
         order.setNotes(dto.getNotes());
         order.setReferringPhysician(trimToNull(dto.getReferringPhysician()));
         applyClinicalContext(order, dto);
+        applyTags(order, dto.getTagNames());
         // Exámenes de la orden en la misma llamada (opcional). Antes el front creaba
         // la orden y luego hacía un POST /orders/{id}/tests por examen (N requests
         // seriales, cada uno con el piso de ~0.7 s y una invocación de Cloudflare).
@@ -156,6 +166,7 @@ public class LabOrderServiceImp implements LabOrderService {
     }
 
     @Override
+    @Transactional
     public LabOrderDTO updateOrder(LabOrderDTO dto, Long id) {
         LabOrder order = labOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", id));
@@ -169,6 +180,13 @@ public class LabOrderServiceImp implements LabOrderService {
         order.setNotes(dto.getNotes());
         order.setReferringPhysician(trimToNull(dto.getReferringPhysician()));
         applyClinicalContext(order, dto);
+        // Solo se tocan las etiquetas si el cliente las mandó. Varias pantallas
+        // actualizan la orden para otra cosa (cambiar de estado al ingresar
+        // resultados, por ejemplo) y no envían tagNames; ahí las etiquetas se dejan
+        // como estaban. Una lista vacía sí es una instrucción: quitarlas todas.
+        if (dto.getTagNames() != null) {
+            applyTags(order, dto.getTagNames());
+        }
         return toDTO(labOrderRepository.save(order));
     }
 
@@ -230,6 +248,25 @@ public class LabOrderServiceImp implements LabOrderService {
                 .anyMatch(a -> permission.name().equals(a.getAuthority()));
     }
 
+    /**
+     * Deja la orden con exactamente las etiquetas indicadas por nombre. Las que aún
+     * no existan en el laboratorio se dan de alta en el momento (ver
+     * {@link OrderTagService#resolveOrCreate}): el usuario escribe "IHSS" en la
+     * primera orden del convenio y de ahí en adelante la reutiliza.
+     *
+     * <p>Se muta la colección existente en vez de reemplazarla para que Hibernate
+     * calcule el delta de la tabla de unión sobre la instancia que ya administra.
+     */
+    private void applyTags(LabOrder order, List<String> tagNames) {
+        Set<OrderTag> resolved = orderTagService.resolveOrCreate(tagNames);
+        if (order.getTags() == null) {
+            order.setTags(new LinkedHashSet<>(resolved));
+            return;
+        }
+        order.getTags().clear();
+        order.getTags().addAll(resolved);
+    }
+
     // El contexto clínico se guarda tal cual llega del formulario (la orden envía
     // el estado completo). Si no es gestante, se descarta la semana de gestación
     // para no dejar datos incoherentes.
@@ -262,6 +299,17 @@ public class LabOrderServiceImp implements LabOrderService {
         dto.setCancelledAt(order.getCancelledAt());
         dto.setCancelledByUsername(order.getCancelledByUsername());
         dto.setCancellationReason(order.getCancellationReason());
+        // Etiquetas con id, nombre y color, listas para pintarse. Se resuelven por
+        // lotes gracias al @BatchSize de LabOrder.tags, así que un listado de 500
+        // órdenes no dispara 500 consultas. Sin conteo de uso: eso solo interesa en
+        // la pantalla del catálogo de etiquetas.
+        if (order.getTags() != null && !order.getTags().isEmpty()) {
+            dto.setTags(order.getTags().stream()
+                    .map(t -> new OrderTagDTO(t.getId(), t.getName(), t.getColor(), null))
+                    .toList());
+        } else {
+            dto.setTags(List.of());
+        }
         return dto;
     }
 }

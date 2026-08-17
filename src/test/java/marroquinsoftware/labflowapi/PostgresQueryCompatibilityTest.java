@@ -2,10 +2,13 @@ package marroquinsoftware.labflowapi;
 
 import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.model.JournalSourceType;
+import marroquinsoftware.labflowapi.model.OrderStatus;
 import marroquinsoftware.labflowapi.repositories.BillingSpecifications;
 import marroquinsoftware.labflowapi.repositories.ExpenseRepository;
 import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
+import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
+import marroquinsoftware.labflowapi.repositories.LabOrderSpecifications;
 import marroquinsoftware.labflowapi.repositories.TestRunRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import marroquinsoftware.labflowapi.tenant.TenantIdentifierResolver;
@@ -63,6 +66,7 @@ class PostgresQueryCompatibilityTest {
     @Autowired JournalEntryRepository journalEntryRepository;
     @Autowired ExpenseRepository expenseRepository;
     @Autowired TestRunRepository testRunRepository;
+    @Autowired LabOrderRepository labOrderRepository;
 
     @BeforeAll
     static void requirePostgres() {
@@ -83,23 +87,43 @@ class PostgresQueryCompatibilityTest {
     @Test
     void listsInvoicesWithoutFilters() {
         assertDoesNotThrow(() -> invoiceRepository.findAll(
-                BillingSpecifications.invoices(null, null, null, null, null), PageRequest.of(0, 50)));
+                BillingSpecifications.invoices(null, null, null, null, null, null), PageRequest.of(0, 50)));
     }
 
     @Test
     void listsInvoicesWithEveryFilterCombination() {
         assertDoesNotThrow(() -> {
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    InvoiceStatus.PENDIENTE, null, null, null, null), PageRequest.of(0, 50));
+                    InvoiceStatus.PENDIENTE, null, null, null, null, null), PageRequest.of(0, 50));
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    null, 1L, null, null, null), PageRequest.of(0, 50));
+                    null, 1L, null, null, null, null), PageRequest.of(0, 50));
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    null, null, Instant.now().minusSeconds(3600), Instant.now(), null), PageRequest.of(0, 50));
+                    null, null, Instant.now().minusSeconds(3600), Instant.now(), null, null), PageRequest.of(0, 50));
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    null, null, null, null, "juan"), PageRequest.of(0, 50));
+                    null, null, null, null, "juan", null), PageRequest.of(0, 50));
+            // Filtro por etiqueta de la orden: agrega un join a lab_orders y a la
+            // tabla de unión, tanto en la página como en la consulta de conteo.
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    InvoiceStatus.PAGADA, 1L, Instant.now().minusSeconds(3600), Instant.now(), "000-001"),
+                    null, null, null, null, null, 1L), PageRequest.of(0, 50));
+            invoiceRepository.findAll(BillingSpecifications.invoices(
+                    InvoiceStatus.PAGADA, 1L, Instant.now().minusSeconds(3600), Instant.now(), "000-001", 1L),
                     PageRequest.of(0, 50));
+        });
+    }
+
+    // El listado de Órdenes: mismos filtros opcionales armados con Criteria, con y
+    // sin etiqueta. El fetch join del paciente convive con el join de etiquetas.
+    @Test
+    void listsOrdersWithAndWithoutFilters() {
+        assertDoesNotThrow(() -> {
+            labOrderRepository.findAll(
+                    LabOrderSpecifications.orders(null, null), PageRequest.of(0, 50));
+            labOrderRepository.findAll(
+                    LabOrderSpecifications.orders(OrderStatus.CANCELLED, null), PageRequest.of(0, 50));
+            labOrderRepository.findAll(
+                    LabOrderSpecifications.orders(null, 1L), PageRequest.of(0, 50));
+            labOrderRepository.findAll(
+                    LabOrderSpecifications.orders(OrderStatus.PENDING, 1L), PageRequest.of(0, 50));
         });
     }
 

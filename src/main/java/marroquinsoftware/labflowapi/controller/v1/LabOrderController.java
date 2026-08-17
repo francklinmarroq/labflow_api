@@ -41,8 +41,13 @@ public class LabOrderController {
             @RequestParam(defaultValue = AppConstants.SORT_DIR) String sortOrder,
             // Filtro de estado opcional: sin él se listan las activas; con CANCELLED
             // se lista la pestaña de órdenes canceladas/archivadas.
-            @RequestParam(required = false) OrderStatus status) {
-        return new ResponseEntity<>(labOrderService.getAllOrders(pageNumber, pageSize, sortBy, sortOrder, status), HttpStatus.OK);
+            @RequestParam(required = false) OrderStatus status,
+            // Filtro por etiqueta (convenio, campaña, empresa…): solo las órdenes
+            // marcadas con esa etiqueta.
+            @RequestParam(required = false) Long tagId) {
+        return new ResponseEntity<>(
+                labOrderService.getAllOrders(pageNumber, pageSize, sortBy, sortOrder, status, tagId),
+                HttpStatus.OK);
     }
 
     // Las pantallas de detalle/impresión solo necesitan una orden. Antes bajaban

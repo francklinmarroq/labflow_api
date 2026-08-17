@@ -19,8 +19,11 @@ public interface InvoiceService {
     /** Emite la factura CAI de una orden, con su partida contable y (si aplica) el pago inicial. */
     InvoiceDTO createInvoice(InvoiceRequest request);
 
+    // tagId filtra por la etiqueta de la orden de la que salió la factura
+    // (convenio, campaña…); null = todas.
     InvoiceResponse getAllInvoices(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
-                                   InvoiceStatus status, Long orderId, LocalDate from, LocalDate to, String search);
+                                   InvoiceStatus status, Long orderId, LocalDate from, LocalDate to, String search,
+                                   Long tagId);
 
     InvoiceDTO getInvoice(Long invoiceId);
 
