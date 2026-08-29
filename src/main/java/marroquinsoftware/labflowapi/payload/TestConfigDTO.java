@@ -37,6 +37,10 @@ public class TestConfigDTO {
     // ANTIBIOGRAM = agrupados por sensibilidad (Sensible/Intermedio/Resistente).
     private ResultLayout resultLayout;
 
+    // Independiente de resultLayout: permite ademas adjuntar foto(s)/escaneo del
+    // reporte que ya imprime el equipo (p. ej. un hemograma automatizado).
+    private boolean allowResultAttachments;
+
     // Etiqueta del eje X cuando chartType = LINE (ej. "Tiempo (min)").
     private String chartXAxisLabel;
 

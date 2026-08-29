@@ -91,6 +91,7 @@ public class TestBuilderServiceImp implements TestBuilderService {
             dto.setActive(config.isActive());
             dto.setChartType(config.getChartType());
             dto.setResultLayout(config.getResultLayout());
+            dto.setAllowResultAttachments(config.isAllowResultAttachments());
             dto.setChartXAxisLabel(config.getChartXAxisLabel());
 
             // configParameters ya viene ordenado por displayOrder (@OrderBy).
@@ -202,6 +203,7 @@ public class TestBuilderServiceImp implements TestBuilderService {
         configDTO.setActive(dto.isActive());
         configDTO.setChartType(dto.getChartType());
         configDTO.setResultLayout(dto.getResultLayout());
+        configDTO.setAllowResultAttachments(dto.isAllowResultAttachments());
         configDTO.setChartXAxisLabel(dto.getChartXAxisLabel());
         configDTO.setChartXValues(chartXValues);
 

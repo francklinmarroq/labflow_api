@@ -59,4 +59,11 @@ public class TestConfig {
     @Enumerated(EnumType.STRING)
     @Column(name = "result_layout")
     private ResultLayout resultLayout = ResultLayout.STANDARD;
+
+    // Independiente de resultLayout: permite adjuntar foto(s)/escaneo del reporte
+    // que ya imprime el equipo (p. ej. un hemograma automatizado) ademas de -no en
+    // vez de- la captura de parametros. Un TestRun puede traer resultados,
+    // adjuntos, o ambos.
+    @Column(name = "allow_result_attachments")
+    private boolean allowResultAttachments;
 }
