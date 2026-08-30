@@ -6,4 +6,4 @@ node_modules/
 .wrangler/
 .dev.vars
 # Secretos que consume el contenedor (BD, JWT, Resend, R2).
-.wrangler.env
+.env.wrangler
