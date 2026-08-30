@@ -63,6 +63,12 @@ public class LaboratoryDTO {
     @Pattern(regexp = "^#([0-9a-fA-F]{6})$", message = "El color secundario debe ser un hexadecimal válido (#RRGGBB)")
     private String reportSecondaryColor;
 
+    // ¿El reporte marca los valores fuera de rango — (Alto), (Bajo), (¡Crítico!) y el
+    // resaltado en negrita? Nunca se responde nulo: si el laboratorio no lo ha tocado
+    // se devuelve true (el comportamiento de siempre). En un PUT, omitirlo conserva lo
+    // guardado; solo un valor explícito lo cambia. ModelMapper lo copia entidad↔DTO.
+    private Boolean showReportRangeFlags;
+
     // Distribución visual del sobre postal. ModelMapper lo copia entidad↔DTO.
     @Pattern(regexp = "^(classic|centered|window)$", message = "El diseño de sobre no es válido")
     private String envelopeLayout;

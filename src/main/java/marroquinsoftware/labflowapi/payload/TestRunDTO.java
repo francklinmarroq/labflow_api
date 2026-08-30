@@ -19,4 +19,5 @@ public class TestRunDTO {
     private Boolean isVerified;
     @NotEmpty
     private List<TestResultDTO> results;
+    private List<TestRunAttachmentDTO> attachments;
 }

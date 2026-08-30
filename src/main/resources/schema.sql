@@ -194,3 +194,17 @@ create table if not exists lab_order_tags (
   primary key (order_id, tag_id)
 );
 create index if not exists ix_lab_order_tags_tag on lab_order_tags (tag_id);
+
+-- Interruptor de las alertas del reporte (laboratory.show_report_range_flags):
+-- columna nueva que declara la entidad Laboratory para que cada laboratorio decida
+-- si su reporte marca los valores fuera de rango — (Alto), (Bajo), (¡Crítico!) y el
+-- resaltado en negrita. Sin esta columna en prod TODA consulta a laboratory revienta
+-- ("column does not exist") y con ella se caen la configuración, las facturas, las
+-- órdenes y el enlace público de resultados.
+--
+-- Nace en true: el interruptor es opt-out y los laboratorios que ya existían deben
+-- seguir imprimiendo las alertas igual que siempre. El default cubre las filas
+-- nuevas y el update las que ya estaban; el código igual trata nulo como true, así
+-- que este backfill es por orden, no un requisito para que funcione.
+alter table if exists laboratory add column if not exists show_report_range_flags boolean default true;
+update laboratory set show_report_range_flags = true where show_report_range_flags is null;

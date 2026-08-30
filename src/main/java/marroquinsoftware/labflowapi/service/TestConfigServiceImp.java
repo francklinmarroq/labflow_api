@@ -65,6 +65,7 @@ public class TestConfigServiceImp implements TestConfigService {
         config.setTest(resolveTest(dto.getTestId()));
         config.setName(dto.getName());
         config.setActive(dto.isActive());
+        config.setAllowResultAttachments(dto.isAllowResultAttachments());
         applyChartConfig(config, dto);
         applyParameters(config, dto);
         return toDTO(testConfigRepository.save(config));
@@ -84,6 +85,7 @@ public class TestConfigServiceImp implements TestConfigService {
         config.setTest(resolveTest(dto.getTestId()));
         config.setName(dto.getName());
         config.setActive(dto.isActive());
+        config.setAllowResultAttachments(dto.isAllowResultAttachments());
         applyChartConfig(config, dto);
         applyParameters(config, dto);
         return toDTO(testConfigRepository.save(config));

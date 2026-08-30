@@ -64,6 +64,12 @@ public class Laboratory {
     private String reportPrimaryColor;
     private String reportSecondaryColor;
 
+    // ¿El reporte marca los valores fuera de rango — (Alto), (Bajo), (¡Crítico!) y
+    // el resaltado en negrita? Nulo ⇒ sí, el comportamiento de siempre, para no
+    // cambiarle el reporte a ningún laboratorio que ya existía cuando se agregó
+    // esta columna. El interruptor es opt-out: solo apaga quien lo apaga.
+    private Boolean showReportRangeFlags = Boolean.TRUE;
+
     // Distribución visual del sobre postal (classic | centered | window). Se guarda
     // como texto (no enum) para evitar el drift del check-constraint de @Enumerated.
     // Nulo ⇒ el frontend usa 'classic' (la distribución actual).

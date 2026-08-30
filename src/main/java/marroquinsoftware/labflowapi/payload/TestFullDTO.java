@@ -44,6 +44,9 @@ public class TestFullDTO {
     private boolean active;
     private ChartType chartType;
     private ResultLayout resultLayout;
+    // Independiente de resultLayout: permite ademas adjuntar foto(s)/escaneo del
+    // reporte que ya imprime el equipo (p. ej. un hemograma automatizado).
+    private boolean allowResultAttachments;
     private String chartXAxisLabel;
 
     // --- Parámetros del perfil, en el orden del reporte ---
