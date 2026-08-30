@@ -77,6 +77,10 @@ public class LaboratoryServiceImp implements LaboratoryService {
         String stampKey = laboratory.getStampObjectKey();
         // El estado de onboarding es config invisible: nunca se edita desde este DTO.
         OnboardingSeedStatus seedStatus = laboratory.getSeedStatus();
+        // El interruptor de las alertas del reporte sí viaja en el DTO, pero puede venir
+        // nulo (cliente viejo, o un cuerpo parcial). Como modelMapper copia los nulos
+        // encima, se guarda antes para reponerlo y no borrar la preferencia sin querer.
+        Boolean showRangeFlags = laboratory.getShowReportRangeFlags();
         modelMapper.map(dto, laboratory);
         laboratory.setId(id);
         // Ni el logo ni el sello viajan en el DTO (solo sus URL firmadas, que son de
@@ -84,6 +88,10 @@ public class LaboratoryServiceImp implements LaboratoryService {
         laboratory.setLogoObjectKey(logoKey);
         laboratory.setStampObjectKey(stampKey);
         laboratory.setSeedStatus(seedStatus);
+        // Solo un valor explícito cambia la preferencia; omitirla la conserva.
+        if (dto.getShowReportRangeFlags() == null) {
+            laboratory.setShowReportRangeFlags(showRangeFlags);
+        }
         return toDto(laboratoryRepository.save(laboratory));
     }
 
@@ -223,6 +231,10 @@ public class LaboratoryServiceImp implements LaboratoryService {
         // null == PENDING (filas anteriores a la columna): sigue pendiente de decidir.
         OnboardingSeedStatus status = laboratory.getSeedStatus();
         dto.setSeedChoicePending(status == null || status == OnboardingSeedStatus.PENDING);
+        // null == alertas encendidas (filas anteriores a la columna): se normaliza aquí
+        // para que ningún cliente tenga que conocer el valor por defecto ni recibir null.
+        Boolean showRangeFlags = laboratory.getShowReportRangeFlags();
+        dto.setShowReportRangeFlags(showRangeFlags == null || showRangeFlags);
         return dto;
     }
 

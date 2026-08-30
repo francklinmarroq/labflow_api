@@ -192,7 +192,8 @@ public class PublicReportServiceImp implements PublicReportService {
                 lab.getName(), lab.getAddress1(), lab.getAddress2(),
                 lab.getPhone(), lab.getEmail(), lab.getRtn(), lab.getInvoiceFooterNote(),
                 lab.getLogoUrl(), lab.getStampUrl(),
-                lab.getReportPrimaryColor(), lab.getReportSecondaryColor());
+                lab.getReportPrimaryColor(), lab.getReportSecondaryColor(),
+                lab.getShowReportRangeFlags());
     }
 
     private PublicReportDTO.Patient toPatient(CustomerDTO customer) {

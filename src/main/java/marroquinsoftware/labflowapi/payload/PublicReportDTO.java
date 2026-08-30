@@ -63,6 +63,11 @@ public class PublicReportDTO {
         // respete la personalización del laboratorio; nulos ⇒ colores por defecto.
         private String reportPrimaryColor;
         private String reportSecondaryColor;
+        // ¿El reporte marca los valores fuera de rango — (Alto), (Bajo), (¡Crítico!) y
+        // el resaltado en negrita? Va aquí para que el reporte público del paciente
+        // respete la misma preferencia que el impreso. Es dato de presentación, no
+        // fiscal, así que no amplía lo que expone este endpoint. Nunca viaja nulo.
+        private Boolean showReportRangeFlags;
     }
 
     /** Datos del paciente que salen en el reporte (sin teléfono/correo/fiscales). */
