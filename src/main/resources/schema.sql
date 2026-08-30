@@ -208,3 +208,36 @@ create index if not exists ix_lab_order_tags_tag on lab_order_tags (tag_id);
 -- que este backfill es por orden, no un requisito para que funcione.
 alter table if exists laboratory add column if not exists show_report_range_flags boolean default true;
 update laboratory set show_report_range_flags = true where show_report_range_flags is null;
+
+-- Adjuntar foto del reporte por examen (test_config.allow_result_attachments): la
+-- columna la declara la entidad TestConfig desde el commit 5243610, pero ese commit
+-- NO tocó este archivo y en prod ddl-auto ya no tiene permisos DDL. Sin la columna
+-- TODA consulta a test_config revienta ("column does not exist"): el editor de
+-- exámenes (GET/PUT /api/v1/tests/{id}/full) devuelve 500 y con él se cae el catálogo.
+--
+-- Nace apagada: el interruptor es opt-in y los exámenes que ya existían no ofrecían
+-- adjuntos. El default cubre las filas nuevas y el update las que ya estaban; la
+-- entidad la mapea como boolean primitivo, así que un nulo tampoco es aceptable.
+alter table if exists test_config add column if not exists allow_result_attachments boolean default false;
+update test_config set allow_result_attachments = false where allow_result_attachments is null;
+
+-- Fotos/escaneos del reporte del equipo (test_run_attachments): tabla NUEVA del mismo
+-- commit 5243610, que tampoco se registró aquí. La mapea TestRunAttachment y la
+-- relación @OneToMany de TestRun, así que sin ella falla subir/leer los adjuntos de
+-- una corrida. No lleva laboratory_id: el aislamiento lo hereda de la corrida dueña.
+-- object_key es la llave dentro del bucket privado de R2, no una URL.
+--
+-- OJO con el dueño: en prod esta tabla ya la creó ddl-auto con el rol de la app,
+-- que quedó como su dueño, y en Postgres el CREATE INDEX de abajo exige serlo. Con
+-- la credencial admin falla con "must be owner of table test_run_attachments";
+-- hay que correrlo con el rol de la app (set role / esa conexión) o apropiarse antes
+-- de la tabla (alter table test_run_attachments owner to current_user). El índice es
+-- solo de rendimiento: sin él nada se rompe.
+create table if not exists test_run_attachments (
+  id bigserial primary key,
+  test_run_id bigint not null references test_runs(id),
+  object_key varchar(255) not null,
+  content_type varchar(255),
+  display_order integer
+);
+create index if not exists ix_test_run_attachments_run on test_run_attachments (test_run_id);
