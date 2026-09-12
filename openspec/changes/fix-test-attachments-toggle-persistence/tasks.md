@@ -37,5 +37,5 @@
 
 ## 6. Follow-up
 
-- [ ] 6.1 Open a separate change for the columns `schema.sql` still cannot rebuild — `test_config.chart_type`, `test_config.result_layout`, `test_config.chart_x_axis_label`, `test_config_parameters.chart_x_value`, `test_config_parameters.display_order` — which exist in production only because `ddl-auto` created them years-of-commits ago; verified by the change existing
-- [ ] 6.2 Note for that change the idea of a build-time check that every `@Column` on an entity has a matching statement in `schema.sql`, since the H2 test suite structurally cannot catch this class of outage — verified by the idea being recorded in its design
+- [x] 6.1 Open a separate change for the columns `schema.sql` still cannot rebuild — `test_config.chart_type`, `test_config.result_layout`, `test_config.chart_x_axis_label`, `test_config_parameters.chart_x_value`, `test_config_parameters.display_order` — which exist in production only because `ddl-auto` created them years-of-commits ago; verified by the change existing
+- [x] 6.2 Note for that change the idea of a build-time check that every `@Column` on an entity has a matching statement in `schema.sql`, since the H2 test suite structurally cannot catch this class of outage — verified by the idea being recorded in its design
