@@ -36,4 +36,4 @@
 - [x] 5.2 Confirm the generated `CHANGELOG.md` covers only commits after `v1.7.0` — verified by its first entry not reaching back into the pre-tag history
 - [x] 5.3 Confirm the changelog is developer-facing and that nothing in this repository attempts to write user-facing release-note copy — verified by no release-notes content file existing here, since that copy lives in the frontend repository
 - [x] 5.4 Confirm the application is untouched: no Java source, no `schema.sql`, no endpoint and no dependency of the running app changed — verified by the diff containing only build, config, docs and changelog files
-- [ ] 5.5 Coordinate the first real release with the frontend's matching change so both repositories carry the same version — verified by `git describe --tags` reporting the same version in both repositories
+- [x] 5.5 Coordinate the first real release with the frontend's matching change so both repositories carry the same version — verified by `git describe --tags` reporting the same version in both repositories
