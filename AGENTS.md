@@ -46,10 +46,48 @@ LabFlow backend: Spring Boot 4.0.6 / Java 25, PostgreSQL, JWT auth (Spring Secur
 ## Cloudflare Worker / deploy
 
 - `worker/index.ts` defines `LabflowApiContainer extends Container`; its `defaultPort = 8080` must match `SERVER_PORT=8080` in `Dockerfile`.
-- Deploying a new backend = push a new Docker image, then bump `containers[0].image` in `wrangler.jsonc` to the new tag (`luciaelabs/labflow_backend:vX.Y.Z`). Commit convention: `chore: bump de imagen de despliegue a vX.Y.Z`.
+- Deploying a new backend = cut a release (see **Releases** below, which bumps `containers[0].image` in `wrangler.jsonc` for you), then push the matching Docker image tag, then `wrangler deploy`. Do **not** edit the image tag by hand any more — the release writes it, along with `pom.xml` and `package.json`, so the three cannot drift.
 - Worker secrets come from `wrangler secret put` (`DB_URL`, `DB_USERNAME`, `DB_PASSWORD`, `JWT_SECRET`, `RESEND_API_KEY`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`); non-secret config is in `wrangler.jsonc` `vars`. Do not hardcode secrets in `worker/index.ts` or `wrangler.jsonc`.
 - Deploy worker: `wrangler deploy`. Typecheck worker: `tsc` (uses pnpm; `pnpm-workspace.yaml` allows esbuild/workerd build scripts).
 - `.env.wrangler` holds real prod credentials and is **not** in `.gitignore`; never `git add` it.
+
+## Releases
+
+Versioning is driven by `commit-and-tag-version` (the maintained fork of the archived `standard-version`; the original's own deprecation notice points at `release-please`, which we declined because it needs CI and this repo has none). Config lives in `.versionrc.json`; releases are run locally and deliberately, never in a hook or on push.
+
+- `pnpm release:dry` — dry run. Always read the diff before a real release.
+- `pnpm release` — bumps the version, writes `CHANGELOG.md`, commits, and creates an annotated tag.
+- `pnpm release -- --release-as X.Y.Z` — release as an exact version. This is the normal form here; see lockstep below.
+
+A release writes the version to **three** places, via `bumpFiles` in `.versionrc.json`:
+
+- `package.json` — the tool's anchor. Note this file describes the *Worker*, not the Spring Boot app; it holds the version because the tool needs a native anchor it understands.
+- `pom.xml` — the project's own `<version>`, through `.release/updaters/pom-version.cjs`.
+- `wrangler.jsonc` — the **prod** `containers[].image` tag only, through `.release/updaters/wrangler-image.cjs`.
+
+Both updaters are hand-written text replacements, on purpose. The built-in `maven` updater reparses the XML and reformats the entire `pom.xml` (measured: 379 lines of diff on a 199-line file, 14 lines lost, the `<?xml?>` declaration and the inline `<!-- lookup parent from repository -->` comment destroyed). A JSON updater on `wrangler.jsonc` would delete every comment in it. Each updater throws rather than bumping the wrong line or none at all. The develop image entry is deliberately untouched — per that file's own comment, develop builds use `develop-<sha>` tags, not the `vX.Y.Z` series.
+
+### Lockstep with the frontend
+
+`labflow_api` and `labflow_frontend` share **one product version** and are released together, so "LabFlow X.Y.Z" names the whole app — which is what the release-notes modal announces to users. The tool derives its bump from each repo's own commits, so left alone the two would diverge (a `feat:` here and only a `fix:` there gives 1.8.0 and 1.7.1). Therefore:
+
+1. `pnpm release:dry` in **both** repositories.
+2. Take the **higher** of the two bumps.
+3. `pnpm release -- --release-as X.Y.Z` in both, with that same version.
+
+Write the frontend's user-facing release-notes entry for that version as part of the release; its release will refuse to proceed without one. `CHANGELOG.md` here is developer-facing and generated from commit subjects — it is *not* the users' release notes, and no user-facing copy is written in this repository.
+
+### Order of operations
+
+Release → build and push the Docker image for the new tag → `wrangler deploy`. In that order, because the release commit writes an image tag that does not exist yet; deploying between the release and the image push points the Worker at a missing image. Tagging the release before the image exists is also what makes the version series checkable in git — the absence of that is what let `v1.6.0` be pinned but never deployed.
+
+### Commit convention
+
+Enforced on `commit-msg` by commitlint + husky (`.commitlintrc.json`). The **type keyword is English**, the **subject stays Spanish**, as everywhere else in this repo:
+
+`feat`, `fix`, `perf`, `refactor`, `design`, `docs`, `style`, `test`, `build`, `ci`, `chore`, `revert`
+
+`design` is ours and is kept because it is genuinely used; it shows in the changelog. `feat` bumps the minor, `fix`/`perf`/`refactor` the patch. A breaking change is `feat!:` or a `BREAKING CHANGE:` footer — **not** `breaking-changes:`, which is not a registered type and would produce no major bump. `git commit --no-verify` bypasses the hook; it is there to catch slips, not to veto the repo owner.
 
 ## Repo boundaries
 

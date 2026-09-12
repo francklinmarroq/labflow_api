@@ -1,10 +1,14 @@
 {
   "name": "labflow-api-worker",
+  "version": "1.7.0",
   "description": "Worker que rutea a la API de LabFlow en Cloudflare Containers",
   "scripts": {
     "deploy": "wrangler deploy",
     "dev": "wrangler dev",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "release": "commit-and-tag-version",
+    "release:dry": "commit-and-tag-version --dry-run",
+    "prepare": "husky"
   },
   "type": "module",
   "private": true,
@@ -13,6 +17,10 @@
   },
   "devDependencies": {
     "@cloudflare/workers-types": "^5.20260722.1",
+    "@commitlint/cli": "^21.2.2",
+    "@commitlint/config-conventional": "^21.2.2",
+    "commit-and-tag-version": "13.1.2",
+    "husky": "^9.1.7",
     "typescript": "^7.0.2",
     "wrangler": "^4.113.0"
   }
