@@ -23,17 +23,17 @@
 
 ## 4. Regression tests
 
-- [ ] 4.1 Add a test class for the unified exam editor round trip alongside the existing tests in `src/test/java/marroquinsoftware/labflowapi/`, modelled on `LaboratoryReportFlagsTest`, driving the controller over HTTP on H2 — verified by the class compiling and running
-- [ ] 4.2 Cover "turning attachments on for an existing exam": `PUT /api/v1/tests/{testId}/full` with `allowResultAttachments` `true` returns `true`, and a following `GET` still returns `true` — verified by the test passing
-- [ ] 4.3 Cover "turning attachments back off": the same round trip with `false` returns and re-reads `false` — verified by the test passing
-- [ ] 4.4 Cover "creating an exam with attachments allowed" via `POST /api/v1/tests/full`, and "exam created without mentioning the setting" defaulting to `false` — verified by both tests passing
-- [ ] 4.5 Cover "the switch is independent of the antibiogram layout": `resultLayout` `ANTIBIOGRAM` with `allowResultAttachments` `true` round-trips both unchanged, and changing one in a later save leaves the other alone — verified by the test passing
-- [ ] 4.6 Cover "all profile settings survive one round trip": non-default `active`, `chartType`, `chartXAxisLabel`, `resultLayout` and `allowResultAttachments` in one save all read back unchanged — verified by the test passing
-- [ ] 4.7 Run `mvn -B --settings .mvn/settings.xml test -Dtest=<NewTestClass>` — verified by the suite passing on H2
+- [x] 4.1 Add a test class for the unified exam editor round trip alongside the existing tests in `src/test/java/marroquinsoftware/labflowapi/`, modelled on `LaboratoryReportFlagsTest`, driving the controller over HTTP on H2 — `TestFullProfileSettingsTest`, `MockMvc` en `standaloneSetup` sobre `@DataJpaTest`. Se le inyecta el `JsonMapper` de la aplicación (`@ImportAutoConfiguration(JacksonAutoConfiguration.class)`) en vez del que arma `standaloneSetup` por su cuenta: Jackson 3 trae `FAIL_ON_NULL_FOR_PRIMITIVES` encendido y Spring Boot se lo apaga, así que con el mapper crudo un cuerpo que omite un boolean primitivo se rechaza con `400` — comportamiento del arnés, no de la API
+- [x] 4.2 Cover "turning attachments on for an existing exam": `PUT /api/v1/tests/{testId}/full` with `allowResultAttachments` `true` returns `true`, and a following `GET` still returns `true` — verified by the test passing
+- [x] 4.3 Cover "turning attachments back off": the same round trip with `false` returns and re-reads `false` — verified by the test passing
+- [x] 4.4 Cover "creating an exam with attachments allowed" via `POST /api/v1/tests/full`, and "exam created without mentioning the setting" defaulting to `false` — verified by both tests passing
+- [x] 4.5 Cover "the switch is independent of the antibiogram layout": `resultLayout` `ANTIBIOGRAM` with `allowResultAttachments` `true` round-trips both unchanged, and changing one in a later save leaves the other alone — verified by the test passing
+- [x] 4.6 Cover "all profile settings survive one round trip": non-default `active`, `chartType`, `chartXAxisLabel`, `resultLayout` and `allowResultAttachments` in one save all read back unchanged — verified by the test passing
+- [x] 4.7 Run `mvn -B --settings .mvn/settings.xml test -Dtest=TestFullProfileSettingsTest` — verified by the 6 tests passing on H2
 
 ## 5. Full verification
 
-- [ ] 5.1 Run `mvn -B --settings .mvn/settings.xml test` — verified by the run being green, allowing for the two known pre-existing conditions (`PostgresQueryCompatibilityTest` self-skips without the local PostgreSQL; `LabflowapiApplicationTests` fails on `${DB_URL}` without a `.env`)
+- [x] 5.1 Run `mvn -B --settings .mvn/settings.xml test` — verified by the run being green, allowing for the two known pre-existing conditions (`PostgresQueryCompatibilityTest` self-skips without the local PostgreSQL; `LabflowapiApplicationTests` fails on `${DB_URL}` without a `.env`) — 87 pruebas, 1 error: solo `LabflowapiApplicationTests.contextLoads`, con `Driver org.postgresql.Driver claims to not accept jdbcUrl, ${DB_URL}` (no hay `.env` en este entorno), y `PostgresQueryCompatibilityTest` se saltó solo por no haber PostgreSQL en `localhost:55432`
 
 ## 6. Follow-up
 
