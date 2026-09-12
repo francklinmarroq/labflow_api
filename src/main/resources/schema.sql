@@ -250,3 +250,50 @@ create index if not exists ix_test_run_attachments_run on test_run_attachments (
 -- Se agrega idempotente y nullable; no lleva backfill a propósito: null significa "no
 -- ha visto nada", que es exactamente lo correcto para quien nunca vio un anuncio.
 alter table if exists app_user add column if not exists last_seen_release_version varchar(255);
+
+-- Columnas del perfil de examen que este archivo nunca registró: chart_type,
+-- result_layout y chart_x_axis_label en test_config, y la tabla de unión
+-- test_config_parameters completa con display_order y chart_x_value. Las mapean las
+-- entidades TestConfig y TestConfigParameter desde junio y julio de 2026, pero esos
+-- commits no tocaron este archivo: existen en prod SOLO porque en esa época
+-- ddl-auto=update todavía podía alterar el esquema. Hoy ya no puede, que es justo
+-- lo que costó el incidente de allow_result_attachments de arriba.
+--
+-- CONTRA PRODUCCIÓN NO HAY NADA QUE CORRER: allá ya están las cinco columnas y la
+-- tabla, así que todas estas sentencias son no-ops. Se agregan para que una base
+-- reconstruida desde este archivo no arranque con el catálogo de exámenes roto en
+-- silencio: sin gráfico configurado, sin distribución de antibiograma y sin orden
+-- de parámetros en el reporte impreso.
+--
+-- OJO: esto NO vuelve a este archivo capaz de construir una base desde cero. Las
+-- tablas base (tests, parameter, lab_orders, test_runs...) las sigue creando
+-- ddl-auto y aquí no están; el bloque de abajo asume que ya existen, igual que los
+-- anteriores.
+--
+-- Ni not null, ni default, ni check constraint, a propósito:
+--   * not null — la columna puede ya existir como nullable y ponerle not null exige
+--     una segunda sentencia que falla cuando ya lo es, y este archivo no puede
+--     ramificar (Spring lo parte por cada ";" y no entiende $$).
+--   * default — chartType y resultLayout traen su valor inicial en Java
+--     (ChartType.NONE, ResultLayout.STANDARD) y TestConfigServiceImp.toDTO ya lee un
+--     nulo como el default, así que la columna nula está cubierta en todos lados.
+--   * check — los dos son @Enumerated(STRING) y este archivo YA elimina esos checks
+--     más arriba (ver app_role_permission, accounts, tests.area): ddl-auto no los
+--     actualiza cuando el enum gana un valor y guardar revienta. La validez la
+--     garantiza el enum de Java.
+create table if not exists test_config_parameters (
+  parameter_id bigint not null references parameter(id),
+  test_config_id bigint not null references test_config(id),
+  chart_x_value numeric(38,2),
+  display_order integer,
+  primary key (parameter_id, test_config_id)
+);
+alter table if exists test_config add column if not exists chart_type varchar(255);
+alter table if exists test_config add column if not exists result_layout varchar(255);
+alter table if exists test_config add column if not exists chart_x_axis_label varchar(255);
+-- Las dos columnas de la tabla de unión van también como alter, no solo dentro del
+-- create de arriba: en una base donde test_config_parameters ya existe (prod, y
+-- cualquiera que venga de antes de que existieran el orden y la curva) el "create
+-- table if not exists" es un no-op y no agregaría nada.
+alter table if exists test_config_parameters add column if not exists display_order integer;
+alter table if exists test_config_parameters add column if not exists chart_x_value numeric(38,2);
