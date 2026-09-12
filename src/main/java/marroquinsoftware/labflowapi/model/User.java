@@ -99,6 +99,23 @@ public class User {
     @Column(name = "reset_expires_at")
     private Instant resetExpiresAt;
 
+    /**
+     * Última versión de novedades que ya se le anunció a este usuario. Null significa
+     * "no ha visto nada": es el estado en el que arranca todo el mundo y no se rellena
+     * con nada, porque inventarle un historial a quien no lo tiene lo dejaría sin ver
+     * el primer anuncio.
+     *
+     * <p>La API guarda la cadena TAL CUAL y nunca la interpreta: no la ordena, no la
+     * compara y no sabe qué trae una versión. Quién decide si toca anunciar es el
+     * frontend, que es donde vive el contenido de las novedades.
+     *
+     * <p>Como el correo tiene una fila por laboratorio, el marcador es por membresía:
+     * quien pertenece a tres laboratorios ve el anuncio una vez en cada uno. Es
+     * deliberado (ver design.md del cambio track-release-notes-seen).
+     */
+    @Column(name = "last_seen_release_version", length = 255)
+    private String lastSeenReleaseVersion;
+
     /** ¿El usuario fue invitado y aún no acepta (no tiene contraseña propia)? */
     @Transient
     public boolean isInvitationPending() {

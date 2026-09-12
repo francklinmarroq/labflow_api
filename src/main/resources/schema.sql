@@ -241,3 +241,12 @@ create table if not exists test_run_attachments (
   display_order integer
 );
 create index if not exists ix_test_run_attachments_run on test_run_attachments (test_run_id);
+
+-- Marcador de novedades vistas (app_user.last_seen_release_version): la entidad User
+-- mapea esta columna para recordar, por usuario, la última versión de novedades que
+-- ya se le anunció. Igual que 'name' y las de reset de arriba, ddl-auto=update no
+-- agrega columnas en bases existentes, y con ella mapeada TODA consulta a app_user
+-- (LOGIN incluido) reventaría con "no existe la columna last_seen_release_version".
+-- Se agrega idempotente y nullable; no lleva backfill a propósito: null significa "no
+-- ha visto nada", que es exactamente lo correcto para quien nunca vio un anuncio.
+alter table if exists app_user add column if not exists last_seen_release_version varchar(255);
