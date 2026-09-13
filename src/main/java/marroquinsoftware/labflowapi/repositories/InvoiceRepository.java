@@ -64,8 +64,40 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
     @Query("select coalesce(sum(i.total - i.paidAmount), 0) from Invoice i where i.status in (marroquinsoftware.labflowapi.model.InvoiceStatus.PENDIENTE, marroquinsoftware.labflowapi.model.InvoiceStatus.PARCIAL)")
     java.math.BigDecimal totalReceivable();
 
-    /** Facturas de un cliente para el estado de cuenta, más antiguas primero. */
+    /** Facturas de un paciente para el estado de cuenta, más antiguas primero. */
     List<Invoice> findByCustomerIdOrderByIssuedAtAsc(Long customerId);
+
+    /**
+     * Facturas emitidas a un cliente de facturación, más antiguas primero, para su
+     * estado de cuenta. Espejo del de pacientes, sobre la asociación nueva.
+     */
+    List<Invoice> findByBillingClientIdOrderByIssuedAtAsc(Long billingClientId);
+
+    /**
+     * ¿Este cliente de facturación tiene alguna factura? Las ANULADA cuentan: su
+     * identidad sigue impresa en un documento fiscal, así que tampoco se puede
+     * borrar al cliente al que apuntan.
+     */
+    boolean existsByBillingClientId(Long billingClientId);
+
+    /**
+     * Saldo abierto por cliente de facturación: filas
+     * [billingClientId, nombre vivo del cliente, cantidad de facturas, suma de saldos].
+     *
+     * <p>Una sola consulta agregada, no una por cliente. El join interno con
+     * {@code billingClient} deja fuera las facturas emitidas a un paciente, y el
+     * nombre sale de la tabla del catálogo (no del congelado en la factura)
+     * porque esto es una lista de trabajo para cobrar, no un documento fiscal.
+     */
+    @Query("""
+            select bc.id, bc.name, count(i.id), coalesce(sum(i.total - i.paidAmount), 0)
+            from Invoice i
+              join i.billingClient bc
+            where i.status in (marroquinsoftware.labflowapi.model.InvoiceStatus.PENDIENTE,
+                               marroquinsoftware.labflowapi.model.InvoiceStatus.PARCIAL)
+            group by bc.id, bc.name
+            """)
+    List<Object[]> receivablesByBillingClient();
 
     // --- Reportería de ventas (todas excluyen las facturas ANULADA) ---
     // El laboratorio (tenant) lo filtra Hibernate por @TenantId; el rango es

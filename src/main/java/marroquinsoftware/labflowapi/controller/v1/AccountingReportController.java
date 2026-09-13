@@ -1,6 +1,7 @@
 package marroquinsoftware.labflowapi.controller.v1;
 
 import marroquinsoftware.labflowapi.config.AppConstants;
+import marroquinsoftware.labflowapi.payload.BillingClientBalanceDTO;
 import marroquinsoftware.labflowapi.payload.CustomerStatementDTO;
 import marroquinsoftware.labflowapi.payload.LedgerReportDTO;
 import marroquinsoftware.labflowapi.payload.ReceivablesResponse;
@@ -15,6 +16,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
+import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/reports")
@@ -55,5 +57,20 @@ public class AccountingReportController {
     @PreAuthorize("hasAuthority('INVOICES_VIEW')")
     public ResponseEntity<CustomerStatementDTO> getCustomerStatement(@RequestParam Long customerId) {
         return new ResponseEntity<>(invoiceService.getCustomerStatement(customerId), HttpStatus.OK);
+    }
+
+    // Mismo estado de cuenta, pero de una empresa o aseguradora.
+    @GetMapping("/billing-client-statement")
+    @PreAuthorize("hasAuthority('INVOICES_VIEW')")
+    public ResponseEntity<CustomerStatementDTO> getBillingClientStatement(@RequestParam Long billingClientId) {
+        return new ResponseEntity<>(invoiceService.getBillingClientStatement(billingClientId), HttpStatus.OK);
+    }
+
+    // Desglose por cliente de la misma cartera que reporta /receivables; no es una
+    // segunda cartera, es la misma vista por a quién hay que cobrarle.
+    @GetMapping("/receivables-by-client")
+    @PreAuthorize("hasAuthority('INVOICES_VIEW')")
+    public ResponseEntity<List<BillingClientBalanceDTO>> getReceivablesByBillingClient() {
+        return new ResponseEntity<>(invoiceService.getReceivablesByBillingClient(), HttpStatus.OK);
     }
 }

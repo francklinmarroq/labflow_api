@@ -17,9 +17,14 @@ import java.util.List;
 /**
  * Factura CAI (SAR Honduras) emitida desde una orden. Es un documento fiscal:
  * todo lo que se imprime queda congelado al emitir — el número con su CAI,
- * rango autorizado y fecha límite, los datos del emisor, el cliente, y el
+ * rango autorizado y fecha límite, los datos del emisor, el destinatario, y el
  * nombre y precio de cada examen con el descuento por edad vigente. Nunca se
  * borra: se anula, y la anulación genera el contra-asiento contable.
+ *
+ * <p>El destinatario es el paciente de la orden o un cliente de facturación
+ * (empresa, aseguradora) cuando la factura va a nombre de un tercero; en ambos
+ * casos queda congelado en {@code customerName}/{@code customerRtn}, y el
+ * paciente aparte en {@code patientName}.
  *
  * <p>Los servicios de laboratorio están exentos de ISV, así que el importe
  * exento impreso es el total; no se guardan tasas por línea.
@@ -76,12 +81,46 @@ public class Invoice {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    /** Nombre del cliente con el que se emitió (copiado del expediente). */
+    /**
+     * Cliente de facturación al que se emitió, cuando la factura va a nombre de
+     * una empresa o aseguradora; null = se emitió a nombre del paciente, que es
+     * lo que ocurre en toda factura anterior a este campo.
+     *
+     * <p>LAZY a propósito: el DTO solo reporta el id, y leerlo del proxy no toca
+     * la base. El nombre que se muestra es el congelado en {@link #customerName},
+     * así que traer la asociación sería un LEFT JOIN más en cada listado para un
+     * dato que la fila ya lleva.
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "billing_client_id")
+    private BillingClient billingClient;
+
+    /**
+     * Nombre del DESTINATARIO congelado al emitir: el paciente, o la razón social
+     * del cliente de facturación cuando se emitió a nombre de una empresa. Es lo
+     * que se imprime, lo que busca el listado y por lo que agrupa el reporte de
+     * ventas.
+     */
     @Column(nullable = false)
     private String customerName;
 
-    /** RTN del cliente cuando pidió factura con RTN; null = consumidor final. */
+    /**
+     * RTN del DESTINATARIO: el del cliente de facturación cuando hay uno, y si no
+     * el que se pidió en mostrador; null = consumidor final. Nunca contradice al
+     * nombre de arriba.
+     */
     private String customerRtn;
+
+    /**
+     * Nombre del paciente de la orden, siempre, se haya facturado a su nombre o
+     * al de una empresa: la factura tiene que decir de quién son los exámenes.
+     *
+     * <p>Nullable por las facturas anteriores a este campo; en ellas
+     * {@code billingClient} es null y {@code customerName} ES el paciente, así
+     * que la impresión cae de vuelta en ese.
+     */
+    @Column(name = "patient_name")
+    private String patientName;
 
     private Instant issuedAt;
     private String issuedByUsername;

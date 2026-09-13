@@ -44,6 +44,7 @@ public class InvoiceServiceImp implements InvoiceService {
     @Autowired private LabOrderRepository labOrderRepository;
     @Autowired private LaboratoryRepository laboratoryRepository;
     @Autowired private CustomerRepository customerRepository;
+    @Autowired private BillingClientRepository billingClientRepository;
     @Autowired private CaiNumberService caiNumberService;
     @Autowired private AgeDiscountCalculator ageDiscountCalculator;
     @Autowired private InvoiceTotalsCalculator invoiceTotalsCalculator;
@@ -135,6 +136,17 @@ public class InvoiceServiceImp implements InvoiceService {
                             + existing.getInvoiceNumber() + ").");
                 });
 
+        // A nombre de quién se emite. Se resuelve acá arriba, antes de tocar el
+        // correlativo CAI: si el cliente no existe, la transacción se va sin haber
+        // gastado un número fiscal, que es irrecuperable (queda un hueco en el
+        // rango autorizado por el SAR). El findById solo ve los del laboratorio en
+        // contexto por el @TenantId, así que uno de otro laboratorio es inexistente.
+        BillingClient billingClient = request.getBillingClientId() != null
+                ? billingClientRepository.findById(request.getBillingClientId())
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "BillingClient", "billingClientId", request.getBillingClientId()))
+                : null;
+
         Invoice invoice = new Invoice();
 
         // Precios especiales que manda el mostrador, indexados por el examen de
@@ -187,9 +199,20 @@ public class InvoiceServiceImp implements InvoiceService {
 
         invoice.setOrder(order);
         invoice.setCustomer(customer);
-        invoice.setCustomerName(customer.getName());
-        String rtn = request.getCustomerRtn() != null ? request.getCustomerRtn().trim() : null;
-        invoice.setCustomerRtn(rtn != null && !rtn.isEmpty() ? rtn : customer.getTaxNumber());
+        // El paciente de la orden queda congelado siempre: la factura tiene que
+        // decir de quién son los exámenes aunque la pague una empresa.
+        invoice.setPatientName(customer.getName());
+        if (billingClient != null) {
+            // A nombre de la empresa: nombre y RTN salen de su ficha. El RTN escrito
+            // a mano se ignora a propósito (ver InvoiceRequest.billingClientId).
+            invoice.setBillingClient(billingClient);
+            invoice.setCustomerName(billingClient.getName());
+            invoice.setCustomerRtn(billingClient.getRtn());
+        } else {
+            invoice.setCustomerName(customer.getName());
+            String rtn = request.getCustomerRtn() != null ? request.getCustomerRtn().trim() : null;
+            invoice.setCustomerRtn(rtn != null && !rtn.isEmpty() ? rtn : customer.getTaxNumber());
+        }
 
         // Porcentaje realmente aplicado del tramo de edad. El descuento por edad
         // es un techo: si en mostrador se rebaja menos que la regla, el monto se
@@ -273,7 +296,7 @@ public class InvoiceServiceImp implements InvoiceService {
     @Override
     public InvoiceResponse getAllInvoices(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
                                           InvoiceStatus status, Long orderId, LocalDate from, LocalDate to,
-                                          String search, Long tagId) {
+                                          String search, Long tagId, Long billingClientId) {
         Sort sort = sortDir.equalsIgnoreCase("asc") ? Sort.by(sortBy).ascending() : Sort.by(sortBy).descending();
         Pageable pageable = PageRequest.of(pageNumber, pageSize, sort);
         // El rango es [from 00:00, to+1 00:00) en hora de Honduras; el límite
@@ -281,7 +304,8 @@ public class InvoiceServiceImp implements InvoiceService {
         Instant fromInstant = from != null ? from.atStartOfDay(LAB_ZONE).toInstant() : null;
         Instant toInstant = to != null ? to.plusDays(1).atStartOfDay(LAB_ZONE).toInstant() : null;
         Page<Invoice> page = invoiceRepository.findAll(
-                BillingSpecifications.invoices(status, orderId, fromInstant, toInstant, search, tagId), pageable);
+                BillingSpecifications.invoices(status, orderId, fromInstant, toInstant, search, tagId,
+                        billingClientId), pageable);
         InvoiceResponse response = new InvoiceResponse();
         response.setContent(page.getContent().stream().map(i -> toDTO(i, false)).toList());
         response.setPageNumber(page.getNumber());
@@ -411,13 +435,45 @@ public class InvoiceServiceImp implements InvoiceService {
     public CustomerStatementDTO getCustomerStatement(Long customerId) {
         Customer customer = customerRepository.findById(customerId)
                 .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerId", customerId));
+        return statementOf(customer.getId(), customer.getName(),
+                invoiceRepository.findByCustomerIdOrderByIssuedAtAsc(customerId));
+    }
 
-        // Cargos y abonos activos, mezclados en orden cronológico.
+    @Override
+    public CustomerStatementDTO getBillingClientStatement(Long billingClientId) {
+        BillingClient client = billingClientRepository.findById(billingClientId)
+                .orElseThrow(() -> new ResourceNotFoundException(
+                        "BillingClient", "billingClientId", billingClientId));
+        return statementOf(client.getId(), client.getName(),
+                invoiceRepository.findByBillingClientIdOrderByIssuedAtAsc(billingClientId));
+    }
+
+    @Override
+    public List<BillingClientBalanceDTO> getReceivablesByBillingClient() {
+        return invoiceRepository.receivablesByBillingClient().stream()
+                .map(row -> new BillingClientBalanceDTO(
+                        (Long) row[0],
+                        (String) row[1],
+                        (Long) row[2],
+                        ((BigDecimal) row[3]).setScale(2, RoundingMode.HALF_UP)))
+                .toList();
+    }
+
+    /**
+     * Arma el estado de cuenta de un titular —paciente o cliente de facturación—
+     * a partir de sus facturas: cargos y abonos activos mezclados en orden
+     * cronológico con el saldo corriendo. Lo comparten los dos reportes para que
+     * no se pueda arreglar la lógica en uno y dejarla vieja en el otro.
+     *
+     * <p>Las facturas anuladas no entran, y de las que entran solo cuentan los
+     * pagos no anulados: el estado de cuenta refleja lo que de verdad se debe.
+     */
+    private CustomerStatementDTO statementOf(Long holderId, String holderName, List<Invoice> invoices) {
         record Event(Instant date, String description, BigDecimal charge, BigDecimal payment) {}
         List<Event> events = new ArrayList<>();
         BigDecimal totalInvoiced = BigDecimal.ZERO;
         BigDecimal totalPaid = BigDecimal.ZERO;
-        for (Invoice invoice : invoiceRepository.findByCustomerIdOrderByIssuedAtAsc(customerId)) {
+        for (Invoice invoice : invoices) {
             if (invoice.getStatus() == InvoiceStatus.ANULADA) continue;
             events.add(new Event(invoice.getIssuedAt(),
                     "Factura Nº " + invoice.getInvoiceNumber(), invoice.getTotal(), null));
@@ -442,7 +498,7 @@ public class InvoiceServiceImp implements InvoiceService {
                     event.charge(), event.payment(), balance));
         }
 
-        return new CustomerStatementDTO(customer.getId(), customer.getName(), rows,
+        return new CustomerStatementDTO(holderId, holderName, rows,
                 totalInvoiced.setScale(2, RoundingMode.HALF_UP),
                 totalPaid.setScale(2, RoundingMode.HALF_UP),
                 balance.setScale(2, RoundingMode.HALF_UP));
@@ -621,8 +677,13 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getOrder() != null ? invoice.getOrder().getId() : null,
                 invoice.getOrder() != null ? invoice.getOrder().getOrderNumber() : null,
                 invoice.getCustomer() != null ? invoice.getCustomer().getId() : null,
+                // Solo el id del proxy LAZY: pedirle el nombre lo cargaría y
+                // convertiría el listado en un N+1. El nombre a mostrar ya es el
+                // customerName congelado, que va en la línea de abajo.
+                invoice.getBillingClient() != null ? invoice.getBillingClient().getId() : null,
                 invoice.getCustomerName(),
                 invoice.getCustomerRtn(),
+                invoice.getPatientName(),
                 invoice.getIssuedAt(),
                 invoice.getIssuedByUsername(),
                 displayName(invoice.getIssuedByUsername()),

@@ -148,7 +148,7 @@ class OrderTestLockTest {
 
     private InvoiceDTO invoice(Long orderId) {
         return invoiceService.createInvoice(
-                new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null, null));
+                new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null, null, null));
     }
 
     private List<LabTest> testsOf(Long orderId) {

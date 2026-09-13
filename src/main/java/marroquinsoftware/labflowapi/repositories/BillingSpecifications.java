@@ -39,9 +39,12 @@ public final class BillingSpecifications {
      *              copian a la factura: no son un dato fiscal, son una clasificación
      *              del laboratorio, y así renombrar una etiqueta se refleja en todo
      *              lo ya facturado sin tocar el documento congelado.
+     * @param billingClientId cliente de facturación (empresa, aseguradora) al que se
+     *              emitió la factura; null = todas, las emitidas a pacientes incluidas.
      */
     public static Specification<Invoice> invoices(InvoiceStatus status, Long orderId,
-                                                  Instant from, Instant to, String search, Long tagId) {
+                                                  Instant from, Instant to, String search, Long tagId,
+                                                  Long billingClientId) {
         return (root, query, cb) -> {
             // El mapeo a DTO de cada factura del listado lee order.id/order.orderNumber
             // y customer.id. Al ser @ManyToOne EAGER sin join, recorrer la página
@@ -58,6 +61,12 @@ public final class BillingSpecifications {
             List<Predicate> predicates = new ArrayList<>();
             if (status != null) predicates.add(cb.equal(root.get("status"), status));
             if (orderId != null) predicates.add(cb.equal(root.get("order").get("id"), orderId));
+            // Igual que orderId: una comparación sobre la llave foránea que la fila
+            // ya lleva, sin join, así que no duplica filas ni cambia el conteo. Y se
+            // aplica en la consulta, no sobre la página: filtra todas las facturas.
+            if (billingClientId != null) {
+                predicates.add(cb.equal(root.get("billingClient").get("id"), billingClientId));
+            }
             // `to` ya es el inicio del día siguiente (exclusivo), así que va con
             // menor-estricto para no arrastrar la medianoche del día siguiente.
             if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("issuedAt"), from));

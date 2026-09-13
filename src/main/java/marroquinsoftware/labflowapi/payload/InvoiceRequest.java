@@ -33,7 +33,22 @@ public class InvoiceRequest {
     @NotNull(message = "Seleccione la condición de venta")
     private SaleCondition saleCondition;
 
-    /** RTN del cliente; vacío = consumidor final (se usa el del expediente si existe). */
+    /**
+     * Cliente de facturación al que se emite. Vacío = a nombre del paciente de la
+     * orden, que es el comportamiento de siempre y el de cualquier cliente de la
+     * API que no mande este campo.
+     *
+     * <p>Cuando viene, el nombre y el RTN de la factura salen de la ficha de ese
+     * cliente: el {@code customerRtn} escrito a mano se ignora, para que un
+     * documento fiscal no pueda llevar un RTN que contradiga el nombre que imprime.
+     */
+    private Long billingClientId;
+
+    /**
+     * RTN del cliente; vacío = consumidor final (se usa el del expediente si
+     * existe). Solo aplica a las facturas a nombre del paciente: con
+     * {@code billingClientId} manda el RTN de la ficha del cliente.
+     */
     private String customerRtn;
 
     /**
