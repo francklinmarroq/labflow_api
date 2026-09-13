@@ -32,5 +32,5 @@
 ## 5. Verification
 
 - [x] 5.1 Run `mvn -B --settings .mvn/settings.xml test` — verified by the run being green, allowing for the two known pre-existing conditions (`PostgresQueryCompatibilityTest` self-skips without the local PostgreSQL; `LabflowapiApplicationTests` fails on `${DB_URL}` without a `.env`)
-- [ ] 5.2 Apply the DDL to the production database with admin credentials — verified by `information_schema.columns` listing the new column
-- [ ] 5.3 Against the deployed API, call `me`, mark a version, and call `me` again — verified by the first reporting absent, the third reporting the marked version, with no re-login in between
+- [x] 5.2 Apply the DDL to the production database with admin credentials — verified by `information_schema.columns` listing the new column — confirmado por el equipo contra la base de producción el 2026-09-12
+- [x] 5.3 Against the deployed API, call `me`, mark a version, and call `me` again — verified by the first reporting absent, the third reporting the marked version, with no re-login in between — confirmado por el equipo contra la API desplegada el 2026-09-12
