@@ -14,6 +14,39 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-09-13 — Identidad del paciente embebida en `LabOrderDTO` (habilita eliminar `GET /customers/{id}` en impresión/sobre) · cross-repo
+**Archivos:** `LabOrderDTO` (`customerNationalId`), `LabOrderServiceImp.toDTO`,
+`OrderTestLockTest` (+1 test).
+**Problema:** el reporte de la orden (`ordenes/[id]/imprimir.vue`, alto tráfico) y el
+sobre (`ordenes/[id]/sobre.vue`) mostraban la **identidad del paciente**
+(`nationalIdNumber`) pidiendo `GET /customers/{id}` en el front. Ese round-trip paga
+íntegro el piso de ~0.7 s (navegador → Worker → Durable Object → contenedor) y es otra
+invocación de Cloudflare. El sexo/edad ya venían embebidos (2026-07-28) y el nombre desde
+2026-07-27, pero la identidad seguía forzando la llamada al padrón.
+**Cambio:** `LabOrderDTO` ahora expone `customerNationalId` (`String`), embebido de
+**solo lectura** igual que `customerName`/`customerSex`/`customerAgeInDays`: se ignora al
+crear/actualizar (la orden se vincula por `customerId`) y se **lee del mismo `Customer`
+que `toDTO` ya materializaba** para el nombre — **sin consulta extra** a Postgres. En el
+listado el paciente ya viene por `LEFT JOIN FETCH o.customer` (una sola query) y en el
+detalle es el mismo proxy ya accedido para `getName()`. El resto del DTO y el
+comportamiento observable no cambian.
+**Impacto esperado:** habilita que el front elimine la llamada a `GET /customers/{id}` en
+el reporte de orden y en el sobre: **−1 invocación de Cloudflare por apertura** en cada
+una de esas pantallas (el sobre pasa de 2→1 llamadas y deja de encadenar un request
+serial; el reporte deja de disparar la llamada al paciente en su ola de carga). Del lado
+de Postgres: **0 queries nuevas** (mismo `Customer` ya cargado).
+**Acople de despliegue:** **API primero.** El consumidor (`labflow_frontend`, rama
+`claude/awesome-bell-tm67oh`) lee `customerNationalId` del DTO y mantiene respaldo a
+`GET /customers/{id}` mientras la API vieja no lo envíe; para eliminar la llamada en
+producción esta API debe desplegarse **antes** que el front. Ver PR del front.
+**Verificación:** `mvn test "-Dtest=!LabflowapiApplicationTests" -Dmaven.compiler.release=21`
+→ **97 tests, BUILD SUCCESS**. `OrderTestLockTest.orderDtoEmbedsPatientIdentityWithoutASecondCall`
+verifica que el DTO de la orden trae nombre/sexo/edad/identidad del paciente. (En este
+entorno solo hay JDK 21; el pom apunta a Java 25, así que se compiló con
+`-Dmaven.compiler.release=21` sin tocar el pom; agregar un campo derivado es 100%
+compatible con ambos targets.) Latencia real pendiente de confirmación humana (no hay
+entorno con API + BD para medir).
+
 ### 2026-07-31 — Listado de facturas y cuentas por cobrar: fetch join de `order`+`customer` (N+1 de Postgres → 1)
 **Archivos:** `BillingSpecifications.invoices()` (fetch join condicional),
 `InvoiceRepository.findReceivables` (`@EntityGraph`).
