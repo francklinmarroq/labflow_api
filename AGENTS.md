@@ -43,6 +43,26 @@ LabFlow backend: Spring Boot 4.0.6 / Java 25, PostgreSQL, JWT auth (Spring Secur
 - The whole `payload/**` package is registered for Jackson binding because `ResponseEntity<?>` erases return types. New request/response DTOs must live in `payload` or be registered explicitly, or they serialize as `{}`.
 - jjwt and pgjdbc SSL classes are registered there too; do not remove without reason.
 
+## Branches & promotion
+
+`develop` is where work lands; `main` is production. The flow is one-way and has no shortcuts:
+
+1. Work on `develop` (or a branch off it) and push.
+2. Prove the change on the **develop** environment: `wrangler deploy --env develop`, exercised against the develop database. Green tests are not proof — both outages this repo has had were things the H2 suite structurally cannot catch.
+3. Merge `develop` into `main` once it holds up there.
+
+Nothing is committed straight to `main`.
+
+**Merging to `main` deploys nothing here.** Unlike the frontend, which Cloudflare Pages builds on push, this repo's Worker and container go out by hand: `wrangler deploy` for production (top level, no `--env`), `wrangler deploy --env develop` for develop. So `main` records what production is *meant* to be running, not what it is. `v1.6.0` was pinned and never deployed, and the gap only surfaced as an outage two releases later.
+
+**Order when promoting a change that touches the database:**
+
+1. Run the new `schema.sql` statements against the production database with admin credentials, **before** the image that maps the new column reaches production. An entity mapping a column the database lacks breaks *every* query on that table, login included — that is how the exam editor went down, and how `app_user` nearly took the whole app with it.
+2. Merge to `main`, cut the release, push the image, `wrangler deploy` — in that order, see **Releases → Order of operations**.
+3. Deploy the API **before** merging the frontend. New columns, endpoints and response fields are additive, so an older frontend against a newer API degrades; the reverse breaks.
+
+The develop environment has its own database, its own R2 bucket and its own frontend; nothing is shared with production. That is what makes it safe to test in — and useless as evidence *about* production. A column present in develop says nothing about prod: develop's app role may still hold the DDL privileges production's lost, in which case `ddl-auto` created it there and only there.
+
 ## Cloudflare Worker / deploy
 
 - `worker/index.ts` defines `LabflowApiContainer extends Container`; its `defaultPort = 8080` must match `SERVER_PORT=8080` in `Dockerfile`.
