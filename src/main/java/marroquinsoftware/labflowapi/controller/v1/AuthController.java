@@ -16,6 +16,7 @@ import marroquinsoftware.labflowapi.payload.LoginSelectRequest;
 import marroquinsoftware.labflowapi.payload.PasswordResetInfoResponse;
 import marroquinsoftware.labflowapi.payload.PasswordResetRequest;
 import marroquinsoftware.labflowapi.payload.RegisterRequest;
+import marroquinsoftware.labflowapi.payload.ReleaseNotesSeenRequest;
 import marroquinsoftware.labflowapi.payload.SetPasswordRequest;
 import marroquinsoftware.labflowapi.payload.UserInfoResponse;
 import marroquinsoftware.labflowapi.repositories.UserRepository;
@@ -24,6 +25,7 @@ import marroquinsoftware.labflowapi.security.JwtUtils;
 import marroquinsoftware.labflowapi.service.InvitationService;
 import marroquinsoftware.labflowapi.service.PasswordResetService;
 import marroquinsoftware.labflowapi.service.RegistrationService;
+import marroquinsoftware.labflowapi.service.ReleaseNotesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -62,6 +64,8 @@ public class AuthController {
     private PasswordResetService passwordResetService;
     @Autowired
     private UserRepository userRepository;
+    @Autowired
+    private ReleaseNotesService releaseNotesService;
 
     @PostMapping("/login")
     public ResponseEntity<?> login(@Valid @RequestBody LoginRequest request) {
@@ -189,6 +193,15 @@ public class AuthController {
      */
     @GetMapping("/me")
     public ResponseEntity<UserInfoResponse> me(@AuthenticationPrincipal AppUserDetails userDetails) {
+        // El marcador de novedades se lee de la BASE, no del JWT ni del principal. Si
+        // viajara en el token, marcar un anuncio como visto no aplicaría hasta el
+        // siguiente login: la persona lo cerraría y volvería a verlo en la próxima
+        // carga, que es exactamente el defecto que este campo existe para evitar.
+        String lastSeenReleaseVersion = userRepository
+                .findByUsernameAndLaboratoryId(userDetails.getUsername(), userDetails.getLaboratoryId())
+                .map(User::getLastSeenReleaseVersion)
+                .orElse(null);
+
         UserInfoResponse response = new UserInfoResponse(
                 userDetails.getUsername(),
                 userDetails.getName(),
@@ -196,9 +209,27 @@ public class AuthController {
                 userDetails.getRoleName(),
                 userDetails.getPermissionNames(),
                 userDetails.getLaboratoryId(),
-                userDetails.getLaboratoryName()
+                userDetails.getLaboratoryName(),
+                lastSeenReleaseVersion
         );
         return new ResponseEntity<>(response, HttpStatus.OK);
+    }
+
+    /**
+     * Marca para el usuario en sesión que ya vio esa versión de novedades, para que
+     * el anuncio no le vuelva a aparecer en ningún dispositivo.
+     *
+     * <p>No pide ningún permiso más allá de estar autenticado, y no recibe a quién
+     * marcar: el usuario sale de {@code @AuthenticationPrincipal}. Marcar por otra
+     * persona no es que esté prohibido — no hay por dónde pedirlo.
+     */
+    @PostMapping("/release-notes-seen")
+    public ResponseEntity<Void> markReleaseNotesSeen(@AuthenticationPrincipal AppUserDetails userDetails,
+                                                     @RequestBody ReleaseNotesSeenRequest request) {
+        releaseNotesService.markSeen(userDetails.getUsername(),
+                userDetails.getLaboratoryId(),
+                request.getVersion());
+        return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
     /** Datos de la invitación para la pantalla de aceptación (público). */

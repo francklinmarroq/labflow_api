@@ -208,3 +208,92 @@ create index if not exists ix_lab_order_tags_tag on lab_order_tags (tag_id);
 -- que este backfill es por orden, no un requisito para que funcione.
 alter table if exists laboratory add column if not exists show_report_range_flags boolean default true;
 update laboratory set show_report_range_flags = true where show_report_range_flags is null;
+
+-- Adjuntar foto del reporte por examen (test_config.allow_result_attachments): la
+-- columna la declara la entidad TestConfig desde el commit 5243610, pero ese commit
+-- NO tocó este archivo y en prod ddl-auto ya no tiene permisos DDL. Sin la columna
+-- TODA consulta a test_config revienta ("column does not exist"): el editor de
+-- exámenes (GET/PUT /api/v1/tests/{id}/full) devuelve 500 y con él se cae el catálogo.
+--
+-- Nace apagada: el interruptor es opt-in y los exámenes que ya existían no ofrecían
+-- adjuntos. El default cubre las filas nuevas y el update las que ya estaban; la
+-- entidad la mapea como boolean primitivo, así que un nulo tampoco es aceptable.
+alter table if exists test_config add column if not exists allow_result_attachments boolean default false;
+update test_config set allow_result_attachments = false where allow_result_attachments is null;
+
+-- Fotos/escaneos del reporte del equipo (test_run_attachments): tabla NUEVA del mismo
+-- commit 5243610, que tampoco se registró aquí. La mapea TestRunAttachment y la
+-- relación @OneToMany de TestRun, así que sin ella falla subir/leer los adjuntos de
+-- una corrida. No lleva laboratory_id: el aislamiento lo hereda de la corrida dueña.
+-- object_key es la llave dentro del bucket privado de R2, no una URL.
+--
+-- OJO con el dueño: en prod esta tabla ya la creó ddl-auto con el rol de la app,
+-- que quedó como su dueño, y en Postgres el CREATE INDEX de abajo exige serlo. Con
+-- la credencial admin falla con "must be owner of table test_run_attachments";
+-- hay que correrlo con el rol de la app (set role / esa conexión) o apropiarse antes
+-- de la tabla (alter table test_run_attachments owner to current_user). El índice es
+-- solo de rendimiento: sin él nada se rompe.
+create table if not exists test_run_attachments (
+  id bigserial primary key,
+  test_run_id bigint not null references test_runs(id),
+  object_key varchar(255) not null,
+  content_type varchar(255),
+  display_order integer
+);
+create index if not exists ix_test_run_attachments_run on test_run_attachments (test_run_id);
+
+-- Marcador de novedades vistas (app_user.last_seen_release_version): la entidad User
+-- mapea esta columna para recordar, por usuario, la última versión de novedades que
+-- ya se le anunció. Igual que 'name' y las de reset de arriba, ddl-auto=update no
+-- agrega columnas en bases existentes, y con ella mapeada TODA consulta a app_user
+-- (LOGIN incluido) reventaría con "no existe la columna last_seen_release_version".
+-- Se agrega idempotente y nullable; no lleva backfill a propósito: null significa "no
+-- ha visto nada", que es exactamente lo correcto para quien nunca vio un anuncio.
+alter table if exists app_user add column if not exists last_seen_release_version varchar(255);
+
+-- Columnas del perfil de examen que este archivo nunca registró: chart_type,
+-- result_layout y chart_x_axis_label en test_config, y la tabla de unión
+-- test_config_parameters completa con display_order y chart_x_value. Las mapean las
+-- entidades TestConfig y TestConfigParameter desde junio y julio de 2026, pero esos
+-- commits no tocaron este archivo: existen en prod SOLO porque en esa época
+-- ddl-auto=update todavía podía alterar el esquema. Hoy ya no puede, que es justo
+-- lo que costó el incidente de allow_result_attachments de arriba.
+--
+-- CONTRA PRODUCCIÓN NO HAY NADA QUE CORRER: allá ya están las cinco columnas y la
+-- tabla, así que todas estas sentencias son no-ops. Se agregan para que una base
+-- reconstruida desde este archivo no arranque con el catálogo de exámenes roto en
+-- silencio: sin gráfico configurado, sin distribución de antibiograma y sin orden
+-- de parámetros en el reporte impreso.
+--
+-- OJO: esto NO vuelve a este archivo capaz de construir una base desde cero. Las
+-- tablas base (tests, parameter, lab_orders, test_runs...) las sigue creando
+-- ddl-auto y aquí no están; el bloque de abajo asume que ya existen, igual que los
+-- anteriores.
+--
+-- Ni not null, ni default, ni check constraint, a propósito:
+--   * not null — la columna puede ya existir como nullable y ponerle not null exige
+--     una segunda sentencia que falla cuando ya lo es, y este archivo no puede
+--     ramificar (Spring lo parte por cada ";" y no entiende $$).
+--   * default — chartType y resultLayout traen su valor inicial en Java
+--     (ChartType.NONE, ResultLayout.STANDARD) y TestConfigServiceImp.toDTO ya lee un
+--     nulo como el default, así que la columna nula está cubierta en todos lados.
+--   * check — los dos son @Enumerated(STRING) y este archivo YA elimina esos checks
+--     más arriba (ver app_role_permission, accounts, tests.area): ddl-auto no los
+--     actualiza cuando el enum gana un valor y guardar revienta. La validez la
+--     garantiza el enum de Java.
+create table if not exists test_config_parameters (
+  parameter_id bigint not null references parameter(id),
+  test_config_id bigint not null references test_config(id),
+  chart_x_value numeric(38,2),
+  display_order integer,
+  primary key (parameter_id, test_config_id)
+);
+alter table if exists test_config add column if not exists chart_type varchar(255);
+alter table if exists test_config add column if not exists result_layout varchar(255);
+alter table if exists test_config add column if not exists chart_x_axis_label varchar(255);
+-- Las dos columnas de la tabla de unión van también como alter, no solo dentro del
+-- create de arriba: en una base donde test_config_parameters ya existe (prod, y
+-- cualquiera que venga de antes de que existieran el orden y la curva) el "create
+-- table if not exists" es un no-op y no agregaría nada.
+alter table if exists test_config_parameters add column if not exists display_order integer;
+alter table if exists test_config_parameters add column if not exists chart_x_value numeric(38,2);

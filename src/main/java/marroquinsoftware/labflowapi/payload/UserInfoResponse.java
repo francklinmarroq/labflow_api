@@ -20,4 +20,15 @@ public class UserInfoResponse {
     /** Laboratorio (tenant) activo de esta sesión. */
     private Long laboratoryId;
     private String laboratoryName;
+    /**
+     * Última versión de novedades que este usuario ya vio, o null si no ha visto
+     * ninguna. El cliente decide con esto si anuncia; la API no la interpreta.
+     *
+     * <p>VA AL FINAL a propósito, y lo mismo el argumento correspondiente del
+     * constructor: {@code @AllArgsConstructor} es posicional y casi todos los campos
+     * de arriba son String, así que meterlo en medio correría los argumentos sin que
+     * nada falle al compilar ni en ejecución — el usuario simplemente vería el nombre
+     * del laboratorio donde va su rol. Si se agrega otro campo, va después de este.
+     */
+    private String lastSeenReleaseVersion;
 }

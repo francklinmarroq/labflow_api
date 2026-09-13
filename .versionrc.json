@@ -1,0 +1,25 @@
+{
+  "types": [
+    { "type": "feat", "section": "Funcionalidades" },
+    { "type": "fix", "section": "Correcciones" },
+    { "type": "perf", "section": "Rendimiento" },
+    { "type": "refactor", "section": "Refactors" },
+    { "type": "design", "section": "Diseño" },
+    { "type": "docs", "section": "Documentación", "hidden": true },
+    { "type": "style", "section": "Estilo", "hidden": true },
+    { "type": "test", "section": "Pruebas", "hidden": true },
+    { "type": "build", "section": "Build", "hidden": true },
+    { "type": "ci", "section": "CI", "hidden": true },
+    { "type": "chore", "section": "Mantenimiento", "hidden": true }
+  ],
+  "packageFiles": [
+    { "filename": "package.json", "type": "json" }
+  ],
+  "bumpFiles": [
+    { "filename": "package.json", "type": "json" },
+    { "filename": "pom.xml", "updater": ".release/updaters/pom-version.cjs" },
+    { "filename": "wrangler.jsonc", "updater": ".release/updaters/wrangler-image.cjs" }
+  ],
+  "commitAll": false,
+  "tagPrefix": "v"
+}

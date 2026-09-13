@@ -1,0 +1,7 @@
+# Valida el asunto del commit contra .commitlintrc.json (convencional + el tipo
+# propio `design`). Rechazar acá es el único momento en que corregirlo es gratis:
+# un commit fuera de convención desaparece del CHANGELOG generado en silencio.
+#
+# Escape hatch: `git commit --no-verify` lo salta. Existe a propósito — el hook
+# está para atajar despistes, no para vetar decisiones del dueño del repo.
+pnpm exec commitlint --edit "$1"

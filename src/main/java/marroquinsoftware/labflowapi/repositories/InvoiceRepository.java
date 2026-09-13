@@ -13,6 +13,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.Instant;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -30,6 +31,21 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
     boolean existsByOrderIdAndStatusNot(Long orderId, InvoiceStatus status);
 
     Optional<Invoice> findFirstByOrderIdAndStatusNotOrderByIssuedAtDesc(Long orderId, InvoiceStatus status);
+
+    /**
+     * De las órdenes indicadas, cuáles tienen factura viva (no anulada). Resuelve
+     * el bloqueo de exámenes de una página entera en UNA consulta: preguntarlo por
+     * orden dentro de toDTO sería una consulta por fila del listado, justo el N+1
+     * que el @BatchSize y el @EntityGraph de este repositorio existen para evitar,
+     * y que en Cloudflare cuesta el piso de ~0.7 s por request.
+     */
+    @Query("""
+            select distinct i.order.id
+            from Invoice i
+            where i.order.id in :orderIds
+              and i.status <> marroquinsoftware.labflowapi.model.InvoiceStatus.ANULADA
+            """)
+    List<Long> findOrderIdsWithLiveInvoice(@Param("orderIds") Collection<Long> orderIds);
 
     // El listado con filtros opcionales se arma con
     // BillingSpecifications.invoices() y se ejecuta con findAll(spec, pageable);

@@ -4,10 +4,16 @@
   "main": "worker/index.ts",
   "compatibility_date": "2026-07-01",
 
+  // El nivel superior ES produccion: se despliega con `wrangler deploy`, sin --env.
+  // No se mueve a un "env.production" a proposito. Wrangler le agrega el sufijo
+  // del entorno al nombre del Worker (labflow-api-production) y, sobre todo, al
+  // nombre de la aplicacion de contenedor (labflow-api-labflowapicontainer-production),
+  // asi que un entorno con nombre crea infraestructura nueva en vez de apuntar a
+  // la que ya esta desplegada, y los secretos no se heredan.
   "containers": [
     {
       "class_name": "LabflowApiContainer",
-      "image": "docker.io/luciaelabs/labflow_backend:v1.6.0",
+      "image": "docker.io/luciaelabs/labflow_backend:v1.9.0",
       "instance_type": "standard-2",
       "max_instances": 1
     }
@@ -38,5 +44,57 @@
 
   "observability": {
     "enabled": true
+  },
+
+  // Entorno de desarrollo: `wrangler deploy --env develop` -> Worker
+  // labflow-api-develop. containers, durable_objects, migrations y vars NO se
+  // heredan del nivel superior: hay que repetirlos completos aca o el Worker se
+  // despliega sin binding de contenedor y revienta en cada request.
+  "env": {
+    "develop": {
+      "containers": [
+        {
+          "class_name": "LabflowApiContainer",
+          // Mientras no exista una imagen propia de develop se reutiliza la de
+          // prod. Al construir una, usar tags develop-<sha> (no la serie vX.Y.Z).
+          "image": "docker.io/luciaelabs/labflow_backend:v1.8.0-develop",
+          "instance_type": "standard-2",
+          "max_instances": 1
+        }
+      ],
+
+      "durable_objects": {
+        "bindings": [
+          {
+            "name": "API_CONTAINER",
+            "class_name": "LabflowApiContainer"
+          }
+        ]
+      },
+
+      // Cada entorno es un Worker aparte con su propio namespace de Durable
+      // Objects, asi que necesita su propia migracion v1.
+      "migrations": [
+        {
+          "tag": "v1",
+          "new_sqlite_classes": ["LabflowApiContainer"]
+        }
+      ],
+
+      "vars": {
+        "MAIL_FROM": "no-reply@labflowcloud.com",
+        // Los enlaces de invitacion y de restablecimiento se arman con esta URL:
+        // apuntando a prod, un correo de develop manda al usuario a produccion.
+        "FRONTEND_BASE_URL": "https://develop.labflow-frontend.pages.dev/",
+        "R2_ENDPOINT": "https://22d53d9fdf065447b515a924fdabbc2d.r2.cloudflarestorage.com",
+        // Bucket propio: compartir labflow-files significa que un borrado desde
+        // develop se lleva el logo o las fotos de resultados de un lab real.
+        "R2_BUCKET": "labflow-files-dev"
+      },
+
+      "observability": {
+        "enabled": true
+      }
+    }
   }
 }

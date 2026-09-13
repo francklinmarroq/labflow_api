@@ -68,4 +68,11 @@ public class LabOrderDTO {
     // una lista vacía sí las quita todas.
     private List<OrderTagDTO> tags;
     private List<String> tagNames;
+    // ¿Está congelado el conjunto de exámenes de la orden? Solo lectura (se ignora
+    // al crear/actualizar, igual que customerName y publicToken): lo calcula la API
+    // desde la factura viva de la orden en LabOrderServiceImp.toDTO. Permite al
+    // front deshabilitar "Agregar examen"/"Quitar examen" en vez de descubrir el
+    // rechazo al hacer clic, sin una segunda consulta por las facturas de la orden.
+    // Primitivo a propósito: ausente significa falso para clientes viejos.
+    private boolean testsLocked;
 }

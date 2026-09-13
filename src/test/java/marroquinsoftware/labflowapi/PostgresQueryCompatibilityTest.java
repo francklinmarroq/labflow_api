@@ -25,6 +25,7 @@ import org.springframework.test.context.TestPropertySource;
 import java.sql.DriverManager;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertDoesNotThrow;
 import static org.junit.jupiter.api.Assumptions.assumeTrue;
@@ -124,6 +125,17 @@ class PostgresQueryCompatibilityTest {
                     LabOrderSpecifications.orders(null, 1L), PageRequest.of(0, 50));
             labOrderRepository.findAll(
                     LabOrderSpecifications.orders(OrderStatus.PENDING, 1L), PageRequest.of(0, 50));
+        });
+    }
+
+    // El bloqueo de exámenes de una página de órdenes: un `in` de ids más la
+    // comparación contra el enum de estado. H2 acepta ese par sin chistar; esta
+    // prueba es la que dice si Postgres también.
+    @Test
+    void resolvesTheTestsLockForAPageOfOrders() {
+        assertDoesNotThrow(() -> {
+            invoiceRepository.findOrderIdsWithLiveInvoice(List.of(1L));
+            invoiceRepository.findOrderIdsWithLiveInvoice(List.of(1L, 2L, 3L));
         });
     }
 
