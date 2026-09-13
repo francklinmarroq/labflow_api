@@ -1,6 +1,6 @@
 {
   "name": "labflow-api-worker",
-  "version": "1.8.0",
+  "version": "1.9.0",
   "description": "Worker que rutea a la API de LabFlow en Cloudflare Containers",
   "scripts": {
     "deploy": "wrangler deploy",
