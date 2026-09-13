@@ -9,9 +9,9 @@
 
 ## 2. Confirm the reported bug is actually fixed
 
-- [ ] 2.1 In the deployed app, turn "Permitir adjuntar foto del reporte" on for an exam, save, leave the editor and reopen it — verified by the switch showing on, which is the behavior originally reported as broken
-- [ ] 2.2 Turn it back off, save, reopen — verified by the switch showing off, so the value is genuinely stored rather than defaulting on
-- [ ] 2.3 Upload a photo against a run of that exam — verified by the upload succeeding, which exercises the newly created `test_run_attachments` table
+- [x] 2.1 In the deployed app, turn "Permitir adjuntar foto del reporte" on for an exam, save, leave the editor and reopen it — verified by the switch showing on, which is the behavior originally reported as broken — confirmado por el equipo contra la app desplegada el 2026-09-12
+- [x] 2.2 Turn it back off, save, reopen — verified by the switch showing off, so the value is genuinely stored rather than defaulting on — confirmado por el equipo contra la app desplegada el 2026-09-12
+- [x] 2.3 Upload a photo against a run of that exam — verified by the upload succeeding, which exercises the newly created `test_run_attachments` table — confirmado por el equipo contra la app desplegada el 2026-09-12
 
 ## 3. Migration script
 
