@@ -34,6 +34,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
@@ -74,7 +75,9 @@ public class LabOrderServiceImp implements LabOrderService {
         // con un estado concreto se listan solo esas (p. ej. la pestaña de canceladas).
         Page<LabOrder> page = labOrderRepository.findAll(
                 LabOrderSpecifications.orders(status, tagId), pageable);
-        List<LabOrderDTO> dtos = page.getContent().stream().map(this::toDTO).toList();
+        // Una sola consulta de facturas para toda la página, antes de mapear.
+        Set<Long> locked = lockedOrderIds(page.getContent().stream().map(LabOrder::getId).toList());
+        List<LabOrderDTO> dtos = page.getContent().stream().map(o -> toDTO(o, locked)).toList();
         LabOrderResponse response = new LabOrderResponse();
         response.setContent(dtos);
         response.setPageNumber(page.getNumber());
@@ -111,7 +114,8 @@ public class LabOrderServiceImp implements LabOrderService {
         // toda la creación es UN solo request. Mismos datos y mismo orden que el alta
         // por examen (sin perfil/notas/muestra); el detalle se recarga aparte.
         attachTests(order, dto.getTestIds());
-        return toDTO(labOrderRepository.save(order));
+        // Sin consulta: una orden que acaba de nacer no puede tener factura todavía.
+        return toDTO(labOrderRepository.save(order), Set.of());
     }
 
     /**
@@ -187,13 +191,15 @@ public class LabOrderServiceImp implements LabOrderService {
         if (dto.getTagNames() != null) {
             applyTags(order, dto.getTagNames());
         }
-        return toDTO(labOrderRepository.save(order));
+        LabOrder saved = labOrderRepository.save(order);
+        return toDTO(saved, lockedOrderIds(List.of(saved.getId())));
     }
 
     @Override
     public LabOrderDTO getOrderById(Long id) {
-        return toDTO(labOrderRepository.findById(id)
-                .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", id)));
+        LabOrder order = labOrderRepository.findById(id)
+                .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", id));
+        return toDTO(order, lockedOrderIds(List.of(order.getId())));
     }
 
     @Override
@@ -225,7 +231,9 @@ public class LabOrderServiceImp implements LabOrderService {
         order.setCancelledByUsername(currentUsername());
         order.setCancellationReason(reason != null ? reason.trim() : null);
         labOrderRepository.save(order);
-        return toDTO(order);
+        // Se relee después de la posible anulación en cascada: si la factura quedó
+        // anulada, la orden ya no está bloqueada y el DTO debe decirlo.
+        return toDTO(order, lockedOrderIds(List.of(order.getId())));
     }
 
     // Normaliza el texto opcional del médico solicitante: recorta espacios y trata
@@ -277,7 +285,24 @@ public class LabOrderServiceImp implements LabOrderService {
         order.setMenopausal(dto.isMenopausal());
     }
 
-    private LabOrderDTO toDTO(LabOrder order) {
+    /**
+     * De las órdenes indicadas, cuáles tienen los exámenes bloqueados por una
+     * factura viva. Una sola consulta para todo el conjunto; con la lista vacía no
+     * se consulta nada (un `in ()` no tiene nada que responder).
+     */
+    private Set<Long> lockedOrderIds(Collection<Long> orderIds) {
+        if (orderIds == null || orderIds.isEmpty()) {
+            return Set.of();
+        }
+        return Set.copyOf(invoiceRepository.findOrderIdsWithLiveInvoice(orderIds));
+    }
+
+    /**
+     * El conjunto de ids bloqueados llega resuelto de afuera, no se consulta acá:
+     * toDTO corre una vez por fila del listado y preguntar por la factura de cada
+     * orden aquí adentro convertiría una página en una consulta por orden.
+     */
+    private LabOrderDTO toDTO(LabOrder order, Set<Long> lockedOrderIds) {
         LabOrderDTO dto = new LabOrderDTO();
         dto.setId(order.getId());
         dto.setOrderNumber(order.getOrderNumber());
@@ -299,6 +324,8 @@ public class LabOrderServiceImp implements LabOrderService {
         dto.setCancelledAt(order.getCancelledAt());
         dto.setCancelledByUsername(order.getCancelledByUsername());
         dto.setCancellationReason(order.getCancellationReason());
+        // Solo lectura: nunca se lee del DTO entrante, se deriva de la factura viva.
+        dto.setTestsLocked(lockedOrderIds.contains(order.getId()));
         // Etiquetas con id, nombre y color, listas para pintarse. Se resuelven por
         // lotes gracias al @BatchSize de LabOrder.tags, así que un listado de 500
         // órdenes no dispara 500 consultas. Sin conteo de uso: eso solo interesa en
