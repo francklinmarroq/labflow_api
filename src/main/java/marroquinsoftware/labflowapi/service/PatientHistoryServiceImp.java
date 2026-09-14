@@ -33,6 +33,15 @@ public class PatientHistoryServiceImp implements PatientHistoryService {
 
         List<LabOrder> orders = labOrderRepository.findByCustomer_Id(customerId);
 
+        // Todas las órdenes son del mismo paciente, así que el sexo/edad que
+        // deciden qué rango de referencia aplica es CONSTANTE durante toda la
+        // llamada. `buildChart` consulta `findApplicable(parameterId, sexo, edad)`
+        // por cada punto de curva de cada corrida y, sin memoria, repetía la misma
+        // consulta a Postgres una y otra vez (mismo parámetro en corridas
+        // distintas). Se cachea el resultado por (parámetro, sexo, edad) durante la
+        // llamada: mismas filas, mismo orden, pero una sola consulta por clave.
+        Map<RangeKey, List<ReferenceRange>> rangeCache = new HashMap<>();
+
         // Group entries by test id
         Map<Long, PatientTestHistoryDTO> byTest = new LinkedHashMap<>();
 
@@ -52,7 +61,7 @@ public class PatientHistoryServiceImp implements PatientHistoryService {
                 if (dateFrom != null && requestedAt != null && requestedAt.isBefore(dateFrom)) continue;
                 if (dateTo != null && requestedAt != null && requestedAt.isAfter(dateTo)) continue;
 
-                List<PatientHistoryRunDTO> runDTOs = buildRunDTOs(labTest, order.getCustomer());
+                List<PatientHistoryRunDTO> runDTOs = buildRunDTOs(labTest, order.getCustomer(), rangeCache);
 
                 PatientHistoryEntryDTO entry = new PatientHistoryEntryDTO(
                         order.getId(),
@@ -81,7 +90,8 @@ public class PatientHistoryServiceImp implements PatientHistoryService {
                 .collect(Collectors.toList());
     }
 
-    private List<PatientHistoryRunDTO> buildRunDTOs(LabTest labTest, Customer customer) {
+    private List<PatientHistoryRunDTO> buildRunDTOs(LabTest labTest, Customer customer,
+                                                    Map<RangeKey, List<ReferenceRange>> rangeCache) {
         if (labTest.getRuns() == null) return Collections.emptyList();
         return labTest.getRuns().stream()
                 .sorted(Comparator.comparing(TestRun::getRunNumber))
@@ -91,7 +101,7 @@ public class PatientHistoryServiceImp implements PatientHistoryService {
                         run.getPerformedAt(),
                         run.getIsVerified(),
                         buildResultDTOs(run),
-                        buildChart(labTest, run, customer)
+                        buildChart(labTest, run, customer, rangeCache)
                 ))
                 .collect(Collectors.toList());
     }
@@ -100,7 +110,8 @@ public class PatientHistoryServiceImp implements PatientHistoryService {
     // (chartType = LINE). Cruza los parametros del perfil (con su X) contra los
     // resultados de la corrida y resuelve, para cada punto, el rango de referencia
     // aplicable al paciente (sexo/edad) que el frontend dibuja como banda umbral.
-    private CurveChartDTO buildChart(LabTest labTest, TestRun run, Customer customer) {
+    private CurveChartDTO buildChart(LabTest labTest, TestRun run, Customer customer,
+                                     Map<RangeKey, List<ReferenceRange>> rangeCache) {
         TestConfig config = labTest.getTestConfig();
         if (config == null || config.getChartType() != ChartType.LINE) return null;
 
@@ -125,7 +136,9 @@ public class PatientHistoryServiceImp implements PatientHistoryService {
 
             BigDecimal lower = null;
             BigDecimal upper = null;
-            List<ReferenceRange> ranges = referenceRangeRepository.findApplicable(param.getId(), sex, ageDays);
+            List<ReferenceRange> ranges = rangeCache.computeIfAbsent(
+                    new RangeKey(param.getId(), sex, ageDays),
+                    k -> referenceRangeRepository.findApplicable(k.parameterId(), k.sex(), k.ageDays()));
             if (!ranges.isEmpty()) {
                 ReferenceRange range = ranges.get(0);
                 lower = range.getLowerLimit();
@@ -138,6 +151,15 @@ public class PatientHistoryServiceImp implements PatientHistoryService {
         if (points.isEmpty()) return null;
         points.sort(Comparator.comparing(CurveChartPointDTO::getX));
         return new CurveChartDTO(ChartType.LINE, config.getChartXAxisLabel(), unit, points);
+    }
+
+    /**
+     * Clave de memoria de {@link ReferenceRangeRepository#findApplicable}: el rango
+     * aplicable depende solo del parámetro, el sexo y la edad en días. Como todo el
+     * historial es de un mismo paciente, sexo/edad son constantes y en la práctica
+     * la clave colapsa por parámetro; se conservan los tres campos por corrección.
+     */
+    private record RangeKey(Long parameterId, Sex sex, Integer ageDays) {
     }
 
     // El valor del resultado se guarda como texto; solo se grafica si es numerico.

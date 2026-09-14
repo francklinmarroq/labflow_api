@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.TenantId;
 
 import java.util.List;
@@ -49,7 +50,11 @@ public class LabTest {
     @Column(length = 255)
     private String method;
 
+    // El detalle de la orden y el historial del paciente recorren las corridas de
+    // varios exámenes a la vez; sin el @BatchSize sería una consulta por examen al
+    // inicializar esta colección lazy (N+1).
     @OneToMany(mappedBy = "test", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<TestRun> runs;
