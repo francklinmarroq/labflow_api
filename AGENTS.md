@@ -42,6 +42,7 @@ LabFlow backend: Spring Boot 4.0.6 / Java 25, PostgreSQL, JWT auth (Spring Secur
 - Reflection hints are registered through Spring AOT in `config/AppConfig.NativeRuntimeHints`, not loose `META-INF` files (except the jjwt `reflect-config.json` it parses).
 - The whole `payload/**` package is registered for Jackson binding because `ResponseEntity<?>` erases return types. New request/response DTOs must live in `payload` or be registered explicitly, or they serialize as `{}`.
 - jjwt and pgjdbc SSL classes are registered there too; do not remove without reason.
+- **No lazy to-one associations.** `@ManyToOne(fetch = LAZY)` (and `@OneToOne(fetch = LAZY)`) needs a Hibernate proxy class that must exist from build time; the native image cannot produce one at runtime. Every to-one in `model/` is EAGER and fetch-joined where a page of rows is read (`BillingSpecifications`, the repositories' `@EntityGraph`). `Invoice.billingClient` was the one exception, for a page or two of saved joins, and it took invoice reading down on develop the moment the first invoice was issued to a company: every row with a non-null FK returned 500, rows with a null FK were fine, and the whole suite stayed green because it runs on H2 on the JVM. `NativeImageLazyAssociationTest` now fails the build on any lazy to-one; if one is genuinely needed, register its proxy here, verify it **in the native image** — the suite structurally cannot — and add the field to that test's allowlist.
 
 ## Branches & promotion
 

@@ -86,12 +86,24 @@ public class Invoice {
      * una empresa o aseguradora; null = se emitió a nombre del paciente, que es
      * lo que ocurre en toda factura anterior a este campo.
      *
-     * <p>LAZY a propósito: el DTO solo reporta el id, y leerlo del proxy no toca
-     * la base. El nombre que se muestra es el congelado en {@link #customerName},
-     * así que traer la asociación sería un LEFT JOIN más en cada listado para un
-     * dato que la fila ya lleva.
+     * <p>EAGER, como las otras 28 asociaciones a-uno de este modelo. Nació LAZY
+     * —el DTO solo reporta el id, así que el proxy ahorraba un LEFT JOIN por
+     * listado— y eso tumbó la facturación en develop apenas se emitió la primera
+     * factura a empresa: la app corre como imagen nativa de GraalVM, donde el
+     * proxy de una asociación perezosa tiene que existir desde el build y no se
+     * puede fabricar en caliente. Toda lectura de una factura con este campo NO
+     * nulo respondía 500 (listado, detalle y la vista previa de la orden); las de
+     * paciente vivían, porque un FK nulo no crea proxy. La suite no lo vio: corre
+     * en H2 sobre la JVM, donde el proxy se genera sin problema.
+     *
+     * <p>El costo aceptado es ese LEFT JOIN de más, que el listado y cuentas por
+     * cobrar ya hacen para {@code order} y {@code customer} (ver
+     * BillingSpecifications.invoices y el {@code @EntityGraph} de findReceivables,
+     * donde este campo va agregado por la misma razón). No volver a ponerlo LAZY
+     * sin registrar antes su proxy en AppConfig.NativeRuntimeHints y probarlo en
+     * la imagen nativa, no en la suite.
      */
-    @ManyToOne(fetch = FetchType.LAZY)
+    @ManyToOne
     @JoinColumn(name = "billing_client_id")
     private BillingClient billingClient;
 

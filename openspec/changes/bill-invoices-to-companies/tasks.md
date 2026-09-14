@@ -9,11 +9,11 @@
 
 ## 2. Who the invoice is made out to
 
-- [x] 2.1 Add to `Invoice` the `@ManyToOne(fetch = FetchType.LAZY)` `billingClient` association (column `billing_client_id`, nullable) and the `patientName` column, documenting in the Javadoc that `customerName`/`customerRtn` are the recipient — patient or company — and `patientName` is always the order's patient.
+- [x] 2.1 Add to `Invoice` the `@ManyToOne` `billingClient` association (column `billing_client_id`, nullable; EAGER and fetch-joined like the other to-one associations — a lazy one cannot build its proxy in the native image, see design.md) and the `patientName` column, documenting in the Javadoc that `customerName`/`customerRtn` are the recipient — patient or company — and `patientName` is always the order's patient.
 - [x] 2.2 Add the two corresponding `alter table if exists invoices add column if not exists ...` statements to `schema.sql`. Verify as in 1.6: two runs in a row, the second without error.
 - [x] 2.3 Add `billingClientId` (optional) to `InvoiceRequest`, with Javadoc stating that empty means "made out to the order's patient" and that a hand-typed `customerRtn` only applies in that case.
 - [x] 2.4 In `InvoiceServiceImp.createInvoice`, resolve the billing client when `billingClientId` is given — `ResourceNotFoundException` if it does not exist in the laboratory, **before** consuming the CAI number — and set `customerName`/`customerRtn` from the client, ignoring the hand-typed RTN; with no `billingClientId`, leave the current three lines untouched. In both cases set `patientName` from `order.getCustomer().getName()`. Verify with the tests in 4.2.
-- [x] 2.5 In `InvoiceServiceImp.toDTO`, report `billingClientId` and `patientName`; add both to `InvoiceDTO`. Read only the id off the lazy association (not `getName()`, which would force the load and turn the listing into an N+1). Verify with 4.5 that a page of invoices still costs a single query.
+- [x] 2.5 In `InvoiceServiceImp.toDTO`, report `billingClientId` and `patientName`; add both to `InvoiceDTO`. Read only the id off the association (not `getName()`), and keep it fetch-joined wherever a page of invoices is read, so the listing does not turn into an N+1. Verify with 4.5 that a page of invoices still costs a single query.
 - [x] 2.6 Confirm there is no other path that builds an `Invoice`: `createInvoice` is the only one, and `annulInvoice`/`registerPayment`/`annulPayment` do not touch the recipient. Note it in the commit if another one turns up.
 
 ## 3. Per-company filter and collection

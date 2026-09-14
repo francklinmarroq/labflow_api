@@ -57,6 +57,11 @@ public final class BillingSpecifications {
             if (query != null && query.getResultType() != Long.class && query.getResultType() != long.class) {
                 root.fetch("order", JoinType.LEFT);
                 root.fetch("customer", JoinType.LEFT);
+                // El cliente de facturación va con los otros dos: es EAGER (en la
+                // imagen nativa no puede ser perezoso, ver Invoice.billingClient),
+                // así que sin este fetch cada fila del listado dispararía su propia
+                // consulta. LEFT porque la mayoría de las facturas no tiene uno.
+                root.fetch("billingClient", JoinType.LEFT);
             }
             List<Predicate> predicates = new ArrayList<>();
             if (status != null) predicates.add(cb.equal(root.get("status"), status));

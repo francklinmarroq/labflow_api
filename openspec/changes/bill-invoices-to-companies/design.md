@@ -56,15 +56,21 @@ The cost of that decision is real and is accepted: **the sales report will group
 
 An invoice issued before this change has `billing_client_id` null and `patient_name` null. Null `billing_client_id` already means "made out to the patient", and for those invoices `customerName` *is* the patient's name, so printing falls back to it. No backfill, no `CommandLineRunner`, nothing to run once.
 
-### The association is `LAZY` and only its id is read
+### The association is EAGER and fetch-joined, like every other to-one here
 
-`@ManyToOne(fetch = FetchType.LAZY)`. The DTO reports `billingClientId` and `patientName`; the name to show is `customerName`, already frozen and already in the DTO. Reading `getId()` off a lazy proxy does not hit the database, so a page of 500 invoices costs **no** extra join and **no** extra query.
+`@ManyToOne` (the JPA default), added to the fetch joins in `BillingSpecifications.invoices` and to the `@EntityGraph` of `findReceivables`, next to `order` and `customer`. The DTO reports `billingClientId` and `patientName`; the name to show is `customerName`, already frozen and already in the DTO.
 
-*Alternative rejected:* leaving it EAGER (the JPA default, which `order` and `customer` use) and adding `billingClient` to the fetch joins in `BillingSpecifications.invoices` and to the `@EntityGraph` of `findReceivables`. That works and is what the existing to-one associations do, but it is a third LEFT JOIN on every listing query to fetch a name the row already carries.
+**This decision was originally the opposite, and it caused an outage.** The design said `@ManyToOne(fetch = FetchType.LAZY)`, reasoning that the DTO only reads `getId()` off the proxy, which does not hit the database, so a page of 500 invoices would cost no extra join and no extra query. What it missed is that the app ships as a **GraalVM native image**, where the proxy class for a lazy to-one has to exist from build time and cannot be produced at runtime. It was the only lazy to-one in a model with 28 of them.
+
+The result, on develop, the moment the first invoice was issued to a company: every read of a row whose `billing_client_id` is not null returned 500 — the listing, the detail, and the order's invoice preview. Invoices billed to a patient kept working, because a null FK builds no proxy. The whole suite stayed green, because it runs on H2 on the JVM, where the proxy is generated without trouble.
+
+*Cost accepted:* one more LEFT JOIN on the listing queries — exactly what `order` and `customer` already cost, and what the original decision was trying to save. It was not worth the risk.
+
+*Guard added:* `NativeImageLazyAssociationTest` fails the build on any lazy to-one association in `model/`. It cannot test the behaviour — only the native image can — so it tests the condition instead, and names the way out if a lazy association is ever genuinely needed (register its proxy in `AppConfig.NativeRuntimeHints`, verify in the native image, then add the field to the test's allowlist).
 
 ### The filter goes in the Criteria specification, next to the others
 
-`BillingSpecifications.invoices(...)` gains a `billingClientId` parameter, added as a predicate only when non-null — the same construction, and for the same reason, as every other optional filter in that class (a `:param is null` JPQL filter cannot have its type inferred by Postgres; see the class Javadoc). It is a plain `equal` on `billingClient.id`, so it needs no join and cannot duplicate rows, which keeps the count query and the pagination correct.
+`BillingSpecifications.invoices(...)` gains a `billingClientId` parameter, added as a predicate only when non-null — the same construction, and for the same reason, as every other optional filter in that class (a `:param is null` JPQL filter cannot have its type inferred by Postgres; see the class Javadoc). It is a plain `equal` on `billingClient.id`, so it adds no join of its own and cannot duplicate rows, which keeps the count query and the pagination correct.
 
 ### The two collection reports mirror what exists for patients
 
