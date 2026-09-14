@@ -33,6 +33,11 @@ public class LabOrderDTO {
     // de referencia aplicables sin una llamada serial a GET /customers/{id}.
     private Sex customerSex;
     private Integer customerAgeInDays;
+    // Identidad del paciente (nationalIdNumber), embebida de solo lectura (igual que
+    // customerName/customerSex: se ignora al crear/actualizar). Se lee del mismo
+    // Customer ya cargado, sin consulta extra. Permite que el reporte y el sobre de
+    // la orden muestren la identidad sin una llamada serial a GET /customers/{id}.
+    private String customerNationalId;
     private Instant requestedAt;
     private OrderStatus status;
     private String notes;
