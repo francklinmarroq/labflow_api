@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.1](https://github.com/francklinmarroq/labflow_api/compare/v1.9.0...v1.10.1) (2026-09-14)
+
+### Funcionalidades
+
+* emitir facturas a nombre de empresas y aseguradoras ([f5998e8](https://github.com/francklinmarroq/labflow_api/commit/f5998e84da25147f6a12fea29f78743d0c734162))
+
+### Rendimiento
+
+* **historial paciente:** cortar N+1 profundo con @BatchSize + memoria de rangos ([169660d](https://github.com/francklinmarroq/labflow_api/commit/169660d897180a534a76b83b7392b83938695b78))
+* **orders:** embeber la identidad del paciente en LabOrderDTO (evita GET /customers/{id} en impresión/sobre) ([a753112](https://github.com/francklinmarroq/labflow_api/commit/a75311268cdd15fa5a7be870fca2fb5e65a94e8b))
 ## [1.9.0](https://github.com/francklinmarroq/labflow_api/compare/v1.8.0...v1.9.0) (2026-09-13)
 
 ### Funcionalidades
