@@ -17,9 +17,14 @@ import java.util.List;
 /**
  * Factura CAI (SAR Honduras) emitida desde una orden. Es un documento fiscal:
  * todo lo que se imprime queda congelado al emitir — el número con su CAI,
- * rango autorizado y fecha límite, los datos del emisor, el cliente, y el
+ * rango autorizado y fecha límite, los datos del emisor, el destinatario, y el
  * nombre y precio de cada examen con el descuento por edad vigente. Nunca se
  * borra: se anula, y la anulación genera el contra-asiento contable.
+ *
+ * <p>El destinatario es el paciente de la orden o un cliente de facturación
+ * (empresa, aseguradora) cuando la factura va a nombre de un tercero; en ambos
+ * casos queda congelado en {@code customerName}/{@code customerRtn}, y el
+ * paciente aparte en {@code patientName}.
  *
  * <p>Los servicios de laboratorio están exentos de ISV, así que el importe
  * exento impreso es el total; no se guardan tasas por línea.
@@ -76,12 +81,58 @@ public class Invoice {
     @JoinColumn(name = "customer_id", nullable = false)
     private Customer customer;
 
-    /** Nombre del cliente con el que se emitió (copiado del expediente). */
+    /**
+     * Cliente de facturación al que se emitió, cuando la factura va a nombre de
+     * una empresa o aseguradora; null = se emitió a nombre del paciente, que es
+     * lo que ocurre en toda factura anterior a este campo.
+     *
+     * <p>EAGER, como las otras 28 asociaciones a-uno de este modelo. Nació LAZY
+     * —el DTO solo reporta el id, así que el proxy ahorraba un LEFT JOIN por
+     * listado— y eso tumbó la facturación en develop apenas se emitió la primera
+     * factura a empresa: la app corre como imagen nativa de GraalVM, donde el
+     * proxy de una asociación perezosa tiene que existir desde el build y no se
+     * puede fabricar en caliente. Toda lectura de una factura con este campo NO
+     * nulo respondía 500 (listado, detalle y la vista previa de la orden); las de
+     * paciente vivían, porque un FK nulo no crea proxy. La suite no lo vio: corre
+     * en H2 sobre la JVM, donde el proxy se genera sin problema.
+     *
+     * <p>El costo aceptado es ese LEFT JOIN de más, que el listado y cuentas por
+     * cobrar ya hacen para {@code order} y {@code customer} (ver
+     * BillingSpecifications.invoices y el {@code @EntityGraph} de findReceivables,
+     * donde este campo va agregado por la misma razón). No volver a ponerlo LAZY
+     * sin registrar antes su proxy en AppConfig.NativeRuntimeHints y probarlo en
+     * la imagen nativa, no en la suite.
+     */
+    @ManyToOne
+    @JoinColumn(name = "billing_client_id")
+    private BillingClient billingClient;
+
+    /**
+     * Nombre del DESTINATARIO congelado al emitir: el paciente, o la razón social
+     * del cliente de facturación cuando se emitió a nombre de una empresa. Es lo
+     * que se imprime, lo que busca el listado y por lo que agrupa el reporte de
+     * ventas.
+     */
     @Column(nullable = false)
     private String customerName;
 
-    /** RTN del cliente cuando pidió factura con RTN; null = consumidor final. */
+    /**
+     * RTN del DESTINATARIO: el del cliente de facturación cuando hay uno, y si no
+     * el que se pidió en mostrador; null = consumidor final. Nunca contradice al
+     * nombre de arriba.
+     */
     private String customerRtn;
+
+    /**
+     * Nombre del paciente de la orden, siempre, se haya facturado a su nombre o
+     * al de una empresa: la factura tiene que decir de quién son los exámenes.
+     *
+     * <p>Nullable por las facturas anteriores a este campo; en ellas
+     * {@code billingClient} es null y {@code customerName} ES el paciente, así
+     * que la impresión cae de vuelta en ese.
+     */
+    @Column(name = "patient_name")
+    private String patientName;
 
     private Instant issuedAt;
     private String issuedByUsername;

@@ -5,6 +5,7 @@ import jakarta.validation.constraints.NotBlank;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.TenantId;
 
 import java.util.ArrayList;
@@ -36,8 +37,12 @@ public class TestConfig {
     // Los parámetros del perfil con su orden. Cada fila guarda display_order en
     // la tabla de unión; @OrderBy hace que se lean ya ordenados, que es el orden
     // que respeta el reporte al imprimir.
+    // El historial del paciente arma la curva de varios perfiles a la vez y
+    // recorre sus parámetros; sin el @BatchSize sería una consulta por perfil al
+    // inicializar esta colección lazy (N+1). El @OrderBy se conserva.
     @OneToMany(mappedBy = "testConfig", cascade = CascadeType.ALL, orphanRemoval = true)
     @OrderBy("displayOrder")
+    @BatchSize(size = 50)
     private List<TestConfigParameter> configParameters = new ArrayList<>();
 
     private boolean active;

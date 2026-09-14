@@ -1,3 +1,28 @@
+-- schema.sql — el registro de los cambios de esquema de LabFlow.
+--
+-- Spring NO corre este archivo (spring.sql.init.mode=never). Se corre a mano contra
+-- la base, y toda sentencia acá es idempotente: correr el archivo entero dos veces
+-- no debe fallar ni cambiar nada la segunda vez.
+--
+-- ESTADO ACTUAL DE LOS PERMISOS (13-09-2026): el rol con el que el Worker de
+-- producción se conecta a PlanetScale tiene el rol `postgres`, así que ddl-auto=update
+-- SÍ crea tablas nuevas y agrega columnas nullable en producción por su cuenta, al
+-- arrancar. Buena parte de los comentarios de más abajo se escribió durante el período
+-- en que ese permiso no estaba, y varios dicen "en prod ddl-auto no tiene permisos
+-- DDL": eso es historia del incidente que narran, no el estado de hoy. Para comprobarlo
+-- en vez de creerle a un comentario:
+--
+--   select has_schema_privilege(current_user, 'public', 'CREATE');
+--
+-- POR QUÉ ESTE ARCHIVO SIGUE EXISTIENDO IGUAL. ddl-auto=update solo agrega. Nunca
+-- elimina ni renombra una columna, nunca achica un tipo, nunca rellena datos y nunca
+-- actualiza el check constraint de las columnas @Enumerated(STRING). Todo eso solo
+-- pasa desde acá. Y aparte de lo que puede o no puede hacer: esto es lo que se revisa
+-- en un diff y lo que permite levantar una base desde el repo.
+--
+-- Reglas que no cambian: sentencias sueltas, sin bloques DO $$ (Spring parte el archivo
+-- por cada ";" y no entiende el dollar-quoting), y todo con IF EXISTS / IF NOT EXISTS.
+
 create table if not exists users(username varchar(255) not null primary key,password varchar(500) not null,enabled boolean not null);
 create table if not exists authorities (username varchar(255) not null,authority varchar(50) not null,constraint fk_authorities_users foreign key(username) references users(username));
 create unique index if not exists ix_auth_username on authorities (username,authority);
@@ -164,9 +189,10 @@ alter table if exists lab_orders add column if not exists referring_physician va
 alter table if exists invoices add column if not exists lab_email varchar(255);
 
 -- Etiquetas de orden (convenios como "IHSS", campañas, empresas): tablas NUEVAS,
--- no columnas, así que van con "create table if not exists". Igual que el resto de
--- este archivo hay que correrlas a mano en prod con la credencial admin: ddl-auto
--- no tiene permisos DDL ahí, y sin estas tablas TODA consulta a lab_orders revienta
+-- no columnas, así que van con "create table if not exists". Cuando esto se escribió
+-- había que correrlas a mano en prod con la credencial admin porque ddl-auto no tenía
+-- permisos DDL ahí (ver la nota del encabezado: hoy sí los tiene). Sin estas tablas
+-- TODA consulta a lab_orders revienta
 -- (la entidad LabOrder mapea la relación) y con ella se cae órdenes, facturas y el
 -- enlace público de resultados.
 --
@@ -211,7 +237,8 @@ update laboratory set show_report_range_flags = true where show_report_range_fla
 
 -- Adjuntar foto del reporte por examen (test_config.allow_result_attachments): la
 -- columna la declara la entidad TestConfig desde el commit 5243610, pero ese commit
--- NO tocó este archivo y en prod ddl-auto ya no tiene permisos DDL. Sin la columna
+-- NO tocó este archivo y en aquel momento ddl-auto ya no tenía permisos DDL en prod
+-- (ver la nota del encabezado: hoy sí los tiene). Sin la columna
 -- TODA consulta a test_config revienta ("column does not exist"): el editor de
 -- exámenes (GET/PUT /api/v1/tests/{id}/full) devuelve 500 y con él se cae el catálogo.
 --
@@ -297,3 +324,32 @@ alter table if exists test_config add column if not exists chart_x_axis_label va
 -- table if not exists" es un no-op y no agregaría nada.
 alter table if exists test_config_parameters add column if not exists display_order integer;
 alter table if exists test_config_parameters add column if not exists chart_x_value numeric(38,2);
+
+-- Clientes de facturación (billing_clients): el catálogo de empresas, aseguradoras y
+-- titulares de convenio a cuyo nombre se puede emitir una factura, separado del padrón
+-- de pacientes. Lo mapea la entidad BillingClient y lo referencia invoices.billing_client_id.
+--
+-- La restricción única va DENTRO del create y no como un alter aparte: Postgres no tiene
+-- "add constraint if not exists", así que un alter suelto reventaría en la segunda corrida
+-- de este archivo. El precio de esa decisión: si la tabla ya existiera de antes sin la
+-- restricción (ddl-auto=update crea tablas nuevas, pero nunca agrega una restricción a una
+-- que ya existe), este create es un no-op y la unicidad del RTN quedaría descansando solo
+-- en la comprobación del servicio. Por eso vale la pena confirmar en develop que
+-- uk_billing_client_rtn_per_lab está realmente en la tabla antes de promover.
+create table if not exists billing_clients (
+  id bigserial primary key,
+  laboratory_id bigint,
+  name varchar(255) not null,
+  rtn varchar(255) not null,
+  phone varchar(255),
+  email varchar(255),
+  address varchar(255),
+  constraint uk_billing_client_rtn_per_lab unique (laboratory_id, rtn)
+);
+
+-- A quién se le facturó y de quién son los exámenes. billing_client_id nulo significa
+-- "a nombre del paciente", que es lo que dice toda factura anterior a este cambio; en
+-- esas, customer_name YA es el paciente y patient_name nulo se lee como ese mismo
+-- nombre. Por eso ninguna de las dos lleva backfill ni not null.
+alter table if exists invoices add column if not exists billing_client_id bigint references billing_clients(id);
+alter table if exists invoices add column if not exists patient_name varchar(255);

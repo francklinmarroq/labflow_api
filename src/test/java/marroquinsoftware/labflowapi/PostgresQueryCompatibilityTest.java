@@ -88,26 +88,33 @@ class PostgresQueryCompatibilityTest {
     @Test
     void listsInvoicesWithoutFilters() {
         assertDoesNotThrow(() -> invoiceRepository.findAll(
-                BillingSpecifications.invoices(null, null, null, null, null, null), PageRequest.of(0, 50)));
+                BillingSpecifications.invoices(null, null, null, null, null, null, null), PageRequest.of(0, 50)));
     }
 
     @Test
     void listsInvoicesWithEveryFilterCombination() {
         assertDoesNotThrow(() -> {
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    InvoiceStatus.PENDIENTE, null, null, null, null, null), PageRequest.of(0, 50));
+                    InvoiceStatus.PENDIENTE, null, null, null, null, null, null), PageRequest.of(0, 50));
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    null, 1L, null, null, null, null), PageRequest.of(0, 50));
+                    null, 1L, null, null, null, null, null), PageRequest.of(0, 50));
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    null, null, Instant.now().minusSeconds(3600), Instant.now(), null, null), PageRequest.of(0, 50));
+                    null, null, Instant.now().minusSeconds(3600), Instant.now(), null, null, null),
+                    PageRequest.of(0, 50));
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    null, null, null, null, "juan", null), PageRequest.of(0, 50));
+                    null, null, null, null, "juan", null, null), PageRequest.of(0, 50));
             // Filtro por etiqueta de la orden: agrega un join a lab_orders y a la
             // tabla de unión, tanto en la página como en la consulta de conteo.
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    null, null, null, null, null, 1L), PageRequest.of(0, 50));
+                    null, null, null, null, null, 1L, null), PageRequest.of(0, 50));
+            // Filtro por cliente de facturación: comparación sobre la llave foránea,
+            // sin join, solo y combinado con todo lo demás.
             invoiceRepository.findAll(BillingSpecifications.invoices(
-                    InvoiceStatus.PAGADA, 1L, Instant.now().minusSeconds(3600), Instant.now(), "000-001", 1L),
+                    null, null, null, null, null, null, 1L), PageRequest.of(0, 50));
+            invoiceRepository.findAll(BillingSpecifications.invoices(
+                    InvoiceStatus.PENDIENTE, null, null, null, null, null, 1L), PageRequest.of(0, 50));
+            invoiceRepository.findAll(BillingSpecifications.invoices(
+                    InvoiceStatus.PAGADA, 1L, Instant.now().minusSeconds(3600), Instant.now(), "000-001", 1L, 1L),
                     PageRequest.of(0, 50));
         });
     }
@@ -145,6 +152,13 @@ class PostgresQueryCompatibilityTest {
             invoiceRepository.findReceivables(PageRequest.of(0, 50));
             invoiceRepository.totalReceivable();
         });
+    }
+
+    // El saldo por cliente de facturación: un group by con join y agregados sobre
+    // numeric. H2 lo acepta sin más; esta prueba es la que dice si Postgres también.
+    @Test
+    void aggregatesReceivablesByBillingClient() {
+        assertDoesNotThrow(() -> invoiceRepository.receivablesByBillingClient());
     }
 
     @Test

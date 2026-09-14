@@ -115,19 +115,19 @@ class InvoiceAccountingTest {
     }
 
     private InvoiceRequest contado(Long orderId, String amount) {
-        return new InvoiceRequest(orderId, SaleCondition.CONTADO, null, null, null, null,
+        return new InvoiceRequest(orderId, SaleCondition.CONTADO, null, null, null, null, null,
                 new PaymentRequest(new BigDecimal(amount), PaymentMethod.EFECTIVO, null));
     }
 
     private InvoiceRequest credito(Long orderId) {
-        return new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null, null);
+        return new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null, null, null);
     }
 
     @Test
     void backdatedInvoiceUsesTheChosenDateForDocumentAndLedger() {
         LabOrder order = newOrder(customer, "Hemograma", "500.00");
         LocalDate backdate = LocalDate.now().minusDays(5);
-        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null, null,
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null, null, null,
                 backdate, new PaymentRequest(new BigDecimal("500.00"), PaymentMethod.EFECTIVO, null));
 
         InvoiceDTO dto = invoiceService.createInvoice(request);
@@ -145,7 +145,7 @@ class InvoiceAccountingTest {
         LabOrder order = newOrder(customer, "Hemograma", "165.00");
         Long labTestId = order.getTests().get(0).getId();
         // Regalía: el examen se cobra en 0, así que el total es 0.
-        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null,
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null,
                 List.of(new InvoiceItemPriceDTO(labTestId, new BigDecimal("0.00"))),
                 new BigDecimal("0.00"), null, null);
 
@@ -168,7 +168,7 @@ class InvoiceAccountingTest {
     @Test
     void futureInvoiceDateIsRejected() {
         LabOrder order = newOrder(customer, "Hemograma", "500.00");
-        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null, null,
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CONTADO, null, null, null, null,
                 LocalDate.now().plusDays(1),
                 new PaymentRequest(new BigDecimal("500.00"), PaymentMethod.EFECTIVO, null));
 
@@ -299,7 +299,7 @@ class InvoiceAccountingTest {
         LabOrder order = newOrder(senior, "Hemograma", "300.00", "Glucosa", "200.00");
 
         // La regla da 10% (50 sobre 500), pero en mostrador solo se rebaja 20.
-        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CREDITO, null, null,
+        InvoiceRequest request = new InvoiceRequest(order.getId(), SaleCondition.CREDITO, null, null, null,
                 new BigDecimal("480.00"), null, null);
         InvoiceDTO dto = invoiceService.createInvoice(request);
 
@@ -448,27 +448,27 @@ class InvoiceAccountingTest {
         InvoiceDTO issued = invoiceService.createInvoice(contado(order.getId(), "500.00"));
 
         InvoiceResponse all = invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, null, null, null, null, null);
+                null, null, null, null, null, null, null);
         assertEquals(1, all.getContent().size(), "el listado sin filtros debe devolver la factura");
         assertEquals(issued.getInvoiceNumber(), all.getContent().get(0).getInvoiceNumber());
 
         InvoiceResponse byStatus = invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                InvoiceStatus.PAGADA, null, null, null, null, null);
+                InvoiceStatus.PAGADA, null, null, null, null, null, null);
         assertEquals(1, byStatus.getContent().size());
         assertEquals(0, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                InvoiceStatus.ANULADA, null, null, null, null, null).getContent().size());
+                InvoiceStatus.ANULADA, null, null, null, null, null, null).getContent().size());
 
         assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, order.getId(), null, null, null, null).getContent().size());
+                null, order.getId(), null, null, null, null, null).getContent().size());
 
         // La búsqueda matchea número de factura o nombre del paciente.
         assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, null, null, null, "Paciente", null).getContent().size());
+                null, null, null, null, "Paciente", null, null).getContent().size());
         assertEquals(0, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, null, null, null, "no-existe", null).getContent().size());
+                null, null, null, null, "no-existe", null, null).getContent().size());
 
         assertEquals(1, invoiceService.getAllInvoices(0, 50, "issuedAt", "DESC",
-                null, null, LocalDate.now().minusDays(1), LocalDate.now(), null, null).getContent().size());
+                null, null, LocalDate.now().minusDays(1), LocalDate.now(), null, null, null).getContent().size());
     }
 
     @Test

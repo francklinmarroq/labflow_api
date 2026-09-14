@@ -313,6 +313,10 @@ public class LabOrderServiceImp implements LabOrderService {
         // resolver los rangos aplicables sin la llamada serial a GET /customers/{id}.
         dto.setCustomerSex(order.getCustomer().getSex());
         dto.setCustomerAgeInDays(order.getCustomer().getAgeInDays());
+        // Identidad del mismo Customer ya cargado (sin query extra): deja al front
+        // mostrar la identidad en el reporte/sobre sin la llamada serial a
+        // GET /customers/{id}.
+        dto.setCustomerNationalId(order.getCustomer().getNationalIdNumber());
         dto.setRequestedAt(order.getRequestedAt());
         dto.setStatus(order.getStatus());
         dto.setNotes(order.getNotes());

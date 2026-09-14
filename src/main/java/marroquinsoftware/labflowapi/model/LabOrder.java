@@ -88,7 +88,11 @@ public class LabOrder {
     private String cancelledByUsername;
     private String cancellationReason;
 
+    // El historial del paciente recorre los exámenes de todas sus órdenes a la
+    // vez; sin el @BatchSize sería una consulta por orden al inicializar esta
+    // colección lazy (N+1).
     @OneToMany(mappedBy = "order", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<LabTest> tests;

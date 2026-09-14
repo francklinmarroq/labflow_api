@@ -39,10 +39,12 @@ public class InvoiceController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false) String search,
             // Etiqueta de la orden de la que salió la factura (convenio, campaña…).
-            @RequestParam(required = false) Long tagId) {
+            @RequestParam(required = false) Long tagId,
+            // Empresa o aseguradora a la que se emitió la factura; vacío = todas.
+            @RequestParam(required = false) Long billingClientId) {
         return new ResponseEntity<>(
                 invoiceService.getAllInvoices(pageNumber, pageSize, sortBy, sortOrder, status, orderId, from, to,
-                        search, tagId),
+                        search, tagId, billingClientId),
                 HttpStatus.OK);
     }
 

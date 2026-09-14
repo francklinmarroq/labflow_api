@@ -14,6 +14,92 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-09-13 — Identidad del paciente embebida en `LabOrderDTO` (habilita eliminar `GET /customers/{id}` en impresión/sobre) · cross-repo
+**Archivos:** `LabOrderDTO` (`customerNationalId`), `LabOrderServiceImp.toDTO`,
+`OrderTestLockTest` (+1 test).
+**Problema:** el reporte de la orden (`ordenes/[id]/imprimir.vue`, alto tráfico) y el
+sobre (`ordenes/[id]/sobre.vue`) mostraban la **identidad del paciente**
+(`nationalIdNumber`) pidiendo `GET /customers/{id}` en el front. Ese round-trip paga
+íntegro el piso de ~0.7 s (navegador → Worker → Durable Object → contenedor) y es otra
+invocación de Cloudflare. El sexo/edad ya venían embebidos (2026-07-28) y el nombre desde
+2026-07-27, pero la identidad seguía forzando la llamada al padrón.
+**Cambio:** `LabOrderDTO` ahora expone `customerNationalId` (`String`), embebido de
+**solo lectura** igual que `customerName`/`customerSex`/`customerAgeInDays`: se ignora al
+crear/actualizar (la orden se vincula por `customerId`) y se **lee del mismo `Customer`
+que `toDTO` ya materializaba** para el nombre — **sin consulta extra** a Postgres. En el
+listado el paciente ya viene por `LEFT JOIN FETCH o.customer` (una sola query) y en el
+detalle es el mismo proxy ya accedido para `getName()`. El resto del DTO y el
+comportamiento observable no cambian.
+**Impacto esperado:** habilita que el front elimine la llamada a `GET /customers/{id}` en
+el reporte de orden y en el sobre: **−1 invocación de Cloudflare por apertura** en cada
+una de esas pantallas (el sobre pasa de 2→1 llamadas y deja de encadenar un request
+serial; el reporte deja de disparar la llamada al paciente en su ola de carga). Del lado
+de Postgres: **0 queries nuevas** (mismo `Customer` ya cargado).
+**Acople de despliegue:** **API primero.** El consumidor (`labflow_frontend`, rama
+`claude/awesome-bell-tm67oh`) lee `customerNationalId` del DTO y mantiene respaldo a
+`GET /customers/{id}` mientras la API vieja no lo envíe; para eliminar la llamada en
+producción esta API debe desplegarse **antes** que el front. Ver PR del front.
+**Verificación:** `mvn test "-Dtest=!LabflowapiApplicationTests" -Dmaven.compiler.release=21`
+→ **97 tests, BUILD SUCCESS**. `OrderTestLockTest.orderDtoEmbedsPatientIdentityWithoutASecondCall`
+verifica que el DTO de la orden trae nombre/sexo/edad/identidad del paciente. (En este
+entorno solo hay JDK 21; el pom apunta a Java 25, así que se compiló con
+`-Dmaven.compiler.release=21` sin tocar el pom; agregar un campo derivado es 100%
+compatible con ambos targets.) Latencia real pendiente de confirmación humana (no hay
+entorno con API + BD para medir).
+
+### 2026-09-06 — Historial del paciente: cortar el N+1 profundo (`@BatchSize` en las colecciones + memoria de rangos)
+**Archivos:** `PatientHistoryServiceImp` (memoria por llamada de `findApplicable`),
+`LabOrder.tests`, `LabTest.runs`, `TestRun.results`, `TestConfig.configParameters`
+(cada colección `@OneToMany` lazy ahora con `@BatchSize(50)`).
+**Problema:** `GET /api/v1/customers/{id}/history` alimenta el detalle del paciente
+(pantalla de alto tráfico). El servicio trae todas las órdenes del paciente
+(`findByCustomer_Id`) y luego recorre **anidado** `orden → exámenes → corridas →
+resultados`, además de armar la curva de los perfiles `LINE`. Las cuatro colecciones
+`@OneToMany` que atraviesa (`LabOrder.tests`, `LabTest.runs`, `TestRun.results`,
+`TestConfig.configParameters`) eran **lazy sin `@BatchSize`**, así que inicializarlas
+disparaba **una consulta por padre** — un N+1 clásico en cada nivel:
+≈ `1 (órdenes) + O (tests, 1×orden) + T (runs, 1×examen) + R (results, 1×corrida)
++ C (configParameters, 1×perfil de curva)`. Peor aún, `buildChart` llamaba
+`referenceRangeRepository.findApplicable(parameterId, sexo, edad)` **dentro de los
+bucles anidados**, una consulta por punto de curva por corrida, repitiendo la MISMA
+consulta una y otra vez: como todo el historial es de un solo paciente, el sexo y la
+edad son **constantes**, así que esas consultas solo variaban por `parameterId`.
+Para un paciente con, p. ej., 10 órdenes / 30 exámenes / 45 corridas y un par de perfiles
+de curva (~45 llamadas a `findApplicable`), una sola apertura del historial hacía
+**≈ 130+ consultas** contra el contenedor de 1 vCPU e instancia única.
+**Cambio:** dos optimizaciones que **no cambian el resultado observable** (mismas filas,
+mismo orden — el servicio ya ordenaba corridas/resultados/grupos en Java):
+1. **`@BatchSize(50)`** en las cuatro colecciones lazy que recorre el historial. Hibernate
+   agrupa la inicialización de muchos padres en `ceil(N/50)` consultas por nivel en vez de
+   una por padre. Es el mismo idioma ya usado en el repo (`JournalEntry.lines`,
+   `LabOrder.tags`). Como beneficio colateral acelera también otras rutas que recorren
+   estas colecciones (detalle de orden, `GET /orders/{id}/runs`, ingreso de resultados).
+2. **Memoria por llamada** de `findApplicable`: se cachea el resultado por
+   `(parameterId, sexo, edad)` en un `Map` local a `getPatientHistory` (clave `RangeKey`).
+   Como sexo/edad son constantes en la llamada, colapsa en la práctica **una consulta por
+   parámetro distinto** en vez de una por punto-de-curva-por-corrida. Se conservan las
+   mismas filas y el mismo `ranges.get(0)`.
+**Impacto esperado:** el historial del paciente baja de
+**≈ `1 + O + T + R + C + F`** a **≈ `1 + ceil(O/50) + ceil(T/50) + ceil(R/50)
++ ceil(C/50) + P`** consultas a Postgres por apertura (F = llamadas a `findApplicable`,
+P = parámetros de curva distintos). En el ejemplo de arriba: de **~130 a ~10 consultas**
+(**≈ −120 round-trips a Postgres**, ~13×); el ahorro crece con el largo del historial
+(el "antes" escala con `O+T+R+F`, el "después" queda casi constante + P). **No cambia** la
+cantidad de requests HTTP/invocaciones de Cloudflare (es un solo endpoint), pero reduce
+fuertemente la contención del contenedor de 1 vCPU y acelera cada respuesta del historial.
+**Acople de despliegue:** **ninguno.** Cambio interno de la API; el contrato HTTP y los
+DTO no cambian, desplegable de forma independiente del front.
+**Verificación:** `mvn test "-Dtest=!LabflowapiApplicationTests" -Dmaven.compiler.release=21`
+→ **69 tests, BUILD SUCCESS**. Los tests que ejercitan estas entidades y colecciones
+(`TestConfigOrderingTest` sobre `configParameters` + su `@OrderBy`, `OrderTagTest`,
+`InvoiceAccountingTest`, `JournalServiceTest`) siguen verdes: confirman que `@BatchSize`
+no altera datos ni orden. `PostgresQueryCompatibilityTest` cubre estas consultas contra
+Postgres real pero se salta sin BD (0 tests). (En este entorno solo hay JDK 21; el pom
+apunta a Java 25, así que se compiló con `-Dmaven.compiler.release=21` sin tocar el pom;
+el cambio —`@BatchSize`, un `record` y `Map.computeIfAbsent`— es 100% compatible con ambos
+targets.) Latencia real pendiente de confirmación humana (no hay entorno con API + BD para
+medir).
+
 ### 2026-07-31 — Listado de facturas y cuentas por cobrar: fetch join de `order`+`customer` (N+1 de Postgres → 1)
 **Archivos:** `BillingSpecifications.invoices()` (fetch join condicional),
 `InvoiceRepository.findReceivables` (`@EntityGraph`).
@@ -190,11 +276,15 @@ humana (no hay entorno con API + BD para medir).
   `LabOrderDTO` embebe `customerSex`/`customerAgeInDays` (sin query extra) y el front
   eliminó la llamada serial a `GET /customers/{id}` en el detalle (2→1 serial). Ver
   entrada en «Hecho».
-- [~] **Revisar N+1 en otros mapeos a DTO** (facturas, remisiones, journal): mismas
-  colecciones lazy recorridas en `toDTO`; auditar con logging de Hibernate.
+- [~] **Revisar N+1 en otros mapeos a DTO** (facturas, remisiones, journal, historial):
+  mismas colecciones lazy recorridas en `toDTO`/servicios; auditar con logging de Hibernate.
   **Facturas hecho 2026-07-31** — el listado de facturas y cuentas por cobrar traían
   `order`/`customer` (`@ManyToOne` EAGER) con N+1; ahora van por fetch join /
-  `@EntityGraph` (ver «Hecho»). Pendiente auditar remisiones (`Referral`) y el diario
-  (`JournalEntry`) con la misma lupa.
+  `@EntityGraph` (ver «Hecho»). **Historial del paciente hecho 2026-09-06** — el N+1
+  profundo (`orden→exámenes→corridas→resultados` + `findApplicable` en bucles) se cortó
+  con `@BatchSize(50)` en las cuatro colecciones lazy y memoria por llamada de los rangos
+  (ver «Hecho»); el diario (`JournalEntry.lines`) ya estaba batcheado. Pendiente auditar
+  remisiones (`Referral.items`, `@OneToMany` lazy sin `@BatchSize`: N+1 al listar las
+  remisiones de una orden, aunque suelen ser pocas por orden) con la misma lupa.
 - [ ] **Config HikariCP/JPA:** revisar `spring.jpa.open-in-view`, tamaño del pool y
   `default_batch_fetch_size`/`@BatchSize` para instancia única de 1 vCPU.

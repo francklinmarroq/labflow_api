@@ -111,6 +111,7 @@ class OrderTestLockTest {
         customer.setName("Paciente de Prueba");
         customer.setSex(Sex.FEMALE);
         customer.setAgeInDays(30 * 365);
+        customer.setNationalIdNumber("0801-1990-01234");
         customer = customerRepository.save(customer);
 
         hemograma = newTest("Hemograma", "500.00");
@@ -147,7 +148,7 @@ class OrderTestLockTest {
 
     private InvoiceDTO invoice(Long orderId) {
         return invoiceService.createInvoice(
-                new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null, null));
+                new InvoiceRequest(orderId, SaleCondition.CREDITO, null, null, null, null, null, null));
     }
 
     private List<LabTest> testsOf(Long orderId) {
@@ -158,6 +159,22 @@ class OrderTestLockTest {
         LabTestDTO dto = new LabTestDTO();
         dto.setTestId(test.getId());
         return dto;
+    }
+
+    // --- Datos del paciente embebidos en el DTO de la orden (sin 2.ª llamada) ---
+
+    @Test
+    void orderDtoEmbedsPatientIdentityWithoutASecondCall() {
+        LabOrder order = newOrder(hemograma);
+
+        LabOrderDTO dto = labOrderService.getOrderById(order.getId());
+
+        // El detalle/impresión/sobre leen estos campos del DTO en vez de pedir
+        // GET /customers/{id}: nombre, sexo, edad e identidad del paciente.
+        assertEquals("Paciente de Prueba", dto.getCustomerName());
+        assertEquals(Sex.FEMALE, dto.getCustomerSex());
+        assertEquals(Integer.valueOf(30 * 365), dto.getCustomerAgeInDays());
+        assertEquals("0801-1990-01234", dto.getCustomerNationalId());
     }
 
     // --- 3.2 El candado ---

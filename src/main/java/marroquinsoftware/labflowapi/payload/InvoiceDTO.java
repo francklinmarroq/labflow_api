@@ -41,9 +41,18 @@ public class InvoiceDTO {
     private Long orderId;
     private Long orderNumber;
     private Long customerId;
+    /** Cliente de facturación al que se emitió; null = se emitió a nombre del paciente. */
+    private Long billingClientId;
+    /** Destinatario congelado al emitir: el paciente o la razón social de la empresa. */
     private String customerName;
     /** Null = consumidor final. */
     private String customerRtn;
+    /**
+     * Paciente de la orden, congelado al emitir. Null en las facturas anteriores a
+     * este campo, todas emitidas a nombre del paciente: ahí el paciente es
+     * {@code customerName}.
+     */
+    private String patientName;
 
     private Instant issuedAt;
     private String issuedByUsername;
