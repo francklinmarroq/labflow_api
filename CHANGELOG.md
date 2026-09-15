@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.10.2](https://github.com/francklinmarroq/labflow_api/compare/v1.10.1...v1.10.2) (2026-09-15)
+
+### Correcciones
+
+* leer una factura a nombre de empresa reventaba en la imagen nativa ([4a43eae](https://github.com/francklinmarroq/labflow_api/commit/4a43eae9a51775a56548c2590e9b87d83e9ab1ae))
 ## [1.10.1](https://github.com/francklinmarroq/labflow_api/compare/v1.9.0...v1.10.1) (2026-09-14)
 
 ### Funcionalidades
