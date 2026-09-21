@@ -353,3 +353,93 @@ create table if not exists billing_clients (
 -- nombre. Por eso ninguna de las dos lleva backfill ni not null.
 alter table if exists invoices add column if not exists billing_client_id bigint references billing_clients(id);
 alter table if exists invoices add column if not exists patient_name varchar(255);
+
+-- Médicos solicitantes (referring_physicians): el catálogo de quienes refieren
+-- trabajo al laboratorio. Reemplaza la columna de texto libre lab_orders.referring_physician,
+-- donde el mismo médico se escribía distinto en cada orden y se imprimía así en el
+-- reporte. Lo mapea la entidad ReferringPhysician y lo referencia
+-- lab_orders.referring_physician_id.
+--
+-- La unicidad del nombre es POR LABORATORIO y sobre normalized_name (el nombre sin
+-- tildes, sin espacios de más y en minúsculas), para que "Dra. Ana Fúnez",
+-- "dra. ana funez" e " Dra.  Ana Funez " sean el mismo médico y no tres. name guarda
+-- cómo se escribió y es lo que se imprime.
+--
+-- Va como "create unique index if not exists" aparte y no como constraint dentro del
+-- create (que es lo que hizo billing_clients): Postgres no tiene
+-- "add constraint if not exists", pero el índice único sí es idempotente, así que
+-- esta forma además arregla una tabla que ya existiera sin la restricción.
+create table if not exists referring_physicians (
+  id bigserial primary key,
+  laboratory_id bigint,
+  name varchar(150) not null,
+  normalized_name varchar(150) not null
+);
+create unique index if not exists uk_referring_physician_name_per_lab on referring_physicians (laboratory_id, normalized_name);
+
+-- El médico de la orden deja de ser texto y pasa a apuntar al catálogo. Nullable:
+-- la mayoría de las órdenes no indican médico. El índice por referring_physician_id
+-- es el que usan el conteo de uso del catálogo y el desenganche al borrar un médico.
+alter table if exists lab_orders add column if not exists referring_physician_id bigint references referring_physicians(id);
+create index if not exists ix_lab_orders_referring_physician on lab_orders (referring_physician_id);
+
+-- ÚLTIMO PASO DE LA MIGRACIÓN, A MANO Y APARTE — no lo descomente todavía.
+-- La columna vieja de texto (lab_orders.referring_physician) ya no la mapea ninguna
+-- entidad, así que dejarla no cuesta nada y es la ÚNICA copia de los nombres si el
+-- backfill (ReferringPhysicianBackfill) agrupara mal algo. Se corre a mano en cada
+-- base SOLO después de haber verificado ahí el resultado del backfill: revisar el
+-- renglón del log con cuántas órdenes se reengancharon y cotejar el catálogo contra
+-- los nombres que tenía la columna. Antes de eso, volver a la imagen anterior es un
+-- rollback completo; después, ya no.
+-- alter table lab_orders drop column if exists referring_physician;
+
+-- Métodos del perfil de un examen (test_methods): las técnicas con las que el
+-- laboratorio corre ese examen (ELISA, quimioluminiscencia, aglutinación).
+-- Reemplazan la columna de texto libre lab_tests.method, donde la misma técnica se
+-- reescribía en cada orden y se imprimía en el reporte tal como se hubiera tecleado
+-- esa vez. Los mapea la entidad TestMethod y los referencia lab_tests.method_id.
+--
+-- La unicidad del nombre es POR PERFIL (no por laboratorio) y sobre normalized_name
+-- (el nombre sin tildes, sin espacios de más y en minúsculas), para que
+-- "Quimioluminiscencia", "quimioluminiscencia" y " Quimioluminiscencia " sean el
+-- mismo método y no tres. El mismo nombre bajo dos perfiles son DOS métodos, de dos
+-- exámenes distintos. name guarda cómo se escribió y es lo que se imprime.
+--
+-- is_default marca cuál de los métodos del perfil se le estampa a un examen nuevo al
+-- asignarle el perfil. "A lo sumo uno verdadero por perfil" NO se puede expresar como
+-- restricción acá (un índice único parcial no cubre el caso de ninguno); lo sostiene
+-- TestMethodService, que es el único que lo escribe.
+--
+-- Va como "create unique index if not exists" aparte y no como constraint dentro del
+-- create: Postgres no tiene "add constraint if not exists", pero el índice único sí
+-- es idempotente, así que esta forma además arregla una tabla que ya existiera sin la
+-- restricción.
+create table if not exists test_methods (
+  id bigserial primary key,
+  laboratory_id bigint,
+  test_config_id bigint not null references test_config(id),
+  name varchar(255) not null,
+  normalized_name varchar(255) not null,
+  is_default boolean not null default false
+);
+create unique index if not exists uk_test_method_name_per_config on test_methods (test_config_id, normalized_name);
+-- El índice por perfil es el que usa la lectura de "los métodos de este perfil", que
+-- corre en cada apertura de la pantalla de órdenes y del editor del examen.
+create index if not exists ix_test_methods_config on test_methods (test_config_id);
+
+-- El método del examen de una orden deja de ser texto y pasa a apuntar al método del
+-- perfil. Nullable: un examen puede no indicar método (y los que aún no tienen perfil
+-- asignado nunca lo indican). El índice por method_id es el que usa la comprobación de
+-- "¿algún examen usa este método?" que bloquea quitarlo del perfil.
+alter table if exists lab_tests add column if not exists method_id bigint references test_methods(id);
+create index if not exists ix_lab_tests_method on lab_tests (method_id);
+
+-- ÚLTIMO PASO DE LA MIGRACIÓN, A MANO Y APARTE — no lo descomente todavía.
+-- La columna vieja de texto (lab_tests.method) ya no la mapea ninguna entidad, así que
+-- dejarla no cuesta nada y es la ÚNICA copia de los métodos si el backfill
+-- (TestMethodBackfill) agrupara mal algo. Se corre a mano en cada base SOLO después de
+-- que el backfill reporte CERO exámenes sin resolver ahí: los exámenes sin perfil no se
+-- adivinan, se quedan con su texto y se cuentan en el log, y son exactamente los que
+-- este drop perdería. Antes de esto, volver a la imagen anterior es un rollback
+-- completo; después, ya no.
+-- alter table lab_tests drop column if exists method;

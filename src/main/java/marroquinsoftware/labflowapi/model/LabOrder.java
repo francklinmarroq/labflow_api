@@ -63,10 +63,22 @@ public class LabOrder {
 
     private String notes;
 
-    // Médico solicitante (opcional): nombre de quien refiere la orden. Solo se
-    // captura si se llena y solo se imprime en el reporte cuando tiene valor.
-    @Column(name = "referring_physician", length = 150)
-    private String referringPhysician;
+    // Médico solicitante (opcional): quien refiere la orden. Solo se captura si se
+    // llena y solo se imprime en el reporte cuando tiene valor.
+    //
+    // Apunta al catálogo del laboratorio (ReferringPhysician) y ya no guarda el
+    // nombre: así el mismo médico deja de escribirse distinto en cada orden y
+    // corregirle el nombre una vez lo corrige en todas. Sin cascade a propósito: el
+    // médico vive en el catálogo y se reutiliza entre órdenes; borrar o editar la
+    // orden no debe tocarlo.
+    //
+    // EAGER como todos los to-one de este modelo: la imagen nativa no puede fabricar
+    // el proxy de uno lazy en tiempo de ejecución (ver NativeImageLazyAssociationTest,
+    // que falla la compilación si aparece uno). El listado lo trae con fetch join en
+    // LabOrderSpecifications para no volverse N+1.
+    @ManyToOne
+    @JoinColumn(name = "referring_physician_id")
+    private ReferringPhysician referringPhysician;
 
     // Contexto clínico de la visita, capturado una vez, del que se computa el día
     // del ciclo / semana gestacional para elegir el rango de referencia que aplica
