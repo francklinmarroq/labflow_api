@@ -43,6 +43,9 @@ public class TestConfigServiceImp implements TestConfigService {
     @Autowired
     private ModelMapper modelMapper;
 
+    @Autowired
+    private TestMethodService testMethodService;
+
     @Override
     public TestConfigResponse getAllTestConfigs(Integer pageNumber, Integer pageSize, String sortBy, String sortDir) {
         return buildPagedResponse(testConfigRepository.findAll(buildPageable(pageNumber, pageSize, sortBy, sortDir)));
@@ -162,6 +165,9 @@ public class TestConfigServiceImp implements TestConfigService {
                 .filter(cp -> cp.getChartXValue() != null)
                 .collect(Collectors.toMap(cp -> cp.getParameter().getId(), TestConfigParameter::getChartXValue));
         dto.setChartXValues(chartXValues);
+        // Los métodos del perfil viajan con él: la pantalla de órdenes los ofrece
+        // desde el catálogo de perfiles que ya tiene cacheado, sin llamada aparte.
+        dto.setMethods(testMethodService.toDTOs(config));
         return dto;
     }
 }

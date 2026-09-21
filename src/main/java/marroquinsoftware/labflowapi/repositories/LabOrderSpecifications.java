@@ -41,6 +41,12 @@ public final class LabOrderSpecifications {
                     && (query.getResultType() == Long.class || query.getResultType() == long.class);
             if (!isCount) {
                 root.fetch("customer", JoinType.LEFT);
+                // Mismo caso que customer: el mapeo a DTO lee el nombre del médico
+                // solicitante de cada orden, así que sin este fetch join el listado
+                // haría una consulta por orden. También es to-one, así que no
+                // multiplica filas ni rompe la paginación por SQL. LEFT porque la
+                // mayoría de las órdenes no indican médico.
+                root.fetch("referringPhysician", JoinType.LEFT);
             }
 
             List<Predicate> predicates = new ArrayList<>();

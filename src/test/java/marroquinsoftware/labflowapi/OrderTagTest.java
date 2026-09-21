@@ -16,6 +16,7 @@ import marroquinsoftware.labflowapi.service.LabOrderService;
 import marroquinsoftware.labflowapi.service.LabOrderServiceImp;
 import marroquinsoftware.labflowapi.service.OrderTagService;
 import marroquinsoftware.labflowapi.service.OrderTagServiceImp;
+import marroquinsoftware.labflowapi.service.ReferringPhysicianServiceImp;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import marroquinsoftware.labflowapi.tenant.TenantIdentifierResolver;
 import org.junit.jupiter.api.AfterEach;
@@ -40,7 +41,10 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-@Import({LabOrderServiceImp.class, OrderTagServiceImp.class, TenantIdentifierResolver.class})
+// ReferringPhysicianServiceImp entra porque LabOrderServiceImp resuelve con él el
+// médico solicitante al guardar la orden, aunque acá no se pruebe.
+@Import({LabOrderServiceImp.class, OrderTagServiceImp.class, ReferringPhysicianServiceImp.class,
+        TenantIdentifierResolver.class})
 @TestPropertySource(properties = {
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",

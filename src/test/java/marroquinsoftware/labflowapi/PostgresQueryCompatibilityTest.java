@@ -9,6 +9,8 @@ import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderSpecifications;
+import marroquinsoftware.labflowapi.repositories.ReferringPhysicianRepository;
+import marroquinsoftware.labflowapi.repositories.TestMethodRepository;
 import marroquinsoftware.labflowapi.repositories.TestRunRepository;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import marroquinsoftware.labflowapi.tenant.TenantIdentifierResolver;
@@ -68,6 +70,8 @@ class PostgresQueryCompatibilityTest {
     @Autowired ExpenseRepository expenseRepository;
     @Autowired TestRunRepository testRunRepository;
     @Autowired LabOrderRepository labOrderRepository;
+    @Autowired ReferringPhysicianRepository referringPhysicianRepository;
+    @Autowired TestMethodRepository testMethodRepository;
 
     @BeforeAll
     static void requirePostgres() {
@@ -120,7 +124,9 @@ class PostgresQueryCompatibilityTest {
     }
 
     // El listado de Órdenes: mismos filtros opcionales armados con Criteria, con y
-    // sin etiqueta. El fetch join del paciente convive con el join de etiquetas.
+    // sin etiqueta. Los fetch join del paciente y del médico solicitante (los dos
+    // to-one, los dos LEFT) conviven con el join de etiquetas, y la consulta de
+    // conteo se los salta.
     @Test
     void listsOrdersWithAndWithoutFilters() {
         assertDoesNotThrow(() -> {
@@ -132,6 +138,33 @@ class PostgresQueryCompatibilityTest {
                     LabOrderSpecifications.orders(null, 1L), PageRequest.of(0, 50));
             labOrderRepository.findAll(
                     LabOrderSpecifications.orders(OrderStatus.PENDING, 1L), PageRequest.of(0, 50));
+        });
+    }
+
+    // El conteo de uso del catálogo de médicos solicitantes: un group by sobre el
+    // join de LabOrder con el médico, devolviendo tuplas Object[]. Es JPQL, así que
+    // el laboratorio lo agrega Hibernate por @TenantId; lo que se comprueba acá es
+    // que Postgres acepta la proyección y el agrupamiento tal como los genera.
+    @Test
+    void countsOrdersPerReferringPhysician() {
+        assertDoesNotThrow(() -> {
+            referringPhysicianRepository.countUsageByPhysician();
+            referringPhysicianRepository.findAllByOrderByNameAsc();
+            referringPhysicianRepository.findByNormalizedName("dra. ana funez");
+        });
+    }
+
+    // Los métodos del perfil de un examen: la lectura que hace la pantalla de órdenes
+    // al ofrecerlos, y el conteo de exámenes que indican uno, que es lo que decide si
+    // se puede quitar del perfil. El conteo navega la asociación LabTest.method, que
+    // acá es una llave foránea nueva; H2 acepta el JPQL sin chistar, esta prueba es la
+    // que dice si Postgres también.
+    @Test
+    void readsTheMethodsOfATemplateAndCountsTheExamsUsingOne() {
+        assertDoesNotThrow(() -> {
+            testMethodRepository.findByTestConfig_IdOrderByNameAsc(1L);
+            testMethodRepository.findByTestConfig_IdAndNormalizedName(1L, "elisa");
+            testMethodRepository.countLabTestsUsing(1L);
         });
     }
 

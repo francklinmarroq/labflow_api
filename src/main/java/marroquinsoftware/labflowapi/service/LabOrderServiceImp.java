@@ -64,6 +64,9 @@ public class LabOrderServiceImp implements LabOrderService {
     @Autowired
     private OrderTagService orderTagService;
 
+    @Autowired
+    private ReferringPhysicianService referringPhysicianService;
+
     @Override
     @Transactional(readOnly = true)
     public LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
@@ -104,7 +107,11 @@ public class LabOrderServiceImp implements LabOrderService {
         order.setRequestedAt(dto.getRequestedAt() != null ? dto.getRequestedAt() : Instant.now());
         order.setStatus(dto.getStatus() != null ? dto.getStatus() : OrderStatus.PENDING);
         order.setNotes(dto.getNotes());
-        order.setReferringPhysician(trimToNull(dto.getReferringPhysician()));
+        // El médico se escribe por NOMBRE, no por id: si el laboratorio nunca lo ha
+        // usado se da de alta solo en el catálogo dentro de esta misma transacción
+        // (igual que las etiquetas). Nombre vacío o en blanco = la orden no indica
+        // médico, que es lo que hacía el trimToNull de antes.
+        order.setReferringPhysician(referringPhysicianService.resolveOrCreate(dto.getReferringPhysician()));
         applyClinicalContext(order, dto);
         applyTags(order, dto.getTagNames());
         // Exámenes de la orden en la misma llamada (opcional). Antes el front creaba
@@ -182,7 +189,11 @@ public class LabOrderServiceImp implements LabOrderService {
         if (dto.getRequestedAt() != null) order.setRequestedAt(dto.getRequestedAt());
         if (dto.getStatus() != null) order.setStatus(dto.getStatus());
         order.setNotes(dto.getNotes());
-        order.setReferringPhysician(trimToNull(dto.getReferringPhysician()));
+        // El médico se escribe por NOMBRE, no por id: si el laboratorio nunca lo ha
+        // usado se da de alta solo en el catálogo dentro de esta misma transacción
+        // (igual que las etiquetas). Nombre vacío o en blanco = la orden no indica
+        // médico, que es lo que hacía el trimToNull de antes.
+        order.setReferringPhysician(referringPhysicianService.resolveOrCreate(dto.getReferringPhysician()));
         applyClinicalContext(order, dto);
         // Solo se tocan las etiquetas si el cliente las mandó. Varias pantallas
         // actualizan la orden para otra cosa (cambiar de estado al ingresar
@@ -234,15 +245,6 @@ public class LabOrderServiceImp implements LabOrderService {
         // Se relee después de la posible anulación en cascada: si la factura quedó
         // anulada, la orden ya no está bloqueada y el DTO debe decirlo.
         return toDTO(order, lockedOrderIds(List.of(order.getId())));
-    }
-
-    // Normaliza el texto opcional del médico solicitante: recorta espacios y trata
-    // el vacío como null, para que el reporte no imprima el rótulo con un valor en
-    // blanco (solo aparece si de verdad se llenó).
-    private String trimToNull(String value) {
-        if (value == null) return null;
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
     }
 
     private String currentUsername() {
@@ -320,7 +322,17 @@ public class LabOrderServiceImp implements LabOrderService {
         dto.setRequestedAt(order.getRequestedAt());
         dto.setStatus(order.getStatus());
         dto.setNotes(order.getNotes());
-        dto.setReferringPhysician(order.getReferringPhysician());
+        // El médico se reporta por NOMBRE, en el mismo campo de siempre, para que un
+        // cliente escrito antes del catálogo siga funcionando igual. Es el nombre
+        // VIGENTE del catálogo: por eso corregirlo ahí corrige también las órdenes ya
+        // levantadas. El id va aparte y es solo lectura.
+        if (order.getReferringPhysician() != null) {
+            dto.setReferringPhysician(order.getReferringPhysician().getName());
+            dto.setReferringPhysicianId(order.getReferringPhysician().getId());
+        } else {
+            dto.setReferringPhysician(null);
+            dto.setReferringPhysicianId(null);
+        }
         dto.setLmpDate(order.getLmpDate());
         dto.setPregnant(order.isPregnant());
         dto.setGestationalWeeks(order.getGestationalWeeks());

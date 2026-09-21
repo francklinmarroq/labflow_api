@@ -13,6 +13,7 @@ import marroquinsoftware.labflowapi.payload.TestConfigDTO;
 import marroquinsoftware.labflowapi.payload.TestDTO;
 import marroquinsoftware.labflowapi.payload.TestFullDTO;
 import marroquinsoftware.labflowapi.payload.TestFullParameterDTO;
+import marroquinsoftware.labflowapi.payload.TestMethodDTO;
 import marroquinsoftware.labflowapi.repositories.LabTestRepository;
 import marroquinsoftware.labflowapi.repositories.ReferenceRangeRepository;
 import marroquinsoftware.labflowapi.repositories.TestConfigParameterRepository;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -51,6 +53,9 @@ public class TestBuilderServiceImp implements TestBuilderService {
 
     @Autowired
     private TestConfigService testConfigService;
+
+    @Autowired
+    private TestMethodService testMethodService;
 
     @Autowired
     private TestRepository testRepository;
@@ -98,6 +103,9 @@ public class TestBuilderServiceImp implements TestBuilderService {
             for (TestConfigParameter cp : config.getConfigParameters()) {
                 paramDtos.add(toFullParameterDTO(cp.getParameter(), cp.getChartXValue()));
             }
+
+            // Los métodos del perfil, con cuál es el predeterminado.
+            dto.setMethods(testMethodService.toDTOs(config));
         } else {
             // Examen sin perfil todavía: se ofrece el nombre del examen por defecto.
             dto.setProfileName(test.getName());
@@ -207,13 +215,71 @@ public class TestBuilderServiceImp implements TestBuilderService {
         configDTO.setChartXAxisLabel(dto.getChartXAxisLabel());
         configDTO.setChartXValues(chartXValues);
 
-        if (existingConfigId != null) {
-            testConfigService.updateTestConfig(configDTO, existingConfigId);
-        } else {
-            testConfigService.createTestConfig(configDTO);
+        Long configId = existingConfigId != null
+                ? testConfigService.updateTestConfig(configDTO, existingConfigId).getId()
+                : testConfigService.createTestConfig(configDTO).getId();
+
+        // Los métodos del perfil se concilian DENTRO de esta misma transacción: si
+        // quitar uno se rechaza porque alguna orden lo indica, se revierte el guardado
+        // entero del examen en vez de dejarlo a medias (el perfil ya renombrado y los
+        // parámetros ya sincronizados, pero los métodos como estaban).
+        //
+        // Si el cuerpo no menciona los métodos, no se tocan: es lo que manda un
+        // cliente anterior a este cambio, y el API se despliega antes que el frontend.
+        if (dto.getMethods() != null) {
+            TestConfig config = testConfigRepository.findById(configId)
+                    .orElseThrow(() -> new ResourceNotFoundException("TestConfig", "id", configId));
+            testMethodService.reconcile(config, dedupeMethods(dto.getMethods()));
         }
 
         return getFull(testId);
+    }
+
+    /**
+     * Quita de la lista entrante los nombres repetidos y los vacíos ANTES de
+     * conciliar: escribir dos veces el mismo método en un mismo guardado ("ELISA" y
+     * "elisa") deja UN método, no dos ni un error — es el mismo método nombrado otra
+     * vez. Se conserva la primera escritura, y basta que una de las repetidas venga
+     * marcada como predeterminada para que la que queda lo sea.
+     *
+     * <p>La comparación es la misma que usa el resto del cambio (sin tildes, sin
+     * espacios de más, en minúsculas); una fila con id se conserva siempre, porque
+     * identifica a un método concreto del perfil y renombrarlo sobre otro es cosa
+     * que TestMethodService rechaza, no que se colapse acá en silencio.
+     */
+    private List<TestMethodDTO> dedupeMethods(List<TestMethodDTO> incoming) {
+        if (incoming == null || incoming.isEmpty()) {
+            return List.of();
+        }
+        List<TestMethodDTO> rows = new ArrayList<>();
+        Map<String, TestMethodDTO> seen = new LinkedHashMap<>();
+        for (TestMethodDTO row : incoming) {
+            if (row == null || row.getName() == null || row.getName().isBlank()) continue;
+            String key = normalizeMethodName(row.getName());
+            TestMethodDTO previous = seen.get(key);
+            if (previous == null) {
+                TestMethodDTO copy = new TestMethodDTO(row.getId(), row.getName(), row.getIsDefault());
+                seen.put(key, copy);
+                rows.add(copy);
+                continue;
+            }
+            if (row.getId() != null && previous.getId() == null) {
+                // La escritura que identifica a un método existente manda sobre la que
+                // solo trae el nombre: si no, se intentaría crear uno nuevo con el
+                // nombre de uno que el perfil ya tiene.
+                previous.setId(row.getId());
+            }
+            if (Boolean.TRUE.equals(row.getIsDefault())) {
+                previous.setIsDefault(true);
+            }
+        }
+        return rows;
+    }
+
+    /** Misma llave de comparación de nombres que TestMethodServiceImp. */
+    private String normalizeMethodName(String name) {
+        String decomposed = Normalizer.normalize(name.trim().replaceAll("\\s+", " "), Normalizer.Form.NFD);
+        return decomposed.replaceAll("\\p{M}", "").toLowerCase();
     }
 
     // id == null → crea el parámetro; id != null → reutiliza y refresca sus campos.

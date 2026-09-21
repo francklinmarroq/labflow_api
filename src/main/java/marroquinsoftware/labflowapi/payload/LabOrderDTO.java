@@ -41,9 +41,26 @@ public class LabOrderDTO {
     private Instant requestedAt;
     private OrderStatus status;
     private String notes;
-    // Médico solicitante (opcional): nombre de quien refiere la orden. Solo se
-    // muestra en el reporte si viene con valor.
+    // Médico solicitante (opcional): NOMBRE de quien refiere la orden, de ida y de
+    // vuelta. Solo se muestra en el reporte si viene con valor.
+    //
+    // Es un nombre y no un id a propósito, al revés que la mayoría de las
+    // referencias de este DTO: el médico que aún no esté en el catálogo del
+    // laboratorio se da de alta solo al guardar la orden, así que quien la levanta lo
+    // escribe sin haber pasado antes por ningún catálogo (mismo trato que `tagNames`,
+    // y por el mismo motivo). Escribir un nombre que ya existe —con o sin tildes,
+    // mayúsculas o espacios de más— reutiliza ese médico en vez de duplicarlo.
+    // Vacío o en blanco = la orden no indica médico; no borra nada del catálogo.
+    //
+    // Al leer viene el nombre VIGENTE del catálogo, no una copia congelada: corregir
+    // el nombre del médico corrige también las órdenes ya levantadas.
     private String referringPhysician;
+
+    // Id del médico solicitante, solo lectura (se ignora al crear/actualizar, igual
+    // que customerName y publicToken: lo que se escribe es el nombre de arriba).
+    // Permite distinguir dos médicos de nombre parecido y agrupar órdenes por médico
+    // sin comparar texto.
+    private Long referringPhysicianId;
     private LocalDate lmpDate;
     private boolean pregnant;
     private Integer gestationalWeeks;

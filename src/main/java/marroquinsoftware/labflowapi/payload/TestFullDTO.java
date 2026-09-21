@@ -54,4 +54,21 @@ public class TestFullDTO {
     // de borrarlo). El perfil se guarda con la lista de parámetros que venga.
     @Valid
     private List<TestFullParameterDTO> parameters = new ArrayList<>();
+
+    // --- Métodos del perfil ---
+    // Las técnicas con las que el laboratorio corre este examen (ELISA,
+    // quimioluminiscencia…). Son del PERFIL, no del examen ni de la orden: acá viajan
+    // porque el editor unificado guarda el perfil entero de una sola vez.
+    //
+    // Al LEER siempre viene la lista (vacía si el perfil no tiene métodos). Al
+    // ESCRIBIR se distingue ausente de vacía, y la diferencia importa:
+    //   - ausente (null) → los métodos del perfil quedan como están. Es lo que manda
+    //     un cliente que todavía no conoce el campo, y el API se despliega ANTES que
+    //     el frontend (ver AGENTS.md): sin esto, el editor viejo borraría los métodos
+    //     de cada examen que guardara — o no podría guardarlo, porque quitar uno que
+    //     alguna orden indica se rechaza.
+    //   - presente → la lista REEMPLAZA a la del perfil: lo que no venga se quita, y
+    //     quitar uno que algún examen de alguna orden indique se rechaza (está impreso
+    //     en reportes ya entregados). Vacía es válida: deja el perfil sin métodos.
+    private List<TestMethodDTO> methods;
 }

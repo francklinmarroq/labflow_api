@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.12.0](https://github.com/francklinmarroq/labflow_api/compare/v1.11.0...v1.12.0) (2026-09-21)
+
+### Funcionalidades
+
+* el método del examen pasa al catálogo de su perfil ([f4cca6a](https://github.com/francklinmarroq/labflow_api/commit/f4cca6a8211b2d683794aad636c5c6542326af07))
+* los médicos solicitantes pasan a un catálogo reutilizable ([f99c452](https://github.com/francklinmarroq/labflow_api/commit/f99c452a7567a260ed9d79c8f92a0e322ddd528a))
+## [1.11.0](https://github.com/francklinmarroq/labflow_api/compare/v1.10.2...v1.11.0) (2026-09-21)
+## [1.10.2](https://github.com/francklinmarroq/labflow_api/compare/v1.10.1...v1.10.2) (2026-09-15)
+
+### Correcciones
+
+* leer una factura a nombre de empresa reventaba en la imagen nativa ([4a43eae](https://github.com/francklinmarroq/labflow_api/commit/4a43eae9a51775a56548c2590e9b87d83e9ab1ae))
 ## [1.10.1](https://github.com/francklinmarroq/labflow_api/compare/v1.9.0...v1.10.1) (2026-09-14)
 
 ### Funcionalidades
