@@ -8,13 +8,13 @@ import marroquinsoftware.labflowapi.model.LabOrder;
 import marroquinsoftware.labflowapi.model.LabTest;
 import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.model.TestConfig;
+import marroquinsoftware.labflowapi.model.TestMethod;
 import marroquinsoftware.labflowapi.payload.LabTestDTO;
 import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabTestRepository;
 import marroquinsoftware.labflowapi.repositories.TestConfigRepository;
 import marroquinsoftware.labflowapi.repositories.TestRepository;
-import org.modelmapper.ModelMapper;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -40,7 +40,7 @@ public class LabTestServiceImp implements LabTestService {
     private InvoiceRepository invoiceRepository;
 
     @Autowired
-    private ModelMapper modelMapper;
+    private TestMethodService testMethodService;
 
     @Override
     public List<LabTestDTO> getTestsByOrder(Long orderId) {
@@ -66,7 +66,12 @@ public class LabTestServiceImp implements LabTestService {
         return toDTO(labTestRepository.save(labTest));
     }
 
+    // Transaccional porque además de escribir el perfil lee la colección de métodos
+    // para estampar el predeterminado: leer una colección perezosa fuera de una
+    // transacción depende de que el open-in-view la mantenga viva, que es una
+    // suposición que no hay por qué hacer acá.
     @Override
+    @Transactional
     public LabTestDTO assignTestConfig(Long orderId, Long labTestId, Long testConfigId) {
         LabTest labTest = labTestRepository.findById(labTestId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "labTestId", labTestId));
@@ -79,6 +84,19 @@ public class LabTestServiceImp implements LabTestService {
             throw new APIException("El perfil '" + testConfig.getName() + "' no corresponde al examen '" + labTest.getTest().getName() + "'.");
         }
         labTest.setTestConfig(testConfig);
+        // Acá es donde un examen adquiere su método: al asignarle el perfil se le
+        // estampa el predeterminado de ese perfil, de modo que quien abre la orden lo
+        // encuentra ya puesto en vez de tener que escribirlo cada vez. NUNCA se
+        // sobrescribe: si el examen ya dice con qué se corrió, cambiar de perfil no
+        // puede reescribir en silencio lo que el técnico indicó. Y cambiar el
+        // predeterminado del perfil después no alcanza a los exámenes ya estampados:
+        // lo que una orden dice que se usó no se toca.
+        if (labTest.getMethod() == null) {
+            testConfig.getMethods().stream()
+                    .filter(TestMethod::isDefaultMethod)
+                    .findFirst()
+                    .ifPresent(labTest::setMethod);
+        }
         return toDTO(labTestRepository.save(labTest));
     }
 
@@ -104,14 +122,39 @@ public class LabTestServiceImp implements LabTestService {
         return toDTO(labTestRepository.save(labTest));
     }
 
+    /**
+     * Fija el método del examen POR NOMBRE, que es lo único que el cliente manda.
+     * El nombre se resuelve contra los métodos del perfil del examen; el que el
+     * perfil no tenga se le agrega y queda disponible para las siguientes órdenes.
+     * Elegirlo además lo deja como el predeterminado del perfil: así la técnica que
+     * el laboratorio usa de verdad se asienta sola, sin que nadie la configure.
+     */
     @Override
+    @Transactional
     public LabTestDTO updateMethod(Long orderId, Long labTestId, String method) {
         LabTest labTest = labTestRepository.findById(labTestId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabTest", "labTestId", labTestId));
         if (!labTest.getOrder().getId().equals(orderId)) {
             throw new APIException("El examen no pertenece a la orden indicada. Recargue la página e intente de nuevo.");
         }
-        labTest.setMethod(method);
+        if (method == null || method.isBlank()) {
+            // Dejar de indicar la técnica no dice nada sobre cuál es la usual: el
+            // método sigue en el perfil y el predeterminado del perfil no se toca.
+            labTest.setMethod(null);
+            return toDTO(labTestRepository.save(labTest));
+        }
+        TestConfig testConfig = labTest.getTestConfig();
+        if (testConfig == null) {
+            // Los métodos son del perfil: sin perfil no hay de dónde elegir ni dónde
+            // guardar uno nuevo. Es un estado pasajero —el frontend asigna el perfil
+            // en cuanto agrega el examen— así que se rechaza diciendo qué falta, en
+            // vez de descartar el método en silencio.
+            throw new APIException("Primero defina el perfil del examen '" + labTest.getTest().getName()
+                    + "' en esta orden: los métodos son del perfil, así que hasta entonces no hay de dónde elegir.");
+        }
+        TestMethod resolved = testMethodService.resolveOrCreate(testConfig, method);
+        labTest.setMethod(resolved);
+        testMethodService.markAsDefault(resolved);
         return toDTO(labTestRepository.save(labTest));
     }
 
@@ -152,11 +195,28 @@ public class LabTestServiceImp implements LabTestService {
         }
     }
 
+    /**
+     * Se arma campo a campo y no con el ModelMapper (como hace
+     * LabOrderServiceImp.toDTO) porque el método dejó de ser texto de la fila: el
+     * DTO reporta el NOMBRE y la entidad guarda la asociación, y dejar que el mapeo
+     * automático resuelva esa diferencia es exactamente la clase de suposición que
+     * funciona en H2 y se cae en la imagen nativa.
+     */
     private LabTestDTO toDTO(LabTest labTest) {
-        LabTestDTO dto = modelMapper.map(labTest, LabTestDTO.class);
+        LabTestDTO dto = new LabTestDTO();
+        dto.setId(labTest.getId());
         dto.setOrderId(labTest.getOrder().getId());
         dto.setTestId(labTest.getTest().getId());
         dto.setTestConfigId(labTest.getTestConfig() != null ? labTest.getTestConfig().getId() : null);
+        dto.setNotes(labTest.getNotes());
+        dto.setSampleType(labTest.getSampleType());
+        // El método se reporta por NOMBRE, en el mismo campo de siempre, para que un
+        // cliente escrito antes de que vivieran en el perfil siga funcionando igual.
+        // Es el nombre VIGENTE en el perfil: por eso corregirlo ahí corrige también
+        // las órdenes ya levantadas. El id va aparte y es solo lectura.
+        TestMethod method = labTest.getMethod();
+        dto.setMethod(method != null ? method.getName() : null);
+        dto.setMethodId(method != null ? method.getId() : null);
         return dto;
     }
 }

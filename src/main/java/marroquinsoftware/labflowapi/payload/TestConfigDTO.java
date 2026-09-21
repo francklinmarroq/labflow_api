@@ -10,6 +10,7 @@ import marroquinsoftware.labflowapi.model.ChartType;
 import marroquinsoftware.labflowapi.model.ResultLayout;
 
 import java.math.BigDecimal;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -48,4 +49,10 @@ public class TestConfigDTO {
     // (ej. {12: 0, 13: 30, 14: 60, 15: 120}). Opcional: solo se usa en perfiles
     // de curva; el orden y la lista de parametros siguen viniendo en parameterIds.
     private Map<Long, BigDecimal> chartXValues;
+
+    // Los métodos (técnicas) del perfil, ordenados por nombre, con cuál de ellos es
+    // el predeterminado. Viajan con el perfil para que la pantalla de órdenes los
+    // ofrezca desde el catálogo que ya tiene cacheado, sin una llamada aparte. Es
+    // solo lectura: los métodos se administran con el examen (/tests/full).
+    private List<TestMethodDTO> methods = new ArrayList<>();
 }

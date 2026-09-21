@@ -45,6 +45,18 @@ public class TestConfig {
     @BatchSize(size = 50)
     private List<TestConfigParameter> configParameters = new ArrayList<>();
 
+    // Los métodos (técnicas) con los que el laboratorio corre este examen. Colección
+    // propia del perfil, igual que configParameters: se guardan y se borran con él.
+    // La pantalla de órdenes lee los métodos del perfil que ya tiene cacheado, así
+    // que se leen por lote (@BatchSize) y ya ordenados por nombre, que es como se
+    // ofrecen al elegir. Cuál es el predeterminado va como booleano en la fila del
+    // método (TestMethod.defaultMethod) y NO como una asociación desde acá: sería un
+    // ciclo EAGER leído en cada pantalla de órdenes (ver design.md).
+    @OneToMany(mappedBy = "testConfig", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("name")
+    @BatchSize(size = 50)
+    private List<TestMethod> methods = new ArrayList<>();
+
     private boolean active;
 
     // Presentacion del perfil en el reporte. NONE = solo tabla (por defecto).

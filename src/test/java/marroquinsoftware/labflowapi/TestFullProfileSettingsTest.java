@@ -16,6 +16,7 @@ import marroquinsoftware.labflowapi.service.ParameterServiceImp;
 import marroquinsoftware.labflowapi.service.ReferenceRangeServiceImp;
 import marroquinsoftware.labflowapi.service.TestBuilderServiceImp;
 import marroquinsoftware.labflowapi.service.TestConfigServiceImp;
+import marroquinsoftware.labflowapi.service.TestMethodServiceImp;
 import marroquinsoftware.labflowapi.service.TestServiceImp;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import marroquinsoftware.labflowapi.tenant.TenantIdentifierResolver;
@@ -69,7 +70,9 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @Import({TestController.class, TestBuilderServiceImp.class, TestServiceImp.class,
         TestConfigServiceImp.class, ParameterServiceImp.class, ReferenceRangeServiceImp.class,
-        TenantIdentifierResolver.class, AppConfig.class})
+        // TestConfigServiceImp y TestBuilderServiceImp lo necesitan para leer y
+        // conciliar los métodos del perfil, aunque acá no se prueben.
+        TestMethodServiceImp.class, TenantIdentifierResolver.class, AppConfig.class})
 // El ObjectMapper de la aplicación, no uno crudo: Spring Boot le apaga
 // FAIL_ON_NULL_FOR_PRIMITIVES, que Jackson 3 trae encendido. Con un mapper crudo,
 // un cuerpo que omite un boolean primitivo (active, allowResultAttachments) se
