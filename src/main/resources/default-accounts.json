@@ -6,6 +6,7 @@
     { "code": "1201", "name": "Mobiliario y equipo de laboratorio", "type": "ACTIVO", "system_key": null },
     { "code": "2101", "name": "Cuentas por pagar", "type": "PASIVO", "system_key": "CUENTAS_POR_PAGAR" },
     { "code": "3101", "name": "Capital", "type": "CAPITAL", "system_key": "CAPITAL" },
+    { "code": "3201", "name": "Resultado del ejercicio", "type": "CAPITAL", "system_key": "RESULTADO_DEL_EJERCICIO" },
     { "code": "4101", "name": "Ingresos por servicios de laboratorio", "type": "INGRESO", "system_key": "INGRESOS_SERVICIOS" },
     { "code": "4201", "name": "Descuentos sobre ventas", "type": "INGRESO", "system_key": "DESCUENTOS_VENTAS" },
     { "code": "5101", "name": "Sueldos y salarios", "type": "GASTO", "system_key": null },

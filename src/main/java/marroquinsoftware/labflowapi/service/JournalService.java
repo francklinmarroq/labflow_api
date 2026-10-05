@@ -39,7 +39,8 @@ public interface JournalService {
     /**
      * Crea una partida validada: al menos dos líneas, cada una con débito o
      * crédito (no ambos), cuentas activas y suma de débitos igual a la de
-     * créditos. Lanza {@code APIException} si algo no cuadra.
+     * créditos. Lanza {@code APIException} si algo no cuadra o si la fecha cae
+     * dentro de un período contable cerrado.
      */
     JournalEntry post(LocalDate date, String description, JournalSourceType sourceType,
                       Long sourceId, List<LinePlan> lines);
@@ -50,6 +51,14 @@ public interface JournalService {
      */
     JournalEntry reverse(JournalEntry original, JournalSourceType sourceType,
                          Long sourceId, String description);
+
+    /**
+     * Igual que {@link #reverse(JournalEntry, JournalSourceType, Long, String)}
+     * pero con la fecha indicada. Lo usa la reapertura de un período, cuyo
+     * contra-asiento va con la misma fecha que la partida de cierre que revierte.
+     */
+    JournalEntry reverse(JournalEntry original, JournalSourceType sourceType,
+                         Long sourceId, String description, LocalDate date);
 
     /** Cuenta del sistema del laboratorio actual; siembra el catálogo si aún no existe. */
     Account systemAccount(SystemAccountKey key);

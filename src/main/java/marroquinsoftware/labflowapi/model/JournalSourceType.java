@@ -15,6 +15,8 @@ public enum JournalSourceType {
     ANULACION_PAGO("Anulación de pago"),
     ANULACION_GASTO("Anulación de gasto"),
     ANULACION_REMISION("Anulación de remisión"),
+    CIERRE("Cierre de período"),
+    ANULACION_CIERRE("Reapertura de período"),
     MANUAL("Partida manual");
 
     private final String label;

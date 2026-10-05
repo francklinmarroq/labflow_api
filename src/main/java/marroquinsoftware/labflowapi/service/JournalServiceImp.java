@@ -9,6 +9,7 @@ import marroquinsoftware.labflowapi.payload.JournalEntryResponse;
 import marroquinsoftware.labflowapi.payload.JournalLineDTO;
 import marroquinsoftware.labflowapi.payload.JournalLineRequest;
 import marroquinsoftware.labflowapi.repositories.AccountRepository;
+import marroquinsoftware.labflowapi.repositories.AccountingPeriodRepository;
 import marroquinsoftware.labflowapi.repositories.BillingSpecifications;
 import marroquinsoftware.labflowapi.repositories.JournalEntryCounterRepository;
 import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
@@ -27,6 +28,7 @@ import java.math.BigDecimal;
 import java.math.RoundingMode;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -46,24 +48,39 @@ public class JournalServiceImp implements JournalService {
     @Autowired
     private AccountSeeder accountSeeder;
 
+    @Autowired
+    private AccountingPeriodRepository accountingPeriodRepository;
+
+    private static final DateTimeFormatter DATE_FORMAT = DateTimeFormatter.ofPattern("dd/MM/yyyy");
+
     @Override
     @Transactional
     public JournalEntry post(LocalDate date, String description, JournalSourceType sourceType,
                              Long sourceId, List<LinePlan> lines) {
-        return postInternal(date, description, sourceType, sourceId, lines, true);
+        // La partida de cierre traslada el saldo de cada ingreso y gasto, también
+        // el de una cuenta desactivada después de haber tenido movimientos.
+        return postInternal(date, description, sourceType, sourceId, lines,
+                sourceType != JournalSourceType.CIERRE);
     }
 
     @Override
     @Transactional
     public JournalEntry reverse(JournalEntry original, JournalSourceType sourceType,
                                 Long sourceId, String description) {
+        return reverse(original, sourceType, sourceId, description, LocalDate.now());
+    }
+
+    @Override
+    @Transactional
+    public JournalEntry reverse(JournalEntry original, JournalSourceType sourceType,
+                                Long sourceId, String description, LocalDate date) {
         List<LinePlan> reversed = original.getLines().stream()
                 .map(l -> new LinePlan(l.getAccount(), l.getCredit(), l.getDebit()))
                 .toList();
         // El contra-asiento no exige cuentas activas: anular siempre tiene que
         // ser posible aunque la cuenta se haya desactivado después del asiento
         // original.
-        return postInternal(LocalDate.now(), description, sourceType, sourceId, reversed, false);
+        return postInternal(date, description, sourceType, sourceId, reversed, false);
     }
 
     @Override
@@ -142,6 +159,8 @@ public class JournalServiceImp implements JournalService {
         if (lines == null || lines.size() < 2) {
             throw new APIException("Una partida necesita al menos dos líneas (un cargo y un abono).");
         }
+        LocalDate entryDate = date != null ? date : LocalDate.now();
+        rejectIfInClosedPeriod(entryDate, sourceType);
 
         BigDecimal totalDebit = BigDecimal.ZERO;
         BigDecimal totalCredit = BigDecimal.ZERO;
@@ -182,7 +201,7 @@ public class JournalServiceImp implements JournalService {
                     + ", créditos L " + totalCredit + ".");
         }
 
-        entry.setEntryDate(date != null ? date : LocalDate.now());
+        entry.setEntryDate(entryDate);
         entry.setDescription(description);
         entry.setSourceType(sourceType);
         entry.setSourceId(sourceId);
@@ -192,6 +211,27 @@ public class JournalServiceImp implements JournalService {
         entry.setEntryNumber(nextEntryNumber(requireLaboratoryId()));
 
         return journalEntryRepository.save(entry);
+    }
+
+    /**
+     * Único punto de bloqueo de los períodos cerrados: todas las partidas,
+     * manuales y automáticas (facturas, pagos, gastos, remisiones y sus
+     * anulaciones), entran por aquí. Solo pasan la partida de cierre y su
+     * contra-asiento de reapertura, que van fechados dentro del período.
+     */
+    private void rejectIfInClosedPeriod(LocalDate entryDate, JournalSourceType sourceType) {
+        if (sourceType == JournalSourceType.CIERRE || sourceType == JournalSourceType.ANULACION_CIERRE) {
+            return;
+        }
+        List<AccountingPeriod> blocking = accountingPeriodRepository
+                .findContaining(AccountingPeriodStatus.CLOSED, entryDate);
+        if (!blocking.isEmpty()) {
+            AccountingPeriod period = blocking.get(0);
+            throw new APIException("El período contable del " + DATE_FORMAT.format(period.getStartDate())
+                    + " al " + DATE_FORMAT.format(period.getEndDate())
+                    + " está cerrado: no se pueden registrar partidas con fecha "
+                    + DATE_FORMAT.format(entryDate) + ". Reabra el período o use otra fecha.");
+        }
     }
 
     private BigDecimal normalize(BigDecimal amount) {

@@ -85,6 +85,14 @@ public class AccountSeeder {
 
         Account byCode = accountRepository.findByCode(row.code()).orElse(null);
         if (byCode != null) {
+            // Adoptar una cuenta del usuario de otro tipo la convertiría en cuenta
+            // del sistema con la naturaleza equivocada (p. ej. un gasto recibiendo
+            // el resultado del ejercicio): mejor pedir que libere el código.
+            if (byCode.getType() != AccountType.valueOf(row.type())) {
+                throw new APIException("La cuenta " + byCode.getCode() + " — " + byCode.getName()
+                        + " ocupa el código que el sistema necesita para \"" + row.name()
+                        + "\". Cámbiele el código e intente de nuevo.");
+            }
             if (byCode.getSystemKey() == null) {
                 byCode.setSystemKey(key);
                 return accountRepository.save(byCode);

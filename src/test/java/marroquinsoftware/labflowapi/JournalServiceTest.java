@@ -7,6 +7,8 @@ import marroquinsoftware.labflowapi.payload.ExpenseRequest;
 import marroquinsoftware.labflowapi.repositories.AccountRepository;
 import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
 import marroquinsoftware.labflowapi.service.AccountSeeder;
+import marroquinsoftware.labflowapi.service.AccountingPeriodService;
+import marroquinsoftware.labflowapi.service.AccountingPeriodServiceImp;
 import marroquinsoftware.labflowapi.service.ExpenseServiceImp;
 import marroquinsoftware.labflowapi.service.JournalService;
 import marroquinsoftware.labflowapi.service.JournalService.LinePlan;
@@ -38,7 +40,7 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-@Import({JournalServiceImp.class, ExpenseServiceImp.class, AccountSeeder.class,
+@Import({JournalServiceImp.class, ExpenseServiceImp.class, AccountSeeder.class, AccountingPeriodServiceImp.class,
         TenantIdentifierResolver.class, JournalServiceTest.JacksonForTest.class})
 @TestPropertySource(properties = {
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
@@ -57,6 +59,7 @@ class JournalServiceTest {
     @Autowired AccountSeeder accountSeeder;
     @Autowired AccountRepository accountRepository;
     @Autowired JournalEntryRepository journalEntryRepository;
+    @Autowired AccountingPeriodService accountingPeriodService;
 
     @BeforeEach
     void setUpTenant() {
@@ -182,5 +185,19 @@ class JournalServiceTest {
         assertThrows(APIException.class, () -> expenseService.createExpense(new ExpenseRequest(
                 LocalDate.now(), "Cuenta que no es de gastos", amount("100.00"),
                 caja().getId(), PaymentMethod.EFECTIVO)));
+    }
+
+    @Test
+    void expenseAnnulmentIsRejectedWhileTodayIsInAClosedPeriod() {
+        Account reactivos = accountRepository.findByCode("5104").orElseThrow();
+        ExpenseDTO expense = expenseService.createExpense(new ExpenseRequest(
+                LocalDate.now(), "Compra de reactivos", amount("750.00"), reactivos.getId(),
+                PaymentMethod.EFECTIVO));
+        accountingPeriodService.close(LocalDate.now().withDayOfMonth(1), LocalDate.now());
+
+        // El contra-asiento de la anulación va con fecha de hoy, que está cerrada.
+        APIException ex = assertThrows(APIException.class,
+                () -> expenseService.annulExpense(expense.getId(), "Se registró dos veces"));
+        assertTrue(ex.getMessage().contains("está cerrado"), ex.getMessage());
     }
 }

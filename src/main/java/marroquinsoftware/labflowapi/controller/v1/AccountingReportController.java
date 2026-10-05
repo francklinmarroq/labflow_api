@@ -1,8 +1,11 @@
 package marroquinsoftware.labflowapi.controller.v1;
 
 import marroquinsoftware.labflowapi.config.AppConstants;
+import marroquinsoftware.labflowapi.payload.BalanceSheetDTO;
 import marroquinsoftware.labflowapi.payload.BillingClientBalanceDTO;
+import marroquinsoftware.labflowapi.payload.CashFlowDTO;
 import marroquinsoftware.labflowapi.payload.CustomerStatementDTO;
+import marroquinsoftware.labflowapi.payload.IncomeStatementDTO;
 import marroquinsoftware.labflowapi.payload.LedgerReportDTO;
 import marroquinsoftware.labflowapi.payload.ReceivablesResponse;
 import marroquinsoftware.labflowapi.payload.TrialBalanceDTO;
@@ -43,6 +46,29 @@ public class AccountingReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return new ResponseEntity<>(accountingReportService.getTrialBalance(from, to), HttpStatus.OK);
+    }
+
+    @GetMapping("/income-statement")
+    @PreAuthorize("hasAuthority('ACCOUNTING_VIEW')")
+    public ResponseEntity<IncomeStatementDTO> getIncomeStatement(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return new ResponseEntity<>(accountingReportService.getIncomeStatement(from, to), HttpStatus.OK);
+    }
+
+    @GetMapping("/balance-sheet")
+    @PreAuthorize("hasAuthority('ACCOUNTING_VIEW')")
+    public ResponseEntity<BalanceSheetDTO> getBalanceSheet(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate date) {
+        return new ResponseEntity<>(accountingReportService.getBalanceSheet(date), HttpStatus.OK);
+    }
+
+    @GetMapping("/cash-flow")
+    @PreAuthorize("hasAuthority('ACCOUNTING_VIEW')")
+    public ResponseEntity<CashFlowDTO> getCashFlow(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return new ResponseEntity<>(accountingReportService.getCashFlow(from, to), HttpStatus.OK);
     }
 
     @GetMapping("/receivables")

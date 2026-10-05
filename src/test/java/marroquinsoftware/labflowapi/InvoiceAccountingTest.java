@@ -42,7 +42,8 @@ import static org.junit.jupiter.api.Assertions.*;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
 @Import({InvoiceServiceImp.class, JournalServiceImp.class, AccountSeeder.class, CaiNumberService.class,
         AgeDiscountCalculator.class, InvoiceTotalsCalculator.class, AmountInWordsConverter.class,
-        ReferralServiceImp.class, TenantIdentifierResolver.class, InvoiceAccountingTest.JacksonForTest.class})
+        ReferralServiceImp.class, AccountingPeriodServiceImp.class, TenantIdentifierResolver.class,
+        InvoiceAccountingTest.JacksonForTest.class})
 @TestPropertySource(properties = {
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",
         "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
@@ -64,6 +65,7 @@ class InvoiceAccountingTest {
     @Autowired TestRepository testRepository;
     @Autowired LabOrderRepository labOrderRepository;
     @Autowired JournalEntryRepository journalEntryRepository;
+    @Autowired AccountingPeriodService accountingPeriodService;
 
     private Laboratory laboratory;
     private Customer customer;
@@ -499,5 +501,29 @@ class InvoiceAccountingTest {
         empty.setStatus(OrderStatus.PENDING);
         LabOrder savedEmpty = labOrderRepository.save(empty);
         assertThrows(APIException.class, () -> invoiceService.createInvoice(credito(savedEmpty.getId())));
+    }
+
+    // Con hoy dentro de un período cerrado, ninguna operación de facturación
+    // puede dejar su asiento: el bloqueo vive en el motor contable, así que
+    // alcanza a todas sin que cada servicio lo valide.
+    @Test
+    void closedPeriodRejectsInvoicesPaymentsAndReferrals() {
+        LabOrder invoiced = newOrder(customer, "Hemograma", "500.00");
+        InvoiceDTO pending = invoiceService.createInvoice(credito(invoiced.getId()));
+        LabOrder toInvoice = newOrder(customer, "Glucosa", "100.00");
+        LabOrder toRefer = newOrder(customer, "Cultivo", "400.00");
+        Long labTestId = toRefer.getTests().get(0).getId();
+
+        accountingPeriodService.close(LocalDate.now().withDayOfMonth(1), LocalDate.now());
+
+        APIException onInvoice = assertThrows(APIException.class,
+                () -> invoiceService.createInvoice(contado(toInvoice.getId(), "100.00")));
+        assertTrue(onInvoice.getMessage().contains("está cerrado"), onInvoice.getMessage());
+        assertThrows(APIException.class, () -> invoiceService.registerPayment(pending.getId(),
+                new PaymentRequest(new BigDecimal("100.00"), PaymentMethod.EFECTIVO, null)));
+        assertThrows(APIException.class, () -> invoiceService.annulInvoice(pending.getId(), "Error"));
+        assertThrows(APIException.class, () -> referralService.createReferral(toRefer.getId(),
+                new ReferralRequest("Lab Externo", null,
+                        List.of(new ReferralRequest.Item(labTestId, new BigDecimal("120.00"))), null)));
     }
 }

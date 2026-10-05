@@ -443,3 +443,32 @@ create index if not exists ix_lab_tests_method on lab_tests (method_id);
 -- este drop perdería. Antes de esto, volver a la imagen anterior es un rollback
 -- completo; después, ya no.
 -- alter table lab_tests drop column if exists method;
+
+-- Períodos contables (accounting_periods): cada cierre de período del laboratorio,
+-- con la partida que trasladó ingresos y gastos a "Resultado del ejercicio" y, si se
+-- reabrió, el contra-asiento que la revirtió. Los mapea la entidad AccountingPeriod.
+-- Sin unicidad por rango: un período reabierto y vuelto a cerrar deja dos filas con
+-- el mismo rango (REOPENED y CLOSED), y las dos son historia. Que no haya dos CLOSED
+-- traslapados lo valida AccountingPeriodService al cerrar.
+-- Los valores nuevos de journal_entries.source_type (CIERRE, ANULACION_CIERRE) y de
+-- accounts.system_key (RESULTADO_DEL_EJERCICIO) no necesitan nada aquí: los check
+-- constraints de esas dos columnas ya se eliminaron más arriba. La cuenta
+-- "Resultado del ejercicio" la siembra la app en cada laboratorio al primer cierre.
+--
+-- Orden de despliegue: (1) correr esto en la base, (2) desplegar la imagen del API,
+-- (3) mergear el frontend.
+create table if not exists accounting_periods (
+  id bigserial primary key,
+  laboratory_id bigint,
+  start_date date not null,
+  end_date date not null,
+  status varchar(20) not null,
+  closing_entry_id bigint references journal_entries(id),
+  reversal_entry_id bigint references journal_entries(id),
+  result_amount numeric(12,2) not null,
+  closed_at timestamp(6) with time zone,
+  closed_by_username varchar(255),
+  reopened_at timestamp(6) with time zone,
+  reopened_by_username varchar(255)
+);
+create index if not exists ix_accounting_periods_range on accounting_periods (laboratory_id, start_date, end_date);

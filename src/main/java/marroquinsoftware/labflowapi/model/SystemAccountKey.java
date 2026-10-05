@@ -14,5 +14,7 @@ public enum SystemAccountKey {
     INGRESOS_SERVICIOS,
     DESCUENTOS_VENTAS,
     EXAMENES_REMITIDOS,
-    CAPITAL
+    CAPITAL,
+    /** Recibe el traslado de ingresos y gastos al cerrar un período contable. */
+    RESULTADO_DEL_EJERCICIO
 }

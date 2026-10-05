@@ -3,10 +3,13 @@ package marroquinsoftware.labflowapi.service;
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Account;
+import marroquinsoftware.labflowapi.model.SystemAccountKey;
 import marroquinsoftware.labflowapi.payload.AccountDTO;
 import marroquinsoftware.labflowapi.payload.AccountRequest;
 import marroquinsoftware.labflowapi.payload.AccountUpdateRequest;
 import marroquinsoftware.labflowapi.repositories.AccountRepository;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -16,6 +19,8 @@ import java.util.List;
 
 @Service
 public class AccountServiceImp implements AccountService {
+
+    private static final Logger LOGGER = LoggerFactory.getLogger(AccountServiceImp.class);
 
     @Autowired
     private AccountRepository accountRepository;
@@ -29,6 +34,17 @@ public class AccountServiceImp implements AccountService {
         // Laboratorios anteriores al módulo contable reciben su catálogo aquí,
         // la primera vez que abren cualquier pantalla de contabilidad.
         accountSeeder.seedDefaultAccounts();
+        // Cuentas del sistema agregadas después del catálogo inicial: los
+        // laboratorios ya sembrados las reciben al consultar su catálogo.
+        if (accountRepository.findBySystemKey(SystemAccountKey.RESULTADO_DEL_EJERCICIO).isEmpty()) {
+            try {
+                accountSeeder.ensureSystemAccount(SystemAccountKey.RESULTADO_DEL_EJERCICIO);
+            } catch (APIException e) {
+                // El listado no debe caerse por esto: el cierre de período vuelve a
+                // intentarlo y ahí sí muestra el motivo al usuario.
+                LOGGER.warn("No se pudo crear la cuenta Resultado del ejercicio: {}", e.getMessage());
+            }
+        }
         Sort sort = Sort.by("code").ascending();
         List<Account> accounts = activeOnly
                 ? accountRepository.findByActiveTrue(sort)

@@ -1,12 +1,15 @@
 package marroquinsoftware.labflowapi;
 
+import marroquinsoftware.labflowapi.model.AccountingPeriodStatus;
 import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.model.JournalSourceType;
 import marroquinsoftware.labflowapi.model.OrderStatus;
+import marroquinsoftware.labflowapi.repositories.AccountingPeriodRepository;
 import marroquinsoftware.labflowapi.repositories.BillingSpecifications;
 import marroquinsoftware.labflowapi.repositories.ExpenseRepository;
 import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
+import marroquinsoftware.labflowapi.repositories.JournalLineRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderSpecifications;
 import marroquinsoftware.labflowapi.repositories.ReferringPhysicianRepository;
@@ -72,6 +75,8 @@ class PostgresQueryCompatibilityTest {
     @Autowired LabOrderRepository labOrderRepository;
     @Autowired ReferringPhysicianRepository referringPhysicianRepository;
     @Autowired TestMethodRepository testMethodRepository;
+    @Autowired JournalLineRepository journalLineRepository;
+    @Autowired AccountingPeriodRepository accountingPeriodRepository;
 
     @BeforeAll
     static void requirePostgres() {
@@ -176,6 +181,35 @@ class PostgresQueryCompatibilityTest {
         assertDoesNotThrow(() -> {
             invoiceRepository.findOrderIdsWithLiveInvoice(List.of(1L));
             invoiceRepository.findOrderIdsWithLiveInvoice(List.of(1L, 2L, 3L));
+        });
+    }
+
+    // Los estados financieros: agregados por cuenta con un `not in` sobre el enum
+    // de origen (estado de resultados y cierre), sin límite inferior (balance), y
+    // por origen sobre un `in` de cuentas (flujo de efectivo).
+    @Test
+    void aggregatesTheFinancialStatements() {
+        LocalDate from = LocalDate.of(2025, 9, 1);
+        LocalDate to = LocalDate.of(2025, 9, 30);
+        assertDoesNotThrow(() -> {
+            journalLineRepository.totalsByAccountExcluding(from, to,
+                    List.of(JournalSourceType.CIERRE, JournalSourceType.ANULACION_CIERRE));
+            journalLineRepository.totalsByAccountUpTo(to);
+            journalLineRepository.netBeforeForAccounts(List.of(1L, 2L), from);
+            journalLineRepository.totalsBySourceType(List.of(1L, 2L), from, to);
+        });
+    }
+
+    // Los períodos contables: el bloqueo de partidas por fecha, el traslape al
+    // cerrar y el último cerrado, que es el único que se puede reabrir.
+    @Test
+    void readsTheAccountingPeriods() {
+        LocalDate date = LocalDate.of(2025, 9, 15);
+        assertDoesNotThrow(() -> {
+            accountingPeriodRepository.findContaining(AccountingPeriodStatus.CLOSED, date);
+            accountingPeriodRepository.findOverlapping(AccountingPeriodStatus.CLOSED, date, date.plusDays(30));
+            accountingPeriodRepository.findFirstByStatusOrderByEndDateDesc(AccountingPeriodStatus.CLOSED);
+            accountingPeriodRepository.findAllByOrderByEndDateDescIdDesc();
         });
     }
 

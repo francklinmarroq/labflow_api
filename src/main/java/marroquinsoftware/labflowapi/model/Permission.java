@@ -36,7 +36,7 @@ public enum Permission {
     EXPENSES_VIEW("Contabilidad", "Ver gastos"),
     EXPENSES_MANAGE("Contabilidad", "Registrar y anular gastos"),
     ACCOUNTING_VIEW("Contabilidad", "Ver contabilidad"),
-    ACCOUNTING_MANAGE("Contabilidad", "Gestionar cuentas y partidas manuales"),
+    ACCOUNTING_MANAGE("Contabilidad", "Gestionar cuentas, partidas manuales y cierres de período"),
 
     REPORTS_VIEW("Reportería", "Ver reportería"),
 
