@@ -38,6 +38,11 @@ public enum Permission {
     ACCOUNTING_VIEW("Contabilidad", "Ver contabilidad"),
     ACCOUNTING_MANAGE("Contabilidad", "Gestionar cuentas, partidas manuales y cierres de período"),
 
+    SUPPLIERS_VIEW("Compras", "Ver proveedores"),
+    SUPPLIERS_MANAGE("Compras", "Gestionar proveedores"),
+    PURCHASES_VIEW("Compras", "Ver compras y cuentas por pagar"),
+    PURCHASES_MANAGE("Compras", "Registrar y anular compras y pagos a proveedores"),
+
     REPORTS_VIEW("Reportería", "Ver reportería"),
 
     LAB_SETTINGS_VIEW("Configuración", "Ver datos del laboratorio"),

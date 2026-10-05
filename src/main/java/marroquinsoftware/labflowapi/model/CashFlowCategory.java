@@ -10,6 +10,8 @@ import java.util.EnumSet;
 public enum CashFlowCategory {
 
     COBROS_CLIENTES("Cobros a clientes"),
+    COMPRAS("Compras"),
+    PAGOS_PROVEEDORES("Pagos a proveedores"),
     PAGOS_REMISIONES("Pagos de remisiones"),
     GASTOS("Gastos"),
     PARTIDAS_MANUALES("Partidas manuales"),
@@ -28,6 +30,15 @@ public enum CashFlowCategory {
     /** Anulaciones de facturas y pagos, y cualquier origen nuevo, caen en {@link #OTROS}. */
     public static CashFlowCategory of(JournalSourceType sourceType) {
         if (sourceType == JournalSourceType.PAGO) return COBROS_CLIENTES;
+        // Cada anulación queda en la fila de su documento, para que una compra
+        // anulada dentro del mismo rango se compense ahí mismo.
+        if (EnumSet.of(JournalSourceType.COMPRA, JournalSourceType.ANULACION_COMPRA).contains(sourceType)) {
+            return COMPRAS;
+        }
+        if (EnumSet.of(JournalSourceType.PAGO_PROVEEDOR, JournalSourceType.ANULACION_PAGO_PROVEEDOR)
+                .contains(sourceType)) {
+            return PAGOS_PROVEEDORES;
+        }
         if (EnumSet.of(JournalSourceType.REMISION, JournalSourceType.ANULACION_REMISION).contains(sourceType)) {
             return PAGOS_REMISIONES;
         }

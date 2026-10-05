@@ -60,6 +60,14 @@ public interface JournalService {
     JournalEntry reverse(JournalEntry original, JournalSourceType sourceType,
                          Long sourceId, String description, LocalDate date);
 
+    /**
+     * Rechaza con {@code APIException} una fecha que cae dentro de un período
+     * contable cerrado, con el mensaje que nombra el período. {@link #post} ya
+     * lo comprueba; los servicios de documentos lo llaman además al empezar, para
+     * rechazar antes de guardar nada.
+     */
+    void requireOpenPeriod(LocalDate date);
+
     /** Cuenta del sistema del laboratorio actual; siembra el catálogo si aún no existe. */
     Account systemAccount(SystemAccountKey key);
 

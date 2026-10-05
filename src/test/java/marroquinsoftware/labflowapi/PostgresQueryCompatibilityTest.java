@@ -4,6 +4,8 @@ import marroquinsoftware.labflowapi.model.AccountingPeriodStatus;
 import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.model.JournalSourceType;
 import marroquinsoftware.labflowapi.model.OrderStatus;
+import marroquinsoftware.labflowapi.model.PurchaseStatus;
+import marroquinsoftware.labflowapi.model.SaleCondition;
 import marroquinsoftware.labflowapi.repositories.AccountingPeriodRepository;
 import marroquinsoftware.labflowapi.repositories.BillingSpecifications;
 import marroquinsoftware.labflowapi.repositories.ExpenseRepository;
@@ -12,6 +14,10 @@ import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
 import marroquinsoftware.labflowapi.repositories.JournalLineRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderSpecifications;
+import marroquinsoftware.labflowapi.repositories.PurchaseRepository;
+import marroquinsoftware.labflowapi.repositories.PurchaseSpecifications;
+import marroquinsoftware.labflowapi.repositories.SupplierPaymentRepository;
+import marroquinsoftware.labflowapi.repositories.SupplierRepository;
 import marroquinsoftware.labflowapi.repositories.ReferringPhysicianRepository;
 import marroquinsoftware.labflowapi.repositories.TestMethodRepository;
 import marroquinsoftware.labflowapi.repositories.TestRunRepository;
@@ -77,6 +83,9 @@ class PostgresQueryCompatibilityTest {
     @Autowired TestMethodRepository testMethodRepository;
     @Autowired JournalLineRepository journalLineRepository;
     @Autowired AccountingPeriodRepository accountingPeriodRepository;
+    @Autowired SupplierRepository supplierRepository;
+    @Autowired PurchaseRepository purchaseRepository;
+    @Autowired SupplierPaymentRepository supplierPaymentRepository;
 
     @BeforeAll
     static void requirePostgres() {
@@ -210,6 +219,34 @@ class PostgresQueryCompatibilityTest {
             accountingPeriodRepository.findOverlapping(AccountingPeriodStatus.CLOSED, date, date.plusDays(30));
             accountingPeriodRepository.findFirstByStatusOrderByEndDateDesc(AccountingPeriodStatus.CLOSED);
             accountingPeriodRepository.findAllByOrderByEndDateDescIdDesc();
+        });
+    }
+
+    // Compras: la búsqueda de proveedores (lower + coalesce sobre un RTN que puede
+    // ser nulo), el listado con fetch join del proveedor y sus filtros, y las
+    // consultas derivadas con @EntityGraph de los reportes y los pagos.
+    @Test
+    void readsSuppliersPurchasesAndPayables() {
+        LocalDate from = LocalDate.of(2025, 9, 1);
+        LocalDate to = LocalDate.of(2025, 9, 30);
+        assertDoesNotThrow(() -> {
+            supplierRepository.findAll(PurchaseSpecifications.suppliers(null, null), PageRequest.of(0, 50));
+            supplierRepository.findAll(PurchaseSpecifications.suppliers("médica", true), PageRequest.of(0, 50));
+            supplierRepository.findFirstByRtn("08019999000011");
+            purchaseRepository.findAll(PurchaseSpecifications.purchases(null, null, null, null, null),
+                    PageRequest.of(0, 50));
+            purchaseRepository.findAll(PurchaseSpecifications.purchases(from, to, 1L, SaleCondition.CREDITO,
+                    PurchaseStatus.PENDIENTE), PageRequest.of(0, 50));
+            purchaseRepository.findWithLockById(1L);
+            purchaseRepository.findByAnnulledFalseAndPurchaseDateBetweenOrderByPurchaseDateAscIdAsc(from, to);
+            purchaseRepository.findBySupplierIdAndConditionAndAnnulledFalseAndPurchaseDateLessThanEqualOrderByPurchaseDateAscIdAsc(
+                    1L, SaleCondition.CREDITO, to);
+            purchaseRepository.findByConditionAndAnnulledFalseAndPurchaseDateLessThanEqual(SaleCondition.CREDITO, to);
+            supplierPaymentRepository.findByPurchaseIdOrderByPaymentNumberAsc(1L);
+            supplierPaymentRepository.existsByPurchaseIdAndAnnulledFalse(1L);
+            supplierPaymentRepository.findByPurchaseSupplierIdAndAnnulledFalseAndPaymentDateLessThanEqualOrderByPaymentDateAscPaymentNumberAsc(
+                    1L, to);
+            supplierPaymentRepository.findByAnnulledFalseAndPaymentDateLessThanEqual(to);
         });
     }
 

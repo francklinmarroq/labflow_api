@@ -223,6 +223,11 @@ public class JournalServiceImp implements JournalService {
         if (sourceType == JournalSourceType.CIERRE || sourceType == JournalSourceType.ANULACION_CIERRE) {
             return;
         }
+        requireOpenPeriod(entryDate);
+    }
+
+    @Override
+    public void requireOpenPeriod(LocalDate entryDate) {
         List<AccountingPeriod> blocking = accountingPeriodRepository
                 .findContaining(AccountingPeriodStatus.CLOSED, entryDate);
         if (!blocking.isEmpty()) {

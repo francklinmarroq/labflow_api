@@ -472,3 +472,98 @@ create table if not exists accounting_periods (
   reopened_by_username varchar(255)
 );
 create index if not exists ix_accounting_periods_range on accounting_periods (laboratory_id, start_date, end_date);
+
+-- Compras (cambio registrar-compras): proveedores, documentos de compra con sus líneas,
+-- pagos a proveedores y el contador de sus recibos. Las mapean Supplier, Purchase,
+-- PurchaseLine, SupplierPayment y SupplierPaymentCounter.
+--
+-- El RTN del proveedor es opcional pero único por laboratorio cuando se indica. La
+-- unicidad la sostiene SupplierService (que puede nombrar en el mensaje a quién
+-- pertenece); acá solo va el índice que usa esa búsqueda.
+--
+-- Los valores nuevos de journal_entries.source_type (COMPRA, PAGO_PROVEEDOR y sus
+-- anulaciones) y de accounts.system_key (ISV_NO_RECUPERABLE_COMPRAS, cuenta 5107) no
+-- necesitan nada aquí: los check constraints de esas columnas ya se eliminaron más
+-- arriba, y la cuenta la siembra la app en cada laboratorio la primera vez que se usa.
+--
+-- Orden de despliegue: (1) correr esto en la base, (2) desplegar la imagen del API,
+-- (3) mergear el frontend.
+create table if not exists suppliers (
+  id bigserial primary key,
+  laboratory_id bigint,
+  name varchar(255) not null,
+  rtn varchar(255),
+  phone varchar(255),
+  email varchar(255),
+  address varchar(255),
+  active boolean not null default true
+);
+create index if not exists ix_suppliers_rtn on suppliers (laboratory_id, rtn);
+
+create table if not exists purchases (
+  id bigserial primary key,
+  laboratory_id bigint,
+  supplier_id bigint not null references suppliers(id),
+  purchase_date date not null,
+  fiscal_number varchar(255) not null,
+  cai varchar(255),
+  cai_deadline date,
+  purchase_condition varchar(255) not null,
+  method varchar(255),
+  notes varchar(500),
+  exempt_base numeric(12,2) not null,
+  taxed_base15 numeric(12,2) not null,
+  taxed_base18 numeric(12,2) not null,
+  isv15 numeric(12,2) not null,
+  isv18 numeric(12,2) not null,
+  total numeric(12,2) not null,
+  paid_amount numeric(12,2) not null,
+  status varchar(20) not null,
+  created_at timestamp(6) with time zone,
+  created_by_username varchar(255),
+  annulled boolean not null default false,
+  annulled_at timestamp(6) with time zone,
+  annulled_by_username varchar(255),
+  annulment_reason varchar(255)
+);
+create index if not exists ix_purchases_date on purchases (laboratory_id, purchase_date);
+create index if not exists ix_purchases_supplier on purchases (supplier_id);
+
+create table if not exists purchase_lines (
+  id bigserial primary key,
+  laboratory_id bigint,
+  purchase_id bigint not null references purchases(id),
+  description varchar(500) not null,
+  quantity numeric(12,3) not null,
+  unit_price numeric(12,2) not null,
+  isv_rate varchar(20) not null,
+  account_id bigint not null references accounts(id),
+  base numeric(12,2) not null,
+  isv numeric(12,2) not null,
+  line_order integer
+);
+create index if not exists ix_purchase_lines_purchase on purchase_lines (purchase_id);
+
+create table if not exists supplier_payments (
+  id bigserial primary key,
+  payment_number bigint,
+  laboratory_id bigint,
+  purchase_id bigint not null references purchases(id),
+  payment_date date not null,
+  amount numeric(12,2) not null,
+  method varchar(255) not null,
+  reference varchar(255),
+  created_at timestamp(6) with time zone,
+  created_by_username varchar(255),
+  annulled boolean not null default false,
+  annulled_at timestamp(6) with time zone,
+  annulled_by_username varchar(255),
+  annulment_reason varchar(255)
+);
+create unique index if not exists uk_supplier_payment_number_per_lab on supplier_payments (laboratory_id, payment_number);
+create index if not exists ix_supplier_payments_purchase on supplier_payments (purchase_id);
+
+create table if not exists supplier_payment_counters (
+  laboratory_id bigint primary key,
+  next_number bigint not null
+);

@@ -21,10 +21,11 @@ public class AccountController {
     @Autowired
     private AccountService accountService;
 
-    // EXPENSES_MANAGE también puede listar: el selector de cuentas de la
-    // pantalla de gastos lo necesita sin abrir toda la contabilidad.
+    // EXPENSES_MANAGE y PURCHASES_MANAGE también pueden listar: los selectores de
+    // cuenta de gastos y de las líneas de compra lo necesitan sin abrir toda la
+    // contabilidad.
     @GetMapping
-    @PreAuthorize("hasAnyAuthority('ACCOUNTING_VIEW','ACCOUNTING_MANAGE','EXPENSES_MANAGE')")
+    @PreAuthorize("hasAnyAuthority('ACCOUNTING_VIEW','ACCOUNTING_MANAGE','EXPENSES_MANAGE','PURCHASES_MANAGE')")
     public ResponseEntity<List<AccountDTO>> getAccounts(
             @RequestParam(defaultValue = "false", required = false) boolean activeOnly) {
         return new ResponseEntity<>(accountService.getAccounts(activeOnly), HttpStatus.OK);

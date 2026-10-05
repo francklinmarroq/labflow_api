@@ -15,6 +15,10 @@ public enum JournalSourceType {
     ANULACION_PAGO("Anulación de pago"),
     ANULACION_GASTO("Anulación de gasto"),
     ANULACION_REMISION("Anulación de remisión"),
+    COMPRA("Compra"),
+    PAGO_PROVEEDOR("Pago a proveedor"),
+    ANULACION_COMPRA("Anulación de compra"),
+    ANULACION_PAGO_PROVEEDOR("Anulación de pago a proveedor"),
     CIERRE("Cierre de período"),
     ANULACION_CIERRE("Reapertura de período"),
     MANUAL("Partida manual");

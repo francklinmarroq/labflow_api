@@ -16,5 +16,7 @@ public enum SystemAccountKey {
     EXAMENES_REMITIDOS,
     CAPITAL,
     /** Recibe el traslado de ingresos y gastos al cerrar un período contable. */
-    RESULTADO_DEL_EJERCICIO
+    RESULTADO_DEL_EJERCICIO,
+    /** ISV pagado en compras: hoy es costo porque el laboratorio vende exento. */
+    ISV_NO_RECUPERABLE_COMPRAS
 }
