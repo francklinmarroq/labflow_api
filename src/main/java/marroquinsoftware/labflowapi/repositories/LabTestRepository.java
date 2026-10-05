@@ -32,4 +32,21 @@ public interface LabTestRepository extends JpaRepository<LabTest, Long> {
             order by count(t.id) desc, t.test.name asc
             """)
     List<Object[]> testsVolume(@Param("from") Instant from, @Param("to") Instant to);
+
+    /**
+     * Unidades por examen de cada orden incluida en una factura emitida en el
+     * rango: filas [orderId, testId, count]. El registro de ventas las usa para
+     * saber cuántas unidades de una línea agrupada salen de cada orden (y con qué
+     * descuento por edad). Mientras la factura está vigente los exámenes de sus
+     * órdenes están bloqueados, así que coinciden con lo facturado.
+     */
+    @Query("""
+            select t.order.id, t.test.id, count(t.id)
+            from LabTest t
+            where t.order.id in (
+                select io.order.id from InvoiceOrder io
+                where io.invoice.issuedAt >= :from and io.invoice.issuedAt < :to)
+            group by t.order.id, t.test.id
+            """)
+    List<Object[]> invoicedOrderUnits(@Param("from") Instant from, @Param("to") Instant to);
 }

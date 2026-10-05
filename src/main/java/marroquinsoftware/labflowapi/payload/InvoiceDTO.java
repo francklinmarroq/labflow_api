@@ -96,4 +96,10 @@ public class InvoiceDTO {
      * se refleja en todo lo ya facturado. Solo lectura.
      */
     private List<OrderTagDTO> tags;
+
+    /**
+     * Órdenes que cubre la factura, con su paciente. {@code orderId} y
+     * {@code orderNumber} de arriba siguen llenándose cuando hay exactamente una.
+     */
+    private List<InvoiceOrderDTO> orders;
 }

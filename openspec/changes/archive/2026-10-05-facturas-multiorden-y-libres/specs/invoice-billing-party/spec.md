@@ -1,10 +1,4 @@
-# invoice-billing-party Specification
-
-## Purpose
-
-Defines who an invoice is made out to: the patient of the order, as it has always been, or a billing client from the catalogue when a company or insurer is paying. It covers how that choice is made when the invoice is issued, what the document freezes about both parties, and how invoices billed to a company are found and collected.
-
-## Requirements
+## MODIFIED Requirements
 
 ### Requirement: The invoice recipient is chosen when the invoice is issued
 
@@ -84,56 +78,3 @@ An invoice's recipient SHALL NOT be changeable after issue. Correcting it SHALL 
 
 - **WHEN** an invoice has been issued
 - **THEN** no operation changes who it was made out to, and correcting it requires annulling the invoice and issuing a new one
-
-### Requirement: Invoices report who they were billed to
-
-Every read of an invoice — the listing, the detail, and the receivables listing — SHALL identify which billing client it was issued to, and SHALL report the frozen patient name. An invoice made out to a patient SHALL report no billing client.
-
-The name to show for the recipient SHALL be the customer name the invoice froze at issue, for a company exactly as for a patient: a reader never has to decide between two names, and a client renamed afterwards does not rewrite what the document says.
-
-#### Scenario: Reading a company invoice
-
-- **WHEN** an invoice issued to a billing client is read, listed, or appears among receivables
-- **THEN** it identifies that client, and its customer name is the client's name frozen at issue, alongside the patient the exams were for
-
-#### Scenario: Reading a patient invoice
-
-- **WHEN** an invoice issued to a patient is read or listed
-- **THEN** it reports no billing client
-
-### Requirement: Invoices can be filtered and collected by billing client
-
-The invoice listing SHALL accept an optional billing client filter and SHALL return only the invoices issued to that client. The filter SHALL be applied by the API over all matching invoices, not over one page, and SHALL combine with the status, order, date-range, search and tag filters already supported.
-
-The API SHALL provide a statement of account for a billing client — its invoices and their active payments in chronological order, with a running balance and the totals invoiced, paid and outstanding — on the same terms as the statement that already exists for a patient, excluding annulled invoices and annulled payments.
-
-The API SHALL also report what each billing client currently owes: for every billing client with at least one invoice that still has an open balance, its name, how many such invoices it has, and the sum of those balances.
-
-Both SHALL require `INVOICES_VIEW`, as the receivables and patient statement already do.
-
-#### Scenario: Filtering the listing
-
-- **WHEN** the invoice listing is requested for a given billing client
-- **THEN** only invoices issued to that client are returned, across every page of results
-
-#### Scenario: Filtering combined with status
-
-- **WHEN** the invoice listing is requested for a billing client and a status
-- **THEN** only that client's invoices in that status are returned
-
-#### Scenario: Statement of a billing client
-
-- **WHEN** the statement of a billing client is requested
-- **THEN** its invoices and active payments are returned in chronological order with a running balance and the totals invoiced, paid and outstanding
-- **AND** annulled invoices and annulled payments are excluded
-
-#### Scenario: What each client owes
-
-- **WHEN** the outstanding balance by billing client is requested
-- **THEN** every billing client with at least one invoice carrying an open balance is listed with its name, its number of such invoices, and the sum of their balances
-- **AND** clients with nothing outstanding are absent
-
-#### Scenario: Invoices billed to patients are not attributed to a client
-
-- **WHEN** the outstanding balance by billing client is requested and open invoices exist that were made out to patients
-- **THEN** those invoices are not counted under any billing client

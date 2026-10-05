@@ -9,6 +9,8 @@ import marroquinsoftware.labflowapi.model.SaleCondition;
 import marroquinsoftware.labflowapi.repositories.AccountingPeriodRepository;
 import marroquinsoftware.labflowapi.repositories.BillingSpecifications;
 import marroquinsoftware.labflowapi.repositories.ExpenseRepository;
+import marroquinsoftware.labflowapi.repositories.LabTestRepository;
+import marroquinsoftware.labflowapi.repositories.InvoiceOrderRepository;
 import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.JournalEntryRepository;
 import marroquinsoftware.labflowapi.repositories.JournalLineRepository;
@@ -75,6 +77,8 @@ class PostgresQueryCompatibilityTest {
     private static final String URL = "jdbc:postgresql://localhost:55432/labflow";
 
     @Autowired InvoiceRepository invoiceRepository;
+    @Autowired InvoiceOrderRepository invoiceOrderRepository;
+    @Autowired LabTestRepository labTestRepository;
     @Autowired JournalEntryRepository journalEntryRepository;
     @Autowired ExpenseRepository expenseRepository;
     @Autowired TestRunRepository testRunRepository;
@@ -188,8 +192,8 @@ class PostgresQueryCompatibilityTest {
     @Test
     void resolvesTheTestsLockForAPageOfOrders() {
         assertDoesNotThrow(() -> {
-            invoiceRepository.findOrderIdsWithLiveInvoice(List.of(1L));
-            invoiceRepository.findOrderIdsWithLiveInvoice(List.of(1L, 2L, 3L));
+            invoiceOrderRepository.findOrderIdsWithLiveInvoice(List.of(1L));
+            invoiceOrderRepository.findOrderIdsWithLiveInvoice(List.of(1L, 2L, 3L));
         });
     }
 
@@ -247,6 +251,43 @@ class PostgresQueryCompatibilityTest {
             supplierPaymentRepository.findByPurchaseSupplierIdAndAnnulledFalseAndPaymentDateLessThanEqualOrderByPaymentDateAscPaymentNumberAsc(
                     1L, to);
             supplierPaymentRepository.findByAnnulledFalseAndPaymentDateLessThanEqual(to);
+        });
+    }
+
+    // Facturas de varias órdenes: la orden de una factura vive en invoice_orders, así
+    // que los filtros por orden y por etiqueta son subconsultas exists; las órdenes
+    // pendientes de facturar son un not exists con isNotEmpty sobre los exámenes.
+    @Test
+    void readsInvoicesThroughTheirOrders() {
+        assertDoesNotThrow(() -> {
+            invoiceRepository.findAll(BillingSpecifications.invoices(
+                    null, 1L, null, null, null, null, null), PageRequest.of(0, 50));
+            invoiceRepository.findAll(BillingSpecifications.invoices(
+                    null, null, null, null, null, 1L, null), PageRequest.of(0, 50));
+            invoiceRepository.findAll(BillingSpecifications.invoices(
+                    InvoiceStatus.PENDIENTE, 1L, Instant.now().minusSeconds(3600), Instant.now(), "000", 1L, 1L),
+                    PageRequest.of(0, 50));
+            invoiceOrderRepository.findLiveInvoiceOfOrder(1L);
+            invoiceOrderRepository.countByInvoiceId(1L);
+            labOrderRepository.findAll(LabOrderSpecifications.uninvoiced(null, null, null), PageRequest.of(0, 50));
+            labOrderRepository.findAll(LabOrderSpecifications.uninvoiced(1L,
+                    Instant.now().minusSeconds(86400), Instant.now()), PageRequest.of(0, 50));
+            invoiceRepository.salesItemRows(Instant.now().minusSeconds(86400), Instant.now());
+        });
+    }
+
+    // Registro de ventas detallado: proyecciones de cabeceras, líneas (con el enum
+    // y la cantidad numeric), órdenes por factura y unidades por orden con una
+    // subconsulta in sobre invoice_orders.
+    @Test
+    void readsTheSalesRegister() {
+        Instant from = Instant.now().minusSeconds(86400);
+        Instant to = Instant.now();
+        assertDoesNotThrow(() -> {
+            invoiceRepository.registerInvoiceRows(from, to);
+            invoiceRepository.registerItemRows(from, to);
+            invoiceOrderRepository.registerOrderRows(from, to);
+            labTestRepository.invoicedOrderUnits(from, to);
         });
     }
 

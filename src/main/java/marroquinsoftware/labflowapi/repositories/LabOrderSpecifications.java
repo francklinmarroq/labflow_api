@@ -65,4 +65,35 @@ public final class LabOrderSpecifications {
             return cb.and(predicates.toArray(new Predicate[0]));
         };
     }
+
+    /**
+     * Órdenes pendientes de facturar: no canceladas, con al menos un examen y sin
+     * factura vigente (una orden cuya única factura se anuló vuelve a estar
+     * pendiente). Filtros opcionales por paciente y por rango de fecha de la orden.
+     * El "sin factura vigente" es un not exists contra invoice_orders, para que el
+     * conteo de la paginación sea el de órdenes.
+     */
+    public static Specification<LabOrder> uninvoiced(Long customerId, java.time.Instant from, java.time.Instant to) {
+        return (root, query, cb) -> {
+            boolean isCount = query != null
+                    && (query.getResultType() == Long.class || query.getResultType() == long.class);
+            if (!isCount) root.fetch("customer", JoinType.LEFT);
+
+            List<Predicate> predicates = new ArrayList<>();
+            predicates.add(cb.notEqual(root.get("status"), OrderStatus.CANCELLED));
+            predicates.add(cb.isNotEmpty(root.get("tests")));
+            jakarta.persistence.criteria.Subquery<Long> live = query.subquery(Long.class);
+            jakarta.persistence.criteria.Root<marroquinsoftware.labflowapi.model.InvoiceOrder> io =
+                    live.from(marroquinsoftware.labflowapi.model.InvoiceOrder.class);
+            live.select(io.get("id")).where(
+                    cb.equal(io.get("order"), root),
+                    cb.notEqual(io.get("invoice").get("status"),
+                            marroquinsoftware.labflowapi.model.InvoiceStatus.ANULADA));
+            predicates.add(cb.not(cb.exists(live)));
+            if (customerId != null) predicates.add(cb.equal(root.get("customer").get("id"), customerId));
+            if (from != null) predicates.add(cb.greaterThanOrEqualTo(root.get("requestedAt"), from));
+            if (to != null) predicates.add(cb.lessThan(root.get("requestedAt"), to));
+            return cb.and(predicates.toArray(new Predicate[0]));
+        };
+    }
 }

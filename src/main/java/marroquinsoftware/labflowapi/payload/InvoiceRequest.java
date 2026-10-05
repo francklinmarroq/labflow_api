@@ -27,8 +27,28 @@ import java.util.List;
 @AllArgsConstructor
 public class InvoiceRequest {
 
-    @NotNull(message = "Indique la orden a facturar")
+    /**
+     * Forma vieja: una sola orden. Equivale a {@code orderIds: [orderId]} y se
+     * sigue aceptando para los clientes que no conocen la forma nueva.
+     */
     private Long orderId;
+
+    /** Órdenes pendientes de facturar que se incluyen, de cualquier paciente. */
+    private List<Long> orderIds;
+
+    /** Exámenes del catálogo agregados sin orden. */
+    @Valid
+    private List<InvoiceTestLineRequest> tests;
+
+    /** Conceptos libres. */
+    private List<InvoiceConceptRequest> concepts;
+
+    /**
+     * A nombre de quién se emite. Vacío = la forma de siempre: el cliente de
+     * {@code billingClientId} si viene, o el paciente de las órdenes si todas son
+     * de uno solo.
+     */
+    private InvoiceRecipientDTO recipient;
 
     @NotNull(message = "Seleccione la condición de venta")
     private SaleCondition saleCondition;
@@ -78,4 +98,18 @@ public class InvoiceRequest {
      */
     @Valid
     private PaymentRequest initialPayment;
+
+    /** Forma vieja, de una sola orden; la usan los clientes y tests anteriores. */
+    public InvoiceRequest(Long orderId, SaleCondition saleCondition, Long billingClientId, String customerRtn,
+                          List<InvoiceItemPriceDTO> itemPrices, BigDecimal total, LocalDate issueDate,
+                          PaymentRequest initialPayment) {
+        this.orderId = orderId;
+        this.saleCondition = saleCondition;
+        this.billingClientId = billingClientId;
+        this.customerRtn = customerRtn;
+        this.itemPrices = itemPrices;
+        this.total = total;
+        this.issueDate = issueDate;
+        this.initialPayment = initialPayment;
+    }
 }

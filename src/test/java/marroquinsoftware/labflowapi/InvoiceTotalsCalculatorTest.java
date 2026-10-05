@@ -114,4 +114,46 @@ class InvoiceTotalsCalculatorTest {
         assertThrows(APIException.class,
                 () -> compute(money("500.00"), money("500.00"), "0", "-1.00"));
     }
+
+    // --- Descuento por edad por grupos (facturas de varias órdenes) ---
+
+    @Test
+    void eachGroupGetsTheDiscountOfItsOwnPercent() {
+        InvoiceTotalsCalculator.Totals t = new InvoiceTotalsCalculator().compute(new java.math.BigDecimal("1150.00"),
+                List.of(new InvoiceTotalsCalculator.AgeGroup(new java.math.BigDecimal("500.00"), new java.math.BigDecimal("10")),
+                        new InvoiceTotalsCalculator.AgeGroup(new java.math.BigDecimal("500.00"), new java.math.BigDecimal("20")),
+                        new InvoiceTotalsCalculator.AgeGroup(new java.math.BigDecimal("150.00"), java.math.BigDecimal.ZERO)),
+                null);
+
+        assertEquals(0, t.ageDiscount().compareTo(new java.math.BigDecimal("150.00")), "50 + 100 + 0");
+        assertEquals(0, t.total().compareTo(new java.math.BigDecimal("1000.00")));
+        assertEquals(0, t.otherDiscount().signum());
+    }
+
+    @Test
+    void aRequestedTotalStillCapsTheAgeDiscountAcrossGroups() {
+        // Regla: 50 + 100 = 150, pero en mostrador solo se rebajan 120 en total.
+        InvoiceTotalsCalculator.Totals t = new InvoiceTotalsCalculator().compute(new java.math.BigDecimal("1000.00"),
+                List.of(new InvoiceTotalsCalculator.AgeGroup(new java.math.BigDecimal("500.00"), new java.math.BigDecimal("10")),
+                        new InvoiceTotalsCalculator.AgeGroup(new java.math.BigDecimal("500.00"), new java.math.BigDecimal("20"))),
+                new java.math.BigDecimal("880.00"));
+
+        assertEquals(0, t.ageDiscount().compareTo(new java.math.BigDecimal("120.00")));
+        assertEquals(0, t.otherDiscount().signum());
+        assertEquals(0, t.total().compareTo(new java.math.BigDecimal("880.00")));
+    }
+
+    @Test
+    void oneGroupGivesTheSameAsTheSinglePercentForm() {
+        InvoiceTotalsCalculator calc = new InvoiceTotalsCalculator();
+        InvoiceTotalsCalculator.Totals single = calc.compute(
+                List.of(new java.math.BigDecimal("500.00"), new java.math.BigDecimal("150.00")),
+                List.of(new java.math.BigDecimal("450.00"), new java.math.BigDecimal("150.00")),
+                new java.math.BigDecimal("10"), null);
+        InvoiceTotalsCalculator.Totals grouped = calc.compute(new java.math.BigDecimal("650.00"),
+                List.of(new InvoiceTotalsCalculator.AgeGroup(new java.math.BigDecimal("600.00"), new java.math.BigDecimal("10"))),
+                null);
+
+        assertEquals(single, grouped);
+    }
 }

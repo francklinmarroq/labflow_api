@@ -3,14 +3,13 @@ package marroquinsoftware.labflowapi.service;
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Invoice;
-import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.model.LabOrder;
 import marroquinsoftware.labflowapi.model.LabTest;
 import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.model.TestConfig;
 import marroquinsoftware.labflowapi.model.TestMethod;
 import marroquinsoftware.labflowapi.payload.LabTestDTO;
-import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
+import marroquinsoftware.labflowapi.repositories.InvoiceOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabTestRepository;
 import marroquinsoftware.labflowapi.repositories.TestConfigRepository;
@@ -37,7 +36,7 @@ public class LabTestServiceImp implements LabTestService {
     private TestConfigRepository testConfigRepository;
 
     @Autowired
-    private InvoiceRepository invoiceRepository;
+    private InvoiceOrderRepository invoiceOrderRepository;
 
     @Autowired
     private TestMethodService testMethodService;
@@ -185,9 +184,7 @@ public class LabTestServiceImp implements LabTestService {
      * No es un permiso: es una propiedad de la orden y no hay excepción para nadie.
      */
     private void requireTestsUnlocked(Long orderId) {
-        Invoice invoice = invoiceRepository
-                .findFirstByOrderIdAndStatusNotOrderByIssuedAtDesc(orderId, InvoiceStatus.ANULADA)
-                .orElse(null);
+        Invoice invoice = invoiceOrderRepository.findLiveInvoiceOfOrder(orderId).orElse(null);
         if (invoice != null) {
             throw new APIException("Los exámenes de esta orden ya están facturados en la factura "
                     + invoice.getInvoiceNumber() + " y no se pueden agregar ni quitar. "

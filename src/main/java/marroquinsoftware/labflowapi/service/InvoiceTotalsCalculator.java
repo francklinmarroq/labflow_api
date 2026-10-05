@@ -55,16 +55,44 @@ public class InvoiceTotalsCalculator {
                           List<BigDecimal> chargedPrices,
                           BigDecimal agePercent,
                           BigDecimal requestedTotal) {
+        // Atajo de un solo grupo: toda la factura con el mismo porcentaje, que es
+        // la factura de una orden de siempre.
+        return compute(sum(listPrices),
+                List.of(new AgeGroup(sum(chargedPrices), agePercent)),
+                requestedTotal);
+    }
 
-        BigDecimal subtotal = sum(listPrices);
-        BigDecimal charged = sum(chargedPrices);
+    /**
+     * Lo que se cobra por un grupo de líneas y el porcentaje de edad que le toca.
+     * Cada orden de la factura es un grupo con el porcentaje de su paciente; los
+     * exámenes sueltos y los conceptos forman un grupo sin porcentaje.
+     */
+    public record AgeGroup(BigDecimal charged, BigDecimal agePercent) {
+
+        /** Descuento por edad que la regla da a este grupo, redondeado a centavos. */
+        public BigDecimal ruleDiscount() {
+            return (charged != null ? charged : BigDecimal.ZERO)
+                    .multiply(agePercent != null ? agePercent : BigDecimal.ZERO)
+                    .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        }
+    }
+
+    /**
+     * @param subtotal       bruto de la factura: suma de precios de lista × cantidad
+     * @param groups         lo cobrado por grupo, con su porcentaje de edad
+     * @param requestedTotal total que el operador quiere cobrar; null = el calculado
+     */
+    public Totals compute(BigDecimal subtotal, List<AgeGroup> groups, BigDecimal requestedTotal) {
+        subtotal = (subtotal != null ? subtotal : BigDecimal.ZERO).setScale(2, RoundingMode.HALF_UP);
+        BigDecimal charged = sum(groups.stream().map(AgeGroup::charged).toList());
         BigDecimal itemDiscount = subtotal.subtract(charged);
 
         // El descuento por edad se calcula sobre lo que queda después de los
-        // ajustes de línea: un examen regalado no debe generar descuento de edad.
-        BigDecimal ruleDiscount = charged
-                .multiply(agePercent != null ? agePercent : BigDecimal.ZERO)
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
+        // ajustes de línea (un examen regalado no debe generar descuento de edad),
+        // grupo por grupo: cada orden con el porcentaje de su propio paciente.
+        BigDecimal ruleDiscount = groups.stream().map(AgeGroup::ruleDiscount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add)
+                .setScale(2, RoundingMode.HALF_UP);
 
         BigDecimal total = requestedTotal != null
                 ? requestedTotal.setScale(2, RoundingMode.HALF_UP)

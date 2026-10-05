@@ -5,6 +5,8 @@ import marroquinsoftware.labflowapi.config.AppConstants;
 import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.payload.AnnulRequest;
 import marroquinsoftware.labflowapi.payload.InvoiceDTO;
+import marroquinsoftware.labflowapi.payload.InvoiceDraftPreviewDTO;
+import marroquinsoftware.labflowapi.payload.InvoiceDraftRequest;
 import marroquinsoftware.labflowapi.payload.InvoicePreviewDTO;
 import marroquinsoftware.labflowapi.payload.InvoiceRequest;
 import marroquinsoftware.labflowapi.payload.InvoiceResponse;
@@ -54,6 +56,12 @@ public class InvoiceController {
     @PreAuthorize("hasAuthority('INVOICES_CREATE')")
     public ResponseEntity<InvoicePreviewDTO> previewInvoice(@RequestParam Long orderId) {
         return new ResponseEntity<>(invoiceService.previewInvoice(orderId), HttpStatus.OK);
+    }
+
+    @PostMapping("/preview")
+    @PreAuthorize("hasAuthority('INVOICES_CREATE')")
+    public ResponseEntity<InvoiceDraftPreviewDTO> previewDraft(@Valid @RequestBody InvoiceDraftRequest request) {
+        return new ResponseEntity<>(invoiceService.previewDraft(request), HttpStatus.OK);
     }
 
     @GetMapping("/{invoiceId}")

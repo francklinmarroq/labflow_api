@@ -17,11 +17,21 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class InvoiceItemPriceDTO {
 
-    /** Id del examen dentro de la orden ({@code LabTest}), no del catálogo. */
-    @NotNull(message = "Indique a qué examen de la orden corresponde el precio")
+    /**
+     * Forma vieja: id del examen dentro de la orden ({@code LabTest}). Se traduce
+     * a su examen del catálogo, porque el precio especial vale por examen.
+     */
     private Long labTestId;
+    /** Examen del catálogo al que aplica el precio; vale para todas sus unidades. */
+    private Long testId;
 
     @NotNull(message = "Indique el precio del examen")
     @DecimalMin(value = "0.00", message = "El precio no puede ser negativo")
     private BigDecimal price;
+
+    /** Forma vieja, por examen de la orden. */
+    public InvoiceItemPriceDTO(Long labTestId, BigDecimal price) {
+        this.labTestId = labTestId;
+        this.price = price;
+    }
 }

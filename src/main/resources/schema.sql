@@ -567,3 +567,57 @@ create table if not exists supplier_payment_counters (
   laboratory_id bigint primary key,
   next_number bigint not null
 );
+
+-- Facturas de varias órdenes y sin orden (cambio facturas-multiorden-y-libres).
+--
+-- invoice_orders es la relación factura–órdenes y la ÚNICA fuente de "qué factura
+-- cubre esta orden": el bloqueo de exámenes, la vista de la orden, la doble
+-- facturación y los filtros por orden y etiqueta leen de aquí. No va en las líneas
+-- porque una línea agrupada ("10 — Hemograma") junta exámenes de varias órdenes.
+-- Congela el paciente de cada orden y su descuento por edad. La mapea InvoiceOrder.
+create table if not exists invoice_orders (
+  id bigserial primary key,
+  laboratory_id bigint,
+  invoice_id bigint not null references invoices(id),
+  order_id bigint not null references lab_orders(id),
+  customer_id bigint references customer(id),
+  patient_name varchar(255),
+  age_discount_kind varchar(255),
+  age_percent numeric(5,2),
+  charged_amount numeric(12,2),
+  age_discount_amount numeric(12,2)
+);
+create index if not exists ix_invoice_orders_invoice on invoice_orders (invoice_id);
+create index if not exists ix_invoice_orders_order on invoice_orders (order_id);
+
+-- Las líneas ganan cantidad (los exámenes iguales se agrupan) y tipo (examen del
+-- catálogo o concepto libre). Las líneas existentes quedan como 1 examen.
+alter table if exists invoice_items add column if not exists quantity numeric(12,3) not null default 1;
+alter table if exists invoice_items add column if not exists item_type varchar(20) not null default 'EXAMEN';
+
+-- Una factura puede no tener orden (desde cero), ni paciente (a empresa o a
+-- consumidor final con órdenes de varios pacientes), ni un tramo de edad único
+-- (cuando sus órdenes mezclan tramos). order_id ya no se escribe: se conserva para
+-- que la imagen anterior siga leyendo las facturas viejas si hubiera que volver.
+-- El add column es un no-op en toda base existente (la columna siempre estuvo); está
+-- para que el script también corra sobre una base creada desde cero con el modelo
+-- nuevo, que ya no la mapea, sin fallar aquí ni en el insert de abajo.
+alter table if exists invoices add column if not exists order_id bigint references lab_orders(id);
+alter table if exists invoices alter column order_id drop not null;
+alter table if exists invoices alter column customer_id drop not null;
+alter table if exists invoices alter column discount_kind drop not null;
+
+-- Migración: una fila de invoice_orders por cada factura emitida antes de este
+-- cambio, con su orden, su paciente y su descuento. Idempotente por el "not exists":
+-- correrlo dos veces no duplica nada. DEBE correr antes de desplegar la imagen
+-- nueva: sin estas filas, las órdenes ya facturadas aparecerían sin factura y se
+-- podrían facturar otra vez.
+insert into invoice_orders (laboratory_id, invoice_id, order_id, customer_id, patient_name,
+                            age_discount_kind, age_percent, charged_amount, age_discount_amount)
+select i.laboratory_id, i.id, i.order_id, i.customer_id, coalesce(i.patient_name, i.customer_name),
+       i.discount_kind, i.discount_percent,
+       (select coalesce(sum(ii.price), 0) from invoice_items ii where ii.invoice_id = i.id),
+       i.discount_amount
+from invoices i
+where i.order_id is not null
+  and not exists (select 1 from invoice_orders io where io.invoice_id = i.id);

@@ -1,6 +1,7 @@
 package marroquinsoftware.labflowapi.controller.v1;
 
 import marroquinsoftware.labflowapi.payload.CollectionsReportDTO;
+import marroquinsoftware.labflowapi.payload.SalesRegisterDTO;
 import marroquinsoftware.labflowapi.payload.SalesReportDTO;
 import marroquinsoftware.labflowapi.payload.TestsVolumeDTO;
 import marroquinsoftware.labflowapi.payload.UserProductivityDTO;
@@ -47,6 +48,18 @@ public class AnalyticsReportController {
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to,
             @RequestParam(required = false, defaultValue = "day") String groupBy) {
         return new ResponseEntity<>(analyticsReportService.getSales(from, to, groupBy), HttpStatus.OK);
+    }
+
+    /**
+     * Registro de ventas detallado: una fila por línea de factura emitida en el
+     * rango, con su descuento repartido y su desglose fiscal; anuladas en cero.
+     */
+    @GetMapping("/sales/detail")
+    @PreAuthorize("hasAuthority('REPORTS_VIEW')")
+    public ResponseEntity<SalesRegisterDTO> getSalesDetail(
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return new ResponseEntity<>(analyticsReportService.getSalesDetail(from, to), HttpStatus.OK);
     }
 
     /** Cobros (pagos activos) recibidos en un rango, más el saldo por cobrar actual. */

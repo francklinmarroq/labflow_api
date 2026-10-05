@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.ColumnDefault;
 import org.hibernate.annotations.TenantId;
 
 import java.math.BigDecimal;
@@ -36,11 +37,27 @@ public class InvoiceItem {
     @EqualsAndHashCode.Exclude
     private Invoice invoice;
 
+    @Enumerated(EnumType.STRING)
+    @ColumnDefault("'EXAMEN'")
+    @Column(name = "item_type", nullable = false, length = 20)
+    private InvoiceItemType itemType = InvoiceItemType.EXAMEN;
+
+    /** Examen del catálogo; null en un concepto libre. */
     @Column(name = "test_id")
     private Long testId;
 
+    /** Nombre del examen, o la descripción del concepto, congelado al emitir. */
     @Column(nullable = false)
     private String testName;
+
+    /**
+     * Unidades de la línea. Los exámenes iguales de la factura se agrupan en una
+     * sola línea con su cantidad; las líneas anteriores a este campo valen 1.
+     * {@code listPrice} y {@code price} son unitarios.
+     */
+    @ColumnDefault("1")
+    @Column(nullable = false, precision = 12, scale = 3)
+    private BigDecimal quantity = BigDecimal.ONE;
 
     /**
      * Precio de lista del catálogo al emitir. Se guarda aparte de {@code price}
@@ -53,12 +70,24 @@ public class InvoiceItem {
     @Column(precision = 12, scale = 2)
     private BigDecimal listPrice;
 
-    /** Lo que realmente se le cobra al paciente por esta línea. */
+    /** Lo que realmente se cobra por cada unidad de esta línea. */
     @Column(precision = 12, scale = 2)
     private BigDecimal price;
 
     /** Precio de lista con respaldo para las facturas viejas sin snapshot. */
     public BigDecimal listPriceOrPrice() {
         return listPrice != null ? listPrice : price;
+    }
+
+    /** Importe cobrado de la línea: precio unitario × cantidad. */
+    public BigDecimal amount() {
+        BigDecimal qty = quantity != null ? quantity : BigDecimal.ONE;
+        return price.multiply(qty).setScale(2, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** Importe de lista de la línea: precio de catálogo × cantidad. */
+    public BigDecimal listAmount() {
+        BigDecimal qty = quantity != null ? quantity : BigDecimal.ONE;
+        return listPriceOrPrice().multiply(qty).setScale(2, java.math.RoundingMode.HALF_UP);
     }
 }

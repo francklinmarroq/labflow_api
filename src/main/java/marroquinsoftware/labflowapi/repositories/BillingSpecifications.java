@@ -2,8 +2,11 @@ package marroquinsoftware.labflowapi.repositories;
 
 import jakarta.persistence.criteria.JoinType;
 import jakarta.persistence.criteria.Predicate;
+import jakarta.persistence.criteria.Root;
+import jakarta.persistence.criteria.Subquery;
 import marroquinsoftware.labflowapi.model.Expense;
 import marroquinsoftware.labflowapi.model.Invoice;
+import marroquinsoftware.labflowapi.model.InvoiceOrder;
 import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.model.JournalEntry;
 import marroquinsoftware.labflowapi.model.JournalSourceType;
@@ -46,16 +49,16 @@ public final class BillingSpecifications {
                                                   Instant from, Instant to, String search, Long tagId,
                                                   Long billingClientId) {
         return (root, query, cb) -> {
-            // El mapeo a DTO de cada factura del listado lee order.id/order.orderNumber
-            // y customer.id. Al ser @ManyToOne EAGER sin join, recorrer la página
-            // dispararía una consulta por factura para el pedido y otra para el cliente
-            // (N+1). Se traen ambos en la MISMA consulta de la página con un fetch join;
+            // El mapeo a DTO de cada factura del listado lee customer.id. Al ser
+            // @ManyToOne EAGER sin join, recorrer la página dispararía una consulta por
+            // factura (N+1). Se trae en la MISMA consulta de la página con un fetch join;
             // son to-one (no multiplican filas), así que la paginación por SQL sigue
             // siendo correcta y no aplica la paginación en memoria de los fetch de
             // colección. Se omite en la consulta de conteo (getResultType == Long), que
             // no navega esas relaciones.
             if (query != null && query.getResultType() != Long.class && query.getResultType() != long.class) {
-                root.fetch("order", JoinType.LEFT);
+                // Las órdenes de cada factura no van aquí: son una colección
+                // (Invoice.invoiceOrders) y se leen por lotes con su @BatchSize.
                 root.fetch("customer", JoinType.LEFT);
                 // El cliente de facturación va con los otros dos: es EAGER (en la
                 // imagen nativa no puede ser perezoso, ver Invoice.billingClient),
@@ -65,7 +68,16 @@ public final class BillingSpecifications {
             }
             List<Predicate> predicates = new ArrayList<>();
             if (status != null) predicates.add(cb.equal(root.get("status"), status));
-            if (orderId != null) predicates.add(cb.equal(root.get("order").get("id"), orderId));
+            // La factura cubre una o varias órdenes (invoice_orders): se filtra con un
+            // exists, que no multiplica filas ni cambia el conteo de la paginación.
+            if (orderId != null) {
+                Subquery<Long> sub = query.subquery(Long.class);
+                Root<InvoiceOrder> io = sub.from(InvoiceOrder.class);
+                sub.select(io.get("id")).where(
+                        cb.equal(io.get("invoice"), root),
+                        cb.equal(io.get("order").get("id"), orderId));
+                predicates.add(cb.exists(sub));
+            }
             // Igual que orderId: una comparación sobre la llave foránea que la fila
             // ya lleva, sin join, así que no duplica filas ni cambia el conteo. Y se
             // aplica en la consulta, no sobre la página: filtra todas las facturas.
@@ -89,9 +101,14 @@ public final class BillingSpecifications {
                 // fetch. Como se filtra por UNA etiqueta, el join no puede duplicar
                 // filas —una orden no tiene dos veces la misma— y la paginación
                 // sigue siendo correcta.
-                predicates.add(cb.equal(
-                        root.join("order", JoinType.INNER).join("tags", JoinType.INNER).get("id"),
-                        tagId));
+                // Con varias órdenes, dos podrían tener la misma etiqueta: por eso es
+                // un exists y no un join, que duplicaría la factura en la página.
+                Subquery<Long> sub = query.subquery(Long.class);
+                Root<InvoiceOrder> io = sub.from(InvoiceOrder.class);
+                sub.select(io.get("id")).where(
+                        cb.equal(io.get("invoice"), root),
+                        cb.equal(io.join("order").join("tags").get("id"), tagId));
+                predicates.add(cb.exists(sub));
             }
             return cb.and(predicates.toArray(new Predicate[0]));
         };

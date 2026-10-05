@@ -1,6 +1,7 @@
 package marroquinsoftware.labflowapi.service;
 
 import marroquinsoftware.labflowapi.payload.CollectionsReportDTO;
+import marroquinsoftware.labflowapi.payload.SalesRegisterDTO;
 import marroquinsoftware.labflowapi.payload.SalesReportDTO;
 import marroquinsoftware.labflowapi.payload.TestsVolumeDTO;
 import marroquinsoftware.labflowapi.payload.UserProductivityDTO;
@@ -17,6 +18,9 @@ public interface AnalyticsReportService {
     TestsVolumeDTO getTestsVolume(LocalDate from, LocalDate to, String area);
 
     SalesReportDTO getSales(LocalDate from, LocalDate to, String groupBy);
+
+    /** Registro de ventas detallado: una fila por línea de factura, anuladas en cero. */
+    SalesRegisterDTO getSalesDetail(LocalDate from, LocalDate to);
 
     CollectionsReportDTO getCollections(LocalDate from, LocalDate to);
 

@@ -1,12 +1,16 @@
 package marroquinsoftware.labflowapi.service;
 
 import marroquinsoftware.labflowapi.exceptions.APIException;
+import marroquinsoftware.labflowapi.model.InvoiceItemType;
+import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.model.PaymentMethod;
 import marroquinsoftware.labflowapi.model.TestArea;
 import marroquinsoftware.labflowapi.payload.CollectionsReportDTO;
+import marroquinsoftware.labflowapi.payload.SalesRegisterDTO;
 import marroquinsoftware.labflowapi.payload.SalesReportDTO;
 import marroquinsoftware.labflowapi.payload.TestsVolumeDTO;
 import marroquinsoftware.labflowapi.payload.UserProductivityDTO;
+import marroquinsoftware.labflowapi.repositories.InvoiceOrderRepository;
 import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
 import marroquinsoftware.labflowapi.repositories.LabTestRepository;
 import marroquinsoftware.labflowapi.repositories.PaymentRepository;
@@ -20,7 +24,9 @@ import java.time.LocalDate;
 import java.time.YearMonth;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -47,6 +53,9 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
 
     @Autowired
     private PaymentRepository paymentRepository;
+
+    @Autowired
+    private InvoiceOrderRepository invoiceOrderRepository;
 
     @Override
     @Transactional(readOnly = true)
@@ -118,9 +127,15 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
 
         // Desglose por examen desde las líneas de factura.
         Map<String, BigDecimal[]> byTest = new LinkedHashMap<>(); // testName -> [amount, qty]
+        // Una línea agrupada ("10 — Hemograma") vale su cantidad y su importe, no
+        // una unidad: el precio es unitario. Los conceptos libres salen por su
+        // descripción, que va en el mismo campo que el nombre del examen.
         for (Object[] r : invoiceRepository.salesItemRows(fromInstant, toInstant)) {
             String testName = r[0] != null ? (String) r[0] : "—";
-            accumulate(byTest, testName, nz((BigDecimal) r[1]));
+            BigDecimal quantity = r[2] != null ? (BigDecimal) r[2] : BigDecimal.ONE;
+            BigDecimal[] acc = byTest.computeIfAbsent(testName, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
+            acc[0] = acc[0].add(nz((BigDecimal) r[1]).multiply(quantity));
+            acc[1] = acc[1].add(quantity);
         }
         List<SalesReportDTO.TestSales> tests = new ArrayList<>();
         for (Map.Entry<String, BigDecimal[]> e : byTest.entrySet()) {
@@ -233,6 +248,105 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
         } catch (IllegalArgumentException e) {
             throw new APIException("El área de examen indicada no es válida.");
         }
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public SalesRegisterDTO getSalesDetail(LocalDate from, LocalDate to) {
+        requireRange(from, to);
+        Instant fromInstant = startInstant(from);
+        Instant toInstant = endInstant(to);
+
+        // Cuatro consultas de proyección: líneas, órdenes y unidades se indexan
+        // por factura/orden y el reparto se hace en memoria.
+        Map<Long, List<Object[]>> itemsByInvoice = new HashMap<>();
+        for (Object[] r : invoiceRepository.registerItemRows(fromInstant, toInstant)) {
+            itemsByInvoice.computeIfAbsent((Long) r[0], k -> new ArrayList<>()).add(r);
+        }
+        Map<Long, List<Object[]>> ordersByInvoice = new HashMap<>();
+        for (Object[] r : invoiceOrderRepository.registerOrderRows(fromInstant, toInstant)) {
+            ordersByInvoice.computeIfAbsent((Long) r[0], k -> new ArrayList<>()).add(r);
+        }
+        Map<Long, Map<Long, Long>> unitsByOrder = new HashMap<>();
+        for (Object[] r : labTestRepository.invoicedOrderUnits(fromInstant, toInstant)) {
+            unitsByOrder.computeIfAbsent((Long) r[0], k -> new HashMap<>())
+                    .put((Long) r[1], ((Number) r[2]).longValue());
+        }
+
+        List<SalesRegisterDTO.Row> rows = new ArrayList<>();
+        BigDecimal[] totals = new BigDecimal[8];
+        Arrays.fill(totals, BigDecimal.ZERO);
+
+        for (Object[] inv : invoiceRepository.registerInvoiceRows(fromInstant, toInstant)) {
+            Long invoiceId = (Long) inv[0];
+            Instant issuedAt = (Instant) inv[1];
+            String number = (String) inv[2];
+            InvoiceStatus status = (InvoiceStatus) inv[3];
+            String customerName = inv[4] != null ? (String) inv[4] : "—";
+            boolean annulled = status == InvoiceStatus.ANULADA;
+
+            List<Object[]> orderRows = ordersByInvoice.getOrDefault(invoiceId, List.of());
+            List<Long> orderNumbers = new ArrayList<>();
+            List<SalesRegisterAllocator.OrderUnits> orderUnits = new ArrayList<>();
+            for (Object[] o : orderRows) {
+                orderNumbers.add((Long) o[2]);
+                orderUnits.add(new SalesRegisterAllocator.OrderUnits(
+                        (BigDecimal) o[3], unitsByOrder.getOrDefault((Long) o[1], Map.of())));
+            }
+
+            List<Object[]> itemRows = itemsByInvoice.getOrDefault(invoiceId, List.of());
+            List<SalesRegisterAllocator.Line> lines = new ArrayList<>();
+            for (Object[] it : itemRows) {
+                lines.add(new SalesRegisterAllocator.Line(
+                        (Long) it[1],
+                        it[2] != null ? (InvoiceItemType) it[2] : InvoiceItemType.EXAMEN,
+                        (BigDecimal) it[4], (BigDecimal) it[5],
+                        it[6] != null ? (BigDecimal) it[6] : BigDecimal.ONE));
+            }
+            List<SalesRegisterAllocator.Allocation> allocations = annulled ? null
+                    : SalesRegisterAllocator.allocate(lines, orderUnits,
+                            (BigDecimal) inv[5], (BigDecimal) inv[6], (BigDecimal) inv[7]);
+
+            for (int i = 0; i < itemRows.size(); i++) {
+                Object[] it = itemRows.get(i);
+                SalesRegisterAllocator.Line line = lines.get(i);
+                SalesRegisterDTO.Row row;
+                if (annulled) {
+                    // Anulada: se lista para que el correlativo quede completo,
+                    // pero no vendió nada.
+                    row = registerRow(invoiceId, issuedAt, number, status, orderNumbers, customerName,
+                            (String) it[3], line.itemType(), BigDecimal.ZERO, BigDecimal.ZERO,
+                            BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO);
+                } else {
+                    SalesRegisterAllocator.Allocation a = allocations.get(i);
+                    row = registerRow(invoiceId, issuedAt, number, status, orderNumbers, customerName,
+                            (String) it[3], line.itemType(), line.quantity(), nz(line.listPrice()),
+                            a.subtotal(), a.discount(), a.total());
+                    BigDecimal[] values = {row.getSubtotal(), row.getDiscount(), row.getExempt(), row.getTaxed15(),
+                            row.getTaxed18(), row.getTax15(), row.getTax18(), row.getTotal()};
+                    for (int k = 0; k < totals.length; k++) totals[k] = totals[k].add(values[k]);
+                }
+                rows.add(row);
+            }
+        }
+
+        return new SalesRegisterDTO(from, to, rows, new SalesRegisterDTO.Totals(
+                totals[0], totals[1], totals[2], totals[3], totals[4], totals[5], totals[6], totals[7]));
+    }
+
+    /**
+     * Una fila del registro con su desglose fiscal. La factura no guarda tasas de
+     * ISV (los servicios del laboratorio están exentos), así que, igual que la
+     * impresión, todo el total es exento y los gravados e impuestos van en cero.
+     * El día que la factura registre tasas, el desglose cambia solo aquí.
+     */
+    private SalesRegisterDTO.Row registerRow(Long invoiceId, Instant issuedAt, String number, InvoiceStatus status,
+                                             List<Long> orderNumbers, String customerName, String description,
+                                             InvoiceItemType itemType, BigDecimal quantity, BigDecimal unitPrice,
+                                             BigDecimal subtotal, BigDecimal discount, BigDecimal total) {
+        return new SalesRegisterDTO.Row(invoiceId, issuedAt, issuedAt.atZone(LAB_ZONE).toLocalDate(), number,
+                status, orderNumbers, customerName, description, itemType, quantity, unitPrice, subtotal,
+                discount, total, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, BigDecimal.ZERO, total);
     }
 
     // Rango [from 00:00, to+1 00:00) en hora de Honduras (límite superior exclusivo),

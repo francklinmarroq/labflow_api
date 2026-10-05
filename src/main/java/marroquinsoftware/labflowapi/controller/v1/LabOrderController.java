@@ -8,20 +8,27 @@ import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 import marroquinsoftware.labflowapi.payload.LabTestDTO;
 import marroquinsoftware.labflowapi.payload.TestRunDTO;
+import marroquinsoftware.labflowapi.payload.UninvoicedOrderResponse;
+import marroquinsoftware.labflowapi.service.InvoiceService;
 import marroquinsoftware.labflowapi.service.LabOrderService;
 import marroquinsoftware.labflowapi.service.LabTestService;
 import marroquinsoftware.labflowapi.service.TestRunService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
+import java.time.LocalDate;
 import java.util.List;
 
 @RestController
 @RequestMapping("/api/v1/orders")
 public class LabOrderController {
+
+    @Autowired
+    private InvoiceService invoiceService;
 
     @Autowired
     private LabOrderService labOrderService;
@@ -48,6 +55,20 @@ public class LabOrderController {
         return new ResponseEntity<>(
                 labOrderService.getAllOrders(pageNumber, pageSize, sortBy, sortOrder, status, tagId),
                 HttpStatus.OK);
+    }
+
+    // Órdenes pendientes de facturar, para armar una factura de una o varias.
+    // Va antes de /{orderId} solo por legibilidad: Spring prefiere la ruta literal.
+    @GetMapping("/uninvoiced")
+    @PreAuthorize("hasAuthority('INVOICES_CREATE')")
+    public ResponseEntity<UninvoicedOrderResponse> getUninvoicedOrders(
+            @RequestParam(defaultValue = AppConstants.PAGE_NUMBER, required = false) Integer pageNumber,
+            @RequestParam(defaultValue = AppConstants.PAGE_SIZE, required = false) Integer pageSize,
+            @RequestParam(required = false) Long customerId,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,
+            @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
+        return new ResponseEntity<>(
+                invoiceService.getUninvoicedOrders(pageNumber, pageSize, customerId, from, to), HttpStatus.OK);
     }
 
     // Las pantallas de detalle/impresión solo necesitan una orden. Antes bajaban

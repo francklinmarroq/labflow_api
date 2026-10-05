@@ -4,7 +4,6 @@ import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Customer;
 import marroquinsoftware.labflowapi.model.Invoice;
-import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.model.LabOrder;
 import marroquinsoftware.labflowapi.model.LabOrderCounter;
 import marroquinsoftware.labflowapi.model.LabTest;
@@ -16,7 +15,7 @@ import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 import marroquinsoftware.labflowapi.payload.OrderTagDTO;
 import marroquinsoftware.labflowapi.repositories.CustomerRepository;
-import marroquinsoftware.labflowapi.repositories.InvoiceRepository;
+import marroquinsoftware.labflowapi.repositories.InvoiceOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderCounterRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderRepository;
 import marroquinsoftware.labflowapi.repositories.LabOrderSpecifications;
@@ -56,7 +55,7 @@ public class LabOrderServiceImp implements LabOrderService {
     private TestRepository testRepository;
 
     @Autowired
-    private InvoiceRepository invoiceRepository;
+    private InvoiceOrderRepository invoiceOrderRepository;
 
     @Autowired
     private InvoiceService invoiceService;
@@ -226,8 +225,15 @@ public class LabOrderServiceImp implements LabOrderService {
         // cascada: la anulación revierte los pagos y la emisión con contra-asientos
         // (reutiliza InvoiceService.annulInvoice). Como toca la contabilidad, exige
         // además el permiso de anular facturas; una orden sin factura no lo requiere.
-        invoiceRepository.findFirstByOrderIdAndStatusNotOrderByIssuedAtDesc(id, InvoiceStatus.ANULADA)
+        invoiceOrderRepository.findLiveInvoiceOfOrder(id)
                 .ifPresent(invoice -> {
+                    // Una factura de varias órdenes no se anula al cancelar una de
+                    // ellas: anularía la factura de las demás. Hay que anularla a
+                    // propósito primero; una orden facturada sola sigue igual.
+                    if (invoiceOrderRepository.countByInvoiceId(invoice.getId()) > 1) {
+                        throw new APIException("Esta orden está en la factura " + invoice.getInvoiceNumber()
+                                + ", que incluye otras órdenes. Anule primero esa factura y luego cancele la orden.");
+                    }
                     if (!hasAuthority(Permission.INVOICES_ANNUL)) {
                         throw new APIException("No tiene permiso para anular la factura de esta orden. "
                                 + "Anule primero la factura o solicite el permiso correspondiente.");
@@ -296,7 +302,7 @@ public class LabOrderServiceImp implements LabOrderService {
         if (orderIds == null || orderIds.isEmpty()) {
             return Set.of();
         }
-        return Set.copyOf(invoiceRepository.findOrderIdsWithLiveInvoice(orderIds));
+        return Set.copyOf(invoiceOrderRepository.findOrderIdsWithLiveInvoice(orderIds));
     }
 
     /**

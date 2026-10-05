@@ -51,6 +51,8 @@ public class InvoiceServiceImp implements InvoiceService {
     @Autowired private AmountInWordsConverter amountInWordsConverter;
     @Autowired private JournalService journalService;
     @Autowired private UserRepository userRepository;
+    @Autowired private InvoiceOrderRepository invoiceOrderRepository;
+    @Autowired private TestRepository testRepository;
 
     /**
      * Nombre para mostrar de quien hizo una acción (emitir/anular): el nombre de la
@@ -65,51 +67,57 @@ public class InvoiceServiceImp implements InvoiceService {
 
     @Override
     public InvoicePreviewDTO previewInvoice(Long orderId) {
-        Long laboratoryId = requireLaboratoryId();
-        Laboratory laboratory = laboratoryRepository.findById(laboratoryId)
-                .orElseThrow(() -> new ResourceNotFoundException("Laboratory", "id", laboratoryId));
+        // La vista previa de UNA orden (la que lee la pantalla de la orden): mismo
+        // armado que la emisión, sin rechazar una orden ya facturada, porque aquí
+        // justamente se quiere saber cuál es su factura.
+        Laboratory laboratory = currentLaboratory();
         LabOrder order = labOrderRepository.findById(orderId)
                 .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", orderId));
-
-        List<InvoiceItemDTO> items = new ArrayList<>();
-        BigDecimal subtotal = BigDecimal.ZERO;
-        for (LabTest labTest : order.getTests() == null ? List.<LabTest>of() : order.getTests()) {
-            Test test = labTest.getTest();
-            if (test == null) continue;
-            BigDecimal price = test.getPrice() != null
-                    ? test.getPrice().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-            // labTestId es la llave con la que el mostrador manda un precio
-            // especial para esta línea al emitir.
-            items.add(new InvoiceItemDTO(null, test.getId(), labTest.getId(), test.getName(), price, price));
-            subtotal = subtotal.add(price);
-        }
-        subtotal = subtotal.setScale(2, RoundingMode.HALF_UP);
-
+        DraftInput input = new DraftInput(List.of(orderId), List.of(), List.of(), null, List.of(),
+                null, null, null);
+        Draft draft = buildDraft(input, laboratory, false);
         Customer customer = order.getCustomer();
-        AgeDiscountDTO discount = ageDiscountCalculator.discountFor(customer.getAgeInDays(), laboratory);
-        BigDecimal discountAmount = subtotal
-                .multiply(discount.getPercent())
-                .divide(BigDecimal.valueOf(100), 2, RoundingMode.HALF_UP);
-
-        Invoice existing = invoiceRepository
-                .findFirstByOrderIdAndStatusNotOrderByIssuedAtDesc(orderId, InvoiceStatus.ANULADA)
-                .orElse(null);
-
+        Invoice existing = invoiceOrderRepository.findLiveInvoiceOfOrder(orderId).orElse(null);
+        OrderGroup group = draft.orders().get(0);
         return new InvoicePreviewDTO(
                 order.getId(),
                 order.getOrderNumber(),
                 customer.getId(),
                 customer.getName(),
                 customer.getTaxNumber(),
-                discount.getKind(),
-                discount.getLabel(),
-                discount.getPercent(),
-                subtotal,
-                discountAmount,
-                subtotal.subtract(discountAmount),
-                items,
+                group.kind(),
+                group.kind().getLabel(),
+                group.percent(),
+                draft.subtotal(),
+                group.ruleDiscount(),
+                draft.subtotal().subtract(group.ruleDiscount()),
+                draft.itemDTOs(),
                 existing != null ? existing.getId() : null,
                 existing != null ? existing.getInvoiceNumber() : null);
+    }
+
+    @Override
+    public InvoiceDraftPreviewDTO previewDraft(InvoiceDraftRequest request) {
+        Laboratory laboratory = currentLaboratory();
+        DraftInput input = new DraftInput(request.getOrderIds(), request.getTests(), request.getConcepts(),
+                request.getRecipient(), request.getItemPrices(), null, null, request.getTotal());
+        Draft draft = buildDraft(input, laboratory, true);
+        return new InvoiceDraftPreviewDTO(
+                draft.itemDTOs(),
+                draft.orders().stream().map(g -> new InvoiceOrderDTO(g.order().getId(), g.order().getOrderNumber(),
+                        g.customer().getId(), g.customer().getName(), g.kind(), g.kind().getLabel(), g.percent(),
+                        g.charged(), g.ruleDiscount())).toList(),
+                draft.recipient().name(),
+                draft.recipient().rtn(),
+                draft.patientName(),
+                draft.totals().subtotal(),
+                draft.totals().itemDiscount(),
+                draft.discountKind(),
+                discountLabel(draft.discountKind(), draft.totals().ageDiscount()),
+                draft.discountPercent(),
+                draft.totals().ageDiscount(),
+                draft.totals().otherDiscount(),
+                draft.totals().total());
     }
 
     @Override
@@ -118,119 +126,82 @@ public class InvoiceServiceImp implements InvoiceService {
         Long laboratoryId = requireLaboratoryId();
 
         // El lock sobre el laboratorio serializa por tenant la numeración CAI y,
-        // de paso, el chequeo de doble facturación de la orden.
+        // de paso, el chequeo de doble facturación de las órdenes: dos emisiones
+        // simultáneas no pueden tomar la misma orden.
         Laboratory laboratory = laboratoryRepository.findWithLockById(laboratoryId)
                 .orElseThrow(() -> new ResourceNotFoundException("Laboratory", "id", laboratoryId));
 
-        LabOrder order = labOrderRepository.findById(request.getOrderId())
-                .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", request.getOrderId()));
-        if (order.getStatus() == OrderStatus.CANCELLED) {
-            throw new APIException("No se puede facturar una orden cancelada.");
+        List<Long> orderIds = new ArrayList<>();
+        if (request.getOrderIds() != null) orderIds.addAll(request.getOrderIds());
+        if (request.getOrderId() != null && !orderIds.contains(request.getOrderId())) {
+            orderIds.add(0, request.getOrderId());
         }
-        if (order.getTests() == null || order.getTests().isEmpty()) {
-            throw new APIException("La orden no tiene exámenes para facturar.");
-        }
-        invoiceRepository.findFirstByOrderIdAndStatusNotOrderByIssuedAtDesc(order.getId(), InvoiceStatus.ANULADA)
-                .ifPresent(existing -> {
-                    throw new APIException("Esta orden ya tiene una factura emitida (Nº "
-                            + existing.getInvoiceNumber() + ").");
-                });
+        DraftInput input = new DraftInput(orderIds, request.getTests(), request.getConcepts(),
+                request.getRecipient(), request.getItemPrices(), request.getBillingClientId(),
+                request.getCustomerRtn(), request.getTotal());
 
-        // A nombre de quién se emite. Se resuelve acá arriba, antes de tocar el
-        // correlativo CAI: si el cliente no existe, la transacción se va sin haber
-        // gastado un número fiscal, que es irrecuperable (queda un hueco en el
-        // rango autorizado por el SAR). El findById solo ve los del laboratorio en
-        // contexto por el @TenantId, así que uno de otro laboratorio es inexistente.
-        BillingClient billingClient = request.getBillingClientId() != null
-                ? billingClientRepository.findById(request.getBillingClientId())
-                        .orElseThrow(() -> new ResourceNotFoundException(
-                                "BillingClient", "billingClientId", request.getBillingClientId()))
-                : null;
+        // Todo lo que puede fallar (órdenes ya facturadas, precios, conceptos,
+        // destinatario, totales) se resuelve aquí, ANTES de tocar el correlativo
+        // CAI: un número fiscal gastado es irrecuperable (deja un hueco en el
+        // rango autorizado por el SAR).
+        Draft draft = buildDraft(input, laboratory, true);
+        Totals totals = draft.totals();
+        BigDecimal total = totals.total();
 
         Invoice invoice = new Invoice();
-
-        // Precios especiales que manda el mostrador, indexados por el examen de
-        // la orden al que aplican (regalías, promociones, precio negociado).
-        Map<Long, BigDecimal> specialPrices = new HashMap<>();
-        for (InvoiceItemPriceDTO adjustment : request.getItemPrices() == null
-                ? List.<InvoiceItemPriceDTO>of() : request.getItemPrices()) {
-            specialPrices.put(adjustment.getLabTestId(),
-                    adjustment.getPrice().setScale(2, RoundingMode.HALF_UP));
-        }
-
-        // Los ítems congelan nombre y precio del catálogo vigente, igual que en
-        // cotizaciones: la factura no cambia si mañana suben las tarifas. Si la
-        // línea lleva precio especial, se guardan ambos para que la factura
-        // impresa muestre cuánto costaba y cuánto se cobró.
         List<InvoiceItem> items = new ArrayList<>();
-        for (LabTest labTest : order.getTests()) {
-            Test test = labTest.getTest();
-            if (test == null) continue;
-            BigDecimal listPrice = test.getPrice() != null
-                    ? test.getPrice().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO;
-            BigDecimal charged = specialPrices.getOrDefault(labTest.getId(), listPrice);
-            if (charged.compareTo(listPrice) > 0) {
-                throw new APIException("El precio de «" + test.getName() + "» (L " + charged
-                        + ") no puede superar el de catálogo (L " + listPrice + ").");
-            }
+        for (DraftLine line : draft.lines()) {
             InvoiceItem item = new InvoiceItem();
             item.setInvoice(invoice);
-            item.setTestId(test.getId());
-            item.setTestName(test.getName());
-            item.setListPrice(listPrice);
-            item.setPrice(charged);
+            item.setItemType(line.type());
+            item.setTestId(line.testId());
+            item.setTestName(line.name());
+            item.setQuantity(line.quantity());
+            item.setListPrice(line.listUnit());
+            item.setPrice(line.chargedUnit());
             items.add(item);
-        }
-        if (items.isEmpty()) {
-            throw new APIException("La orden no tiene exámenes para facturar.");
         }
         invoice.setItems(items);
 
-        Customer customer = order.getCustomer();
-        AgeDiscountDTO discount = ageDiscountCalculator.discountFor(customer.getAgeInDays(), laboratory);
-        InvoiceTotalsCalculator.Totals totals = invoiceTotalsCalculator.compute(
-                items.stream().map(InvoiceItem::getListPrice).toList(),
-                items.stream().map(InvoiceItem::getPrice).toList(),
-                discount.getPercent(),
-                request.getTotal());
-        BigDecimal subtotal = totals.subtotal();
-        BigDecimal discountAmount = totals.ageDiscount();
-        BigDecimal total = totals.total();
-
-        invoice.setOrder(order);
-        invoice.setCustomer(customer);
-        // El paciente de la orden queda congelado siempre: la factura tiene que
-        // decir de quién son los exámenes aunque la pague una empresa.
-        invoice.setPatientName(customer.getName());
-        if (billingClient != null) {
-            // A nombre de la empresa: nombre y RTN salen de su ficha. El RTN escrito
-            // a mano se ignora a propósito (ver InvoiceRequest.billingClientId).
-            invoice.setBillingClient(billingClient);
-            invoice.setCustomerName(billingClient.getName());
-            invoice.setCustomerRtn(billingClient.getRtn());
-        } else {
-            invoice.setCustomerName(customer.getName());
-            String rtn = request.getCustomerRtn() != null ? request.getCustomerRtn().trim() : null;
-            invoice.setCustomerRtn(rtn != null && !rtn.isEmpty() ? rtn : customer.getTaxNumber());
+        List<InvoiceOrder> invoiceOrders = new ArrayList<>();
+        for (OrderGroup group : draft.orders()) {
+            InvoiceOrder io = new InvoiceOrder();
+            io.setInvoice(invoice);
+            io.setOrder(group.order());
+            io.setCustomer(group.customer());
+            io.setPatientName(group.customer().getName());
+            io.setAgeDiscountKind(group.kind());
+            io.setAgePercent(group.percent());
+            io.setChargedAmount(group.charged());
+            io.setAgeDiscountAmount(group.ruleDiscount());
+            invoiceOrders.add(io);
         }
+        invoice.setInvoiceOrders(invoiceOrders);
 
-        // Porcentaje realmente aplicado del tramo de edad. El descuento por edad
-        // es un techo: si en mostrador se rebaja menos que la regla, el monto se
-        // recorta y el % debe recortarse igual, para no imprimir "4ta edad 20%"
-        // junto a un monto que en realidad es un 10%. Con la regla completa da el
-        // mismo % configurado; el excedente ya va aparte como otros descuentos.
-        BigDecimal charged = subtotal.subtract(totals.itemDiscount());
-        BigDecimal effectivePercent = charged.compareTo(BigDecimal.ZERO) > 0
-                ? discountAmount.multiply(BigDecimal.valueOf(100)).divide(charged, 2, RoundingMode.HALF_UP)
-                : BigDecimal.ZERO;
+        Recipient recipient = draft.recipient();
+        invoice.setCustomer(draft.customer());
+        invoice.setBillingClient(recipient.billingClient());
+        invoice.setCustomerName(recipient.name());
+        invoice.setCustomerRtn(recipient.rtn());
+        // Paciente de la factura cuando sus órdenes son de uno solo; con varios
+        // pacientes queda null y la factura los lista por orden.
+        invoice.setPatientName(draft.patientName());
 
-        invoice.setDiscountKind(discount.getKind());
-        invoice.setDiscountPercent(effectivePercent);
-        invoice.setSubtotal(subtotal);
-        invoice.setDiscountAmount(discountAmount);
+        invoice.setDiscountKind(draft.discountKind());
+        invoice.setDiscountPercent(draft.discountPercent());
+        invoice.setSubtotal(totals.subtotal());
+        invoice.setDiscountAmount(totals.ageDiscount());
         invoice.setOtherDiscountAmount(totals.otherDiscount());
         invoice.setTotal(total);
         invoice.setPaidAmount(BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP));
+
+        // Fecha de emisión: hoy por defecto, o la que indique el operador para
+        // antedatar. Se valida antes del CAI por la misma razón que lo demás.
+        LocalDate today = LocalDate.now(LAB_ZONE);
+        LocalDate issueDate = request.getIssueDate() != null ? request.getIssueDate() : today;
+        if (issueDate.isAfter(today)) {
+            throw new APIException("La fecha de la factura no puede ser futura.");
+        }
 
         // Número fiscal y snapshot del CAI y del emisor con los que se imprimió.
         CaiNumberService.IssuedCaiNumber issued = caiNumberService.next(laboratory);
@@ -254,15 +225,9 @@ public class InvoiceServiceImp implements InvoiceService {
         invoice.setLabRegSag(laboratory.getRegSag());
         invoice.setLabOrdenCompraExenta(laboratory.getOrdenCompraExenta());
 
-        // Fecha de emisión: hoy por defecto, o la que indique el operador para
-        // antedatar. La hora se conserva realista para las de hoy; para una fecha
-        // pasada se fija a mediodía, así ninguna zona horaria la corre de día al
-        // imprimir. El asiento y el pago inicial usan esta misma fecha.
-        LocalDate today = LocalDate.now(LAB_ZONE);
-        LocalDate issueDate = request.getIssueDate() != null ? request.getIssueDate() : today;
-        if (issueDate.isAfter(today)) {
-            throw new APIException("La fecha de la factura no puede ser futura.");
-        }
+        // La hora se conserva realista para las de hoy; para una fecha pasada se
+        // fija a mediodía, así ninguna zona horaria la corre de día al imprimir. El
+        // asiento y el pago inicial usan esta misma fecha.
         Instant issuedAt = issueDate.isEqual(today)
                 ? Instant.now()
                 : issueDate.atTime(LocalTime.NOON).atZone(LAB_ZONE).toInstant();
@@ -291,6 +256,341 @@ public class InvoiceServiceImp implements InvoiceService {
         }
 
         return toDTO(invoice, true);
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public UninvoicedOrderResponse getUninvoicedOrders(Integer pageNumber, Integer pageSize, Long customerId,
+                                                       LocalDate from, LocalDate to) {
+        // Rango [from 00:00, to+1 00:00) en hora de Honduras, como el listado de facturas.
+        Instant fromInstant = from != null ? from.atStartOfDay(LAB_ZONE).toInstant() : null;
+        Instant toInstant = to != null ? to.plusDays(1).atStartOfDay(LAB_ZONE).toInstant() : null;
+        Page<LabOrder> page = labOrderRepository.findAll(
+                LabOrderSpecifications.uninvoiced(customerId, fromInstant, toInstant),
+                PageRequest.of(pageNumber, pageSize, Sort.by("requestedAt").descending()));
+        UninvoicedOrderResponse response = new UninvoicedOrderResponse();
+        response.setContent(page.getContent().stream().map(order -> {
+            List<LabTest> tests = order.getTests() == null ? List.of() : order.getTests();
+            BigDecimal catalogTotal = tests.stream()
+                    .map(lt -> lt.getTest() != null && lt.getTest().getPrice() != null
+                            ? lt.getTest().getPrice() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP);
+            return new UninvoicedOrderDTO(order.getId(), order.getOrderNumber(), order.getRequestedAt(),
+                    order.getCustomer().getId(), order.getCustomer().getName(), tests.size(), catalogTotal);
+        }).toList());
+        response.setPageNumber(page.getNumber());
+        response.setPageSize(page.getSize());
+        response.setTotalElements(page.getTotalElements());
+        response.setTotalPages(page.getTotalPages());
+        response.setLastPage(page.isLast());
+        return response;
+    }
+
+    // --- Armado del borrador ------------------------------------------------
+    //
+    // Vista previa y emisión arman la factura con el MISMO código, para que lo que
+    // se ve antes de emitir sea exactamente lo que se guarda.
+
+    /** Lo que pide quien arma la factura, en las formas nueva y vieja. */
+    private record DraftInput(List<Long> orderIds, List<InvoiceTestLineRequest> tests,
+                              List<InvoiceConceptRequest> concepts, InvoiceRecipientDTO recipient,
+                              List<InvoiceItemPriceDTO> itemPrices, Long legacyBillingClientId,
+                              String legacyCustomerRtn, BigDecimal requestedTotal) {
+    }
+
+    /** Una línea de la factura ya agrupada; precios unitarios. */
+    private record DraftLine(InvoiceItemType type, Long testId, String name, BigDecimal quantity,
+                             BigDecimal listUnit, BigDecimal chargedUnit) {
+        BigDecimal listAmount() { return listUnit.multiply(quantity).setScale(2, RoundingMode.HALF_UP); }
+        BigDecimal amount() { return chargedUnit.multiply(quantity).setScale(2, RoundingMode.HALF_UP); }
+    }
+
+    /** Una orden de la factura con lo que se cobra por sus exámenes y su descuento por edad. */
+    private record OrderGroup(LabOrder order, Customer customer, AgeDiscountKind kind, BigDecimal percent,
+                              BigDecimal charged, BigDecimal ruleDiscount) {
+    }
+
+    /** A nombre de quién sale la factura, ya resuelto. */
+    private record Recipient(String name, String rtn, BillingClient billingClient, Customer patient) {
+    }
+
+    private record Draft(List<DraftLine> lines, List<OrderGroup> orders, Recipient recipient,
+                         Customer customer, String patientName, BigDecimal subtotal, Totals totals,
+                         AgeDiscountKind discountKind, BigDecimal discountPercent) {
+        List<InvoiceItemDTO> itemDTOs() {
+            return lines.stream().map(l -> new InvoiceItemDTO(null, l.testId(), null, l.name(), l.listUnit(),
+                    l.chargedUnit(), l.quantity(), l.type(), l.amount())).toList();
+        }
+    }
+
+    private record Totals(BigDecimal subtotal, BigDecimal itemDiscount, BigDecimal ageDiscount,
+                          BigDecimal otherDiscount, BigDecimal total) {
+    }
+
+    /**
+     * Arma la factura: órdenes, líneas agrupadas por examen, conceptos, descuento
+     * por edad por orden, destinatario y totales.
+     *
+     * @param validateOrders rechazar órdenes canceladas, vacías o ya facturadas (la
+     *                       emisión y la vista previa del borrador; la vista previa
+     *                       de una orden no, porque ahí se pregunta su factura)
+     */
+    private Draft buildDraft(DraftInput input, Laboratory laboratory, boolean validateOrders) {
+        // 1. Órdenes, sin repetir y en el orden en que se eligieron.
+        List<LabOrder> orders = new ArrayList<>();
+        for (Long orderId : input.orderIds() == null ? List.<Long>of() : input.orderIds()) {
+            if (orderId == null || orders.stream().anyMatch(o -> o.getId().equals(orderId))) continue;
+            LabOrder order = labOrderRepository.findById(orderId)
+                    .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", orderId));
+            if (validateOrders) requireInvoiceable(order);
+            orders.add(order);
+        }
+
+        // 2. Precios especiales por examen del catálogo. La forma vieja los manda
+        //    por examen de la orden (labTestId): se traducen a su examen.
+        Map<Long, BigDecimal> specialPrices = new HashMap<>();
+        for (InvoiceItemPriceDTO adjustment : input.itemPrices() == null
+                ? List.<InvoiceItemPriceDTO>of() : input.itemPrices()) {
+            Long testId = adjustment.getTestId();
+            if (testId == null && adjustment.getLabTestId() != null) {
+                testId = orders.stream()
+                        .flatMap(o -> (o.getTests() == null ? List.<LabTest>of() : o.getTests()).stream())
+                        .filter(lt -> lt.getId().equals(adjustment.getLabTestId()) && lt.getTest() != null)
+                        .map(lt -> lt.getTest().getId())
+                        .findFirst()
+                        .orElseThrow(() -> new APIException(
+                                "Hay un precio especial para un examen que no está en la factura."));
+            }
+            if (testId == null || adjustment.getPrice() == null) {
+                throw new APIException("Cada precio especial debe indicar el examen y el precio.");
+            }
+            specialPrices.put(testId, adjustment.getPrice().setScale(2, RoundingMode.HALF_UP));
+        }
+
+        // 3. Unidades por examen: las de cada orden y las de los exámenes sueltos.
+        //    Todas las unidades del mismo examen van a UNA línea con su cantidad.
+        Map<Long, Test> testsById = new HashMap<>();
+        Map<Long, BigDecimal> unitsByTest = new java.util.LinkedHashMap<>();
+        Map<Long, Map<Long, BigDecimal>> unitsByOrder = new HashMap<>(); // orderId -> testId -> unidades
+        for (LabOrder order : orders) {
+            Map<Long, BigDecimal> units = new java.util.LinkedHashMap<>();
+            for (LabTest labTest : order.getTests() == null ? List.<LabTest>of() : order.getTests()) {
+                Test test = labTest.getTest();
+                if (test == null) continue;
+                testsById.put(test.getId(), test);
+                units.merge(test.getId(), BigDecimal.ONE, BigDecimal::add);
+                unitsByTest.merge(test.getId(), BigDecimal.ONE, BigDecimal::add);
+            }
+            unitsByOrder.put(order.getId(), units);
+        }
+        Map<Long, BigDecimal> looseUnits = new java.util.LinkedHashMap<>();
+        for (InvoiceTestLineRequest line : input.tests() == null ? List.<InvoiceTestLineRequest>of() : input.tests()) {
+            if (line.getTestId() == null || line.getQuantity() == null || line.getQuantity() < 1) {
+                throw new APIException("Cada examen agregado necesita el examen y una cantidad de al menos 1.");
+            }
+            Test test = testsById.computeIfAbsent(line.getTestId(), id -> testRepository.findById(id)
+                    .orElseThrow(() -> new ResourceNotFoundException("Test", "testId", id)));
+            BigDecimal qty = BigDecimal.valueOf(line.getQuantity());
+            unitsByTest.merge(test.getId(), qty, BigDecimal::add);
+            looseUnits.merge(test.getId(), qty, BigDecimal::add);
+        }
+        for (Long testId : specialPrices.keySet()) {
+            if (!unitsByTest.containsKey(testId)) {
+                throw new APIException("Hay un precio especial para un examen que no está en la factura.");
+            }
+        }
+
+        // 4. Líneas de examen, con el precio especial del examen o el de catálogo.
+        List<DraftLine> lines = new ArrayList<>();
+        Map<Long, BigDecimal> chargedUnitByTest = new HashMap<>();
+        for (Map.Entry<Long, BigDecimal> entry : unitsByTest.entrySet()) {
+            Test test = testsById.get(entry.getKey());
+            BigDecimal listUnit = test.getPrice() != null
+                    ? test.getPrice().setScale(2, RoundingMode.HALF_UP) : BigDecimal.ZERO.setScale(2);
+            BigDecimal chargedUnit = specialPrices.getOrDefault(test.getId(), listUnit);
+            if (chargedUnit.compareTo(listUnit) > 0) {
+                throw new APIException("El precio de «" + test.getName() + "» (L " + chargedUnit
+                        + ") no puede superar el de catálogo (L " + listUnit + ").");
+            }
+            chargedUnitByTest.put(test.getId(), chargedUnit);
+            lines.add(new DraftLine(InvoiceItemType.EXAMEN, test.getId(), test.getName(),
+                    entry.getValue(), listUnit, chargedUnit));
+        }
+
+        // 5. Conceptos libres: cada uno su línea, sin agruparse entre sí.
+        BigDecimal conceptsCharged = BigDecimal.ZERO;
+        int position = 0;
+        for (InvoiceConceptRequest concept : input.concepts() == null
+                ? List.<InvoiceConceptRequest>of() : input.concepts()) {
+            position++;
+            String description = concept.getDescription() != null ? concept.getDescription().trim() : "";
+            if (description.isEmpty()) {
+                throw new APIException("El concepto " + position + " necesita una descripción.");
+            }
+            if (concept.getQuantity() == null || concept.getQuantity().signum() <= 0
+                    || concept.getUnitPrice() == null || concept.getUnitPrice().signum() <= 0) {
+                throw new APIException("El concepto «" + description
+                        + "» necesita cantidad y precio mayores que cero.");
+            }
+            BigDecimal unit = concept.getUnitPrice().setScale(2, RoundingMode.HALF_UP);
+            DraftLine line = new DraftLine(InvoiceItemType.CONCEPTO, null, description,
+                    concept.getQuantity().setScale(3, RoundingMode.HALF_UP), unit, unit);
+            lines.add(line);
+            conceptsCharged = conceptsCharged.add(line.amount());
+        }
+        if (lines.isEmpty()) {
+            throw new APIException("La factura necesita al menos una línea: una orden, un examen o un concepto.");
+        }
+
+        // 6. Descuento por edad por orden, según su propio paciente. Los exámenes
+        //    sueltos y los conceptos forman un grupo sin descuento.
+        List<OrderGroup> groups = new ArrayList<>();
+        List<InvoiceTotalsCalculator.AgeGroup> ageGroups = new ArrayList<>();
+        for (LabOrder order : orders) {
+            BigDecimal charged = BigDecimal.ZERO;
+            for (Map.Entry<Long, BigDecimal> units : unitsByOrder.get(order.getId()).entrySet()) {
+                charged = charged.add(chargedUnitByTest.get(units.getKey()).multiply(units.getValue()));
+            }
+            charged = charged.setScale(2, RoundingMode.HALF_UP);
+            Customer patient = order.getCustomer();
+            AgeDiscountDTO discount = ageDiscountCalculator.discountFor(patient.getAgeInDays(), laboratory);
+            BigDecimal percent = discount.getPercent() != null ? discount.getPercent() : BigDecimal.ZERO;
+            InvoiceTotalsCalculator.AgeGroup ageGroup = new InvoiceTotalsCalculator.AgeGroup(charged, percent);
+            ageGroups.add(ageGroup);
+            groups.add(new OrderGroup(order, patient, discount.getKind(), percent, charged, ageGroup.ruleDiscount()));
+        }
+        BigDecimal looseCharged = conceptsCharged;
+        for (Map.Entry<Long, BigDecimal> units : looseUnits.entrySet()) {
+            looseCharged = looseCharged.add(chargedUnitByTest.get(units.getKey()).multiply(units.getValue()));
+        }
+        if (looseCharged.signum() > 0) {
+            ageGroups.add(new InvoiceTotalsCalculator.AgeGroup(looseCharged.setScale(2, RoundingMode.HALF_UP),
+                    BigDecimal.ZERO));
+        }
+
+        BigDecimal subtotal = lines.stream().map(DraftLine::listAmount)
+                .reduce(BigDecimal.ZERO, BigDecimal::add).setScale(2, RoundingMode.HALF_UP);
+        InvoiceTotalsCalculator.Totals computed = invoiceTotalsCalculator.compute(subtotal, ageGroups,
+                input.requestedTotal());
+        Totals totals = new Totals(computed.subtotal(), computed.itemDiscount(), computed.ageDiscount(),
+                computed.otherDiscount(), computed.total());
+
+        // 7. Tramo de edad de la factura: el de sus órdenes con descuento si todas
+        //    comparten tramo y porcentaje; null si se mezclan.
+        List<OrderGroup> discounted = groups.stream()
+                .filter(g -> g.percent().signum() > 0 && g.kind() != AgeDiscountKind.NONE).toList();
+        AgeDiscountKind kind;
+        BigDecimal percent;
+        if (discounted.isEmpty()) {
+            kind = AgeDiscountKind.NONE;
+            percent = BigDecimal.ZERO.setScale(2);
+        } else if (discounted.stream().allMatch(g -> g.kind() == discounted.get(0).kind()
+                && g.percent().compareTo(discounted.get(0).percent()) == 0)) {
+            kind = discounted.get(0).kind();
+            // Porcentaje realmente aplicado: el descuento por edad es un techo; si en
+            // mostrador se rebaja menos que la regla, el % se recorta igual que el
+            // monto, para no imprimir "4ta edad 20%" junto a un monto que es un 10%.
+            BigDecimal base = discounted.stream().map(OrderGroup::charged).reduce(BigDecimal.ZERO, BigDecimal::add);
+            percent = base.signum() > 0
+                    ? totals.ageDiscount().multiply(BigDecimal.valueOf(100)).divide(base, 2, RoundingMode.HALF_UP)
+                    : BigDecimal.ZERO.setScale(2);
+        } else {
+            kind = null;
+            percent = null;
+        }
+
+        // 8. Destinatario, paciente de la factura y el paciente que la factura apunta.
+        java.util.Set<Long> patientIds = new java.util.LinkedHashSet<>();
+        orders.forEach(o -> patientIds.add(o.getCustomer().getId()));
+        Customer singlePatient = patientIds.size() == 1 ? orders.get(0).getCustomer() : null;
+        Recipient recipient = resolveRecipient(input, singlePatient);
+        Customer customer = singlePatient != null ? singlePatient : recipient.patient();
+        String patientName = singlePatient != null ? singlePatient.getName()
+                : (orders.isEmpty() && recipient.patient() != null ? recipient.patient().getName() : null);
+
+        return new Draft(lines, groups, recipient, customer, patientName, subtotal, totals, kind, percent);
+    }
+
+    /** Una orden se puede facturar si no está cancelada, tiene exámenes y no tiene factura vigente. */
+    private void requireInvoiceable(LabOrder order) {
+        if (order.getStatus() == OrderStatus.CANCELLED) {
+            throw new APIException("La orden Nº " + order.getOrderNumber() + " está cancelada y no se puede facturar.");
+        }
+        if (order.getTests() == null || order.getTests().isEmpty()) {
+            throw new APIException("La orden Nº " + order.getOrderNumber() + " no tiene exámenes para facturar.");
+        }
+        invoiceOrderRepository.findLiveInvoiceOfOrder(order.getId()).ifPresent(existing -> {
+            throw new APIException("La orden Nº " + order.getOrderNumber() + " ya está facturada en la factura Nº "
+                    + existing.getInvoiceNumber() + ".");
+        });
+    }
+
+    /**
+     * A nombre de quién sale. Sin destinatario explícito vale la forma de siempre:
+     * el cliente de facturación si vino, o el paciente si todas las órdenes son de
+     * uno solo. Las búsquedas por id solo ven el laboratorio en contexto
+     * (@TenantId), así que uno de otro laboratorio es inexistente.
+     */
+    private Recipient resolveRecipient(DraftInput input, Customer singlePatient) {
+        InvoiceRecipientDTO requested = input.recipient();
+        if (requested == null || requested.getType() == null) {
+            if (input.legacyBillingClientId() != null) {
+                requested = new InvoiceRecipientDTO(InvoiceRecipientType.BILLING_CLIENT, null,
+                        input.legacyBillingClientId(), null, null);
+            } else if (singlePatient != null) {
+                requested = new InvoiceRecipientDTO(InvoiceRecipientType.PATIENT, singlePatient.getId(),
+                        null, null, input.legacyCustomerRtn());
+            } else {
+                throw new APIException("Indique a nombre de quién se emite la factura: un paciente, "
+                        + "un cliente de facturación o consumidor final.");
+            }
+        }
+        String typedRtn = requested.getRtn() != null && !requested.getRtn().isBlank()
+                ? requested.getRtn().trim() : null;
+        switch (requested.getType()) {
+            case PATIENT -> {
+                if (requested.getCustomerId() == null) {
+                    throw new APIException("Seleccione el paciente a cuyo nombre se emite la factura.");
+                }
+                Long customerId = requested.getCustomerId();
+                Customer patient = customerRepository.findById(customerId)
+                        .orElseThrow(() -> new ResourceNotFoundException("Customer", "customerId", customerId));
+                return new Recipient(patient.getName(), typedRtn != null ? typedRtn : patient.getTaxNumber(),
+                        null, patient);
+            }
+            case BILLING_CLIENT -> {
+                if (requested.getBillingClientId() == null) {
+                    throw new APIException("Seleccione el cliente de facturación.");
+                }
+                Long clientId = requested.getBillingClientId();
+                BillingClient client = billingClientRepository.findById(clientId)
+                        .orElseThrow(() -> new ResourceNotFoundException(
+                                "BillingClient", "billingClientId", clientId));
+                // A nombre de la empresa: nombre y RTN salen de su ficha; un RTN
+                // escrito a mano se ignora a propósito.
+                return new Recipient(client.getName(), client.getRtn(), client, null);
+            }
+            default -> {
+                String name = requested.getName() != null ? requested.getName().trim() : "";
+                if (name.isEmpty()) {
+                    throw new APIException("Escriba el nombre del consumidor final.");
+                }
+                return new Recipient(name, typedRtn, null, null);
+            }
+        }
+    }
+
+    private Laboratory currentLaboratory() {
+        Long laboratoryId = requireLaboratoryId();
+        return laboratoryRepository.findById(laboratoryId)
+                .orElseThrow(() -> new ResourceNotFoundException("Laboratory", "id", laboratoryId));
+    }
+
+    /** Etiqueta del descuento por edad; con tramos mezclados, solo el concepto. */
+    private static String discountLabel(AgeDiscountKind kind, BigDecimal ageDiscount) {
+        if (kind != null) return kind.getLabel();
+        return ageDiscount != null && ageDiscount.signum() > 0
+                ? "Descuento por edad (varios tramos)" : AgeDiscountKind.NONE.getLabel();
     }
 
     @Override
@@ -636,8 +936,23 @@ public class InvoiceServiceImp implements InvoiceService {
         List<InvoiceItemDTO> itemDTOs = (invoice.getItems() == null ? List.<InvoiceItem>of() : invoice.getItems())
                 .stream()
                 .map(i -> new InvoiceItemDTO(i.getId(), i.getTestId(), null, i.getTestName(),
-                        i.listPriceOrPrice(), i.getPrice()))
+                        i.listPriceOrPrice(), i.getPrice(),
+                        i.getQuantity() != null ? i.getQuantity() : BigDecimal.ONE,
+                        i.getItemType() != null ? i.getItemType() : InvoiceItemType.EXAMEN,
+                        i.amount()))
                 .toList();
+        List<InvoiceOrder> invoiceOrders = invoice.getInvoiceOrders() == null
+                ? List.of() : invoice.getInvoiceOrders();
+        List<InvoiceOrderDTO> orderDTOs = invoiceOrders.stream()
+                .map(io -> new InvoiceOrderDTO(io.getOrder().getId(), io.getOrder().getOrderNumber(),
+                        io.getCustomer() != null ? io.getCustomer().getId() : null, io.getPatientName(),
+                        io.getAgeDiscountKind(),
+                        io.getAgeDiscountKind() != null ? io.getAgeDiscountKind().getLabel() : null,
+                        io.getAgePercent(), io.getChargedAmount(), io.getAgeDiscountAmount()))
+                .toList();
+        // La forma vieja (una orden por factura) sigue llenándose cuando hay
+        // exactamente una, para las pantallas y clientes que la leen.
+        LabOrder singleOrder = invoiceOrders.size() == 1 ? invoiceOrders.get(0).getOrder() : null;
         List<PaymentDTO> paymentDTOs = null;
         if (includePayments) {
             paymentDTOs = paymentRepository.findByInvoiceIdOrderByPaidAtAsc(invoice.getId()).stream()
@@ -646,10 +961,14 @@ public class InvoiceServiceImp implements InvoiceService {
                             p.isAnnulled(), p.getAnnulledAt(), p.getAnnulledByUsername(), p.getAnnulmentReason()))
                     .toList();
         }
-        AgeDiscountKind kind = invoice.getDiscountKind() != null ? invoice.getDiscountKind() : AgeDiscountKind.NONE;
+        // Tramo null con descuento: las órdenes mezclan tramos (ver Invoice.discountKind).
+        AgeDiscountKind kind = invoice.getDiscountKind() != null
+                ? invoice.getDiscountKind()
+                : (invoice.getDiscountAmount() != null && invoice.getDiscountAmount().signum() > 0
+                        ? null : AgeDiscountKind.NONE);
         BigDecimal chargedTotal = (invoice.getItems() == null ? List.<InvoiceItem>of() : invoice.getItems())
                 .stream()
-                .map(InvoiceItem::getPrice)
+                .map(InvoiceItem::amount)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
         BigDecimal balance = invoice.getStatus() == InvoiceStatus.ANULADA
                 ? BigDecimal.ZERO.setScale(2, RoundingMode.HALF_UP)
@@ -674,8 +993,8 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getLabRegExonerado(),
                 invoice.getLabRegSag(),
                 invoice.getLabOrdenCompraExenta(),
-                invoice.getOrder() != null ? invoice.getOrder().getId() : null,
-                invoice.getOrder() != null ? invoice.getOrder().getOrderNumber() : null,
+                singleOrder != null ? singleOrder.getId() : null,
+                singleOrder != null ? singleOrder.getOrderNumber() : null,
                 invoice.getCustomer() != null ? invoice.getCustomer().getId() : null,
                 // Solo el id del proxy LAZY: pedirle el nombre lo cargaría y
                 // convertiría el listado en un N+1. El nombre a mostrar ya es el
@@ -692,7 +1011,7 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getSaleCondition(),
                 invoice.getSaleCondition().getLabel(),
                 kind,
-                kind.getLabel(),
+                discountLabel(kind, invoice.getDiscountAmount()),
                 invoice.getDiscountPercent(),
                 invoice.getSubtotal(),
                 // Las regalías de línea no se guardan aparte: son la diferencia
@@ -711,21 +1030,23 @@ public class InvoiceServiceImp implements InvoiceService {
                 invoice.getAnnulmentReason(),
                 itemDTOs,
                 paymentDTOs,
-                orderTags(invoice));
+                orderTags(invoiceOrders),
+                orderDTOs);
     }
 
     /**
-     * Etiquetas de la orden de la que salió la factura, para poder distinguir de un
-     * vistazo lo del convenio en el listado. Se resuelven por lotes gracias al
-     * @BatchSize de LabOrder.tags, así que una página de facturas no dispara una
-     * consulta por cada una.
+     * Etiquetas de las órdenes de la factura, sin repetir, para poder distinguir de
+     * un vistazo lo del convenio en el listado; una factura sin órdenes no tiene.
+     * Se resuelven por lotes gracias al @BatchSize de Invoice.invoiceOrders y de
+     * LabOrder.tags, así que una página de facturas no dispara una consulta por cada una.
      */
-    private List<OrderTagDTO> orderTags(Invoice invoice) {
-        if (invoice.getOrder() == null || invoice.getOrder().getTags() == null) {
-            return List.of();
+    private List<OrderTagDTO> orderTags(List<InvoiceOrder> invoiceOrders) {
+        Map<Long, OrderTagDTO> tags = new java.util.LinkedHashMap<>();
+        for (InvoiceOrder io : invoiceOrders) {
+            if (io.getOrder().getTags() == null) continue;
+            io.getOrder().getTags().forEach(t ->
+                    tags.putIfAbsent(t.getId(), new OrderTagDTO(t.getId(), t.getName(), t.getColor(), null)));
         }
-        return invoice.getOrder().getTags().stream()
-                .map(t -> new OrderTagDTO(t.getId(), t.getName(), t.getColor(), null))
-                .toList();
+        return List.copyOf(tags.values());
     }
 }

@@ -1,5 +1,8 @@
 package marroquinsoftware.labflowapi.service;
 
+import marroquinsoftware.labflowapi.payload.InvoiceDraftPreviewDTO;
+import marroquinsoftware.labflowapi.payload.InvoiceDraftRequest;
+
 import marroquinsoftware.labflowapi.model.InvoiceStatus;
 import marroquinsoftware.labflowapi.payload.BillingClientBalanceDTO;
 import marroquinsoftware.labflowapi.payload.CustomerStatementDTO;
@@ -17,6 +20,17 @@ public interface InvoiceService {
 
     /** Cotiza lo que costaría facturar la orden hoy, sin emitir nada. */
     InvoicePreviewDTO previewInvoice(Long orderId);
+
+    /**
+     * Cómo saldría una factura de varias órdenes, exámenes sueltos y conceptos:
+     * mismas líneas y totales que la emisión, sin consumir número CAI.
+     */
+    InvoiceDraftPreviewDTO previewDraft(InvoiceDraftRequest request);
+
+    /** Órdenes pendientes de facturar, para elegirlas al armar una factura. */
+    marroquinsoftware.labflowapi.payload.UninvoicedOrderResponse getUninvoicedOrders(
+            Integer pageNumber, Integer pageSize, Long customerId,
+            java.time.LocalDate from, java.time.LocalDate to);
 
     /** Emite la factura CAI de una orden, con su partida contable y (si aplica) el pago inicial. */
     InvoiceDTO createInvoice(InvoiceRequest request);

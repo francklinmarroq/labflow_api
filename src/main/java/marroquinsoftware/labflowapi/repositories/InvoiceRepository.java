@@ -27,25 +27,8 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
     @Query("select i from Invoice i where i.id = :id")
     Optional<Invoice> findWithLockById(@Param("id") Long id);
 
-    /** ¿La orden ya tiene una factura viva (no anulada)? */
-    boolean existsByOrderIdAndStatusNot(Long orderId, InvoiceStatus status);
-
-    Optional<Invoice> findFirstByOrderIdAndStatusNotOrderByIssuedAtDesc(Long orderId, InvoiceStatus status);
-
-    /**
-     * De las órdenes indicadas, cuáles tienen factura viva (no anulada). Resuelve
-     * el bloqueo de exámenes de una página entera en UNA consulta: preguntarlo por
-     * orden dentro de toDTO sería una consulta por fila del listado, justo el N+1
-     * que el @BatchSize y el @EntityGraph de este repositorio existen para evitar,
-     * y que en Cloudflare cuesta el piso de ~0.7 s por request.
-     */
-    @Query("""
-            select distinct i.order.id
-            from Invoice i
-            where i.order.id in :orderIds
-              and i.status <> marroquinsoftware.labflowapi.model.InvoiceStatus.ANULADA
-            """)
-    List<Long> findOrderIdsWithLiveInvoice(@Param("orderIds") Collection<Long> orderIds);
+    // "¿Qué factura cubre esta orden?" ya no se pregunta aquí: la factura puede
+    // cubrir varias órdenes o ninguna, y esa relación vive en InvoiceOrderRepository.
 
     // El listado con filtros opcionales se arma con
     // BillingSpecifications.invoices() y se ejecuta con findAll(spec, pageable);
@@ -53,12 +36,12 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
 
     /**
      * Facturas con saldo abierto (cuentas por cobrar). El mapeo a DTO lee
-     * order.id/order.orderNumber, customer.id y billingClient.id de cada fila; el
-     * {@link EntityGraph} trae los tres en la misma consulta de la página (son
-     * to-one, no multiplican filas) para evitar el N+1 que dispararía el
-     * @ManyToOne EAGER al recorrerla.
+     * customer.id y billingClient.id de cada fila; el {@link EntityGraph} trae los
+     * dos en la misma consulta de la página (son to-one, no multiplican filas)
+     * para evitar el N+1 que dispararía el @ManyToOne EAGER al recorrerla. Las
+     * órdenes de cada factura se leen por lotes (@BatchSize de invoiceOrders).
      */
-    @EntityGraph(attributePaths = {"order", "customer", "billingClient"})
+    @EntityGraph(attributePaths = {"customer", "billingClient"})
     @Query("select i from Invoice i where i.status in (marroquinsoftware.labflowapi.model.InvoiceStatus.PENDIENTE, marroquinsoftware.labflowapi.model.InvoiceStatus.PARCIAL)")
     Page<Invoice> findReceivables(Pageable pageable);
 
@@ -116,14 +99,48 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
             """)
     List<Object[]> salesInvoiceRows(@Param("from") Instant from, @Param("to") Instant to);
 
-    /** Filas [testName, price] de las líneas de las facturas emitidas en el rango, para el desglose por examen. */
+    /**
+     * Filas [testName, price, quantity] de las líneas de las facturas emitidas en
+     * el rango, para el desglose por examen. Una línea agrupada vale su cantidad,
+     * no 1: diez hemogramas en una línea son diez exámenes vendidos.
+     */
     @Query("""
-            select ii.testName, ii.price
+            select ii.testName, ii.price, ii.quantity
             from InvoiceItem ii
             where ii.invoice.issuedAt >= :from and ii.invoice.issuedAt < :to
               and ii.invoice.status <> marroquinsoftware.labflowapi.model.InvoiceStatus.ANULADA
             """)
     List<Object[]> salesItemRows(@Param("from") Instant from, @Param("to") Instant to);
+
+    // --- Registro de ventas detallado (incluye las ANULADA, que salen en cero) ---
+    // Proyecciones y no entidades: cargar Invoice/InvoiceOrder arrastraría sus
+    // to-one EAGER fila por fila.
+
+    /**
+     * Filas [id, issuedAt, invoiceNumber, status, customerName, discountAmount,
+     * otherDiscountAmount, total] de todas las facturas emitidas en el rango,
+     * anuladas incluidas, por fecha y número.
+     */
+    @Query("""
+            select i.id, i.issuedAt, i.invoiceNumber, i.status, i.customerName,
+                   i.discountAmount, i.otherDiscountAmount, i.total
+            from Invoice i
+            where i.issuedAt >= :from and i.issuedAt < :to
+            order by i.issuedAt asc, i.invoiceNumber asc
+            """)
+    List<Object[]> registerInvoiceRows(@Param("from") Instant from, @Param("to") Instant to);
+
+    /**
+     * Filas [invoiceId, testId, itemType, testName, listPrice, price, quantity] de
+     * las líneas de esas mismas facturas, en el orden en que se guardaron.
+     */
+    @Query("""
+            select ii.invoice.id, ii.testId, ii.itemType, ii.testName, ii.listPrice, ii.price, ii.quantity
+            from InvoiceItem ii
+            where ii.invoice.issuedAt >= :from and ii.invoice.issuedAt < :to
+            order by ii.invoice.id asc, ii.id asc
+            """)
+    List<Object[]> registerItemRows(@Param("from") Instant from, @Param("to") Instant to);
 
     /** Facturas emitidas y monto vendido por usuario emisor en el rango: filas [issuedByUsername, count, sum(total)]. */
     @Query("""

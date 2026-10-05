@@ -73,12 +73,13 @@ public class Invoice {
     private String labRegSag;
     private String labOrdenCompraExenta;
 
-    @ManyToOne
-    @JoinColumn(name = "order_id", nullable = false)
-    private LabOrder order;
+    // La orden ya no vive en la factura: una factura puede cubrir varias órdenes
+    // o ninguna, y esa relación está en InvoiceOrder (ver invoiceOrders abajo).
+    // La columna invoices.order_id se conserva en la base, sin mapear, para que
+    // la imagen anterior siga leyendo las facturas viejas si hubiera que volver.
 
     @ManyToOne
-    @JoinColumn(name = "customer_id", nullable = false)
+    @JoinColumn(name = "customer_id")
     private Customer customer;
 
     /**
@@ -145,8 +146,12 @@ public class Invoice {
     @Column(nullable = false)
     private SaleCondition saleCondition;
 
+    /**
+     * Tramo de edad de la factura. Null cuando sus órdenes mezclan tramos o
+     * porcentajes distintos: entonces la factura muestra solo el monto del
+     * descuento por edad, y el detalle por orden está en {@link InvoiceOrder}.
+     */
     @Enumerated(EnumType.STRING)
-    @Column(nullable = false)
     private AgeDiscountKind discountKind;
 
     /** Porcentaje aplicado (0–100) según la configuración vigente al facturar. */
@@ -196,4 +201,12 @@ public class Invoice {
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<InvoiceItem> items;
+
+    /** Órdenes que cubre la factura; vacía en una factura sin órdenes. */
+    @OneToMany(mappedBy = "invoice", cascade = CascadeType.ALL, orphanRemoval = true)
+    @OrderBy("id")
+    @BatchSize(size = 50)
+    @ToString.Exclude
+    @EqualsAndHashCode.Exclude
+    private List<InvoiceOrder> invoiceOrders;
 }
