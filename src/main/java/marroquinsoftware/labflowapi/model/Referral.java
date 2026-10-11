@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.NoArgsConstructor;
 import lombok.ToString;
+import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.TenantId;
 
 import java.time.Instant;
@@ -57,7 +58,13 @@ public class Referral {
     @Enumerated(EnumType.STRING)
     private PaymentMethod paymentMethod;
 
+    // El mapeo a DTO (ReferralServiceImp.toDTO) recorre los items de cada
+    // remisión; al listar las remisiones de una orden
+    // (GET /orders/{id}/referrals, usado por el detalle de la orden) sin el
+    // @BatchSize sería una consulta por remisión al inicializar esta colección
+    // lazy (N+1).
     @OneToMany(mappedBy = "referral", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<ReferralItem> items;

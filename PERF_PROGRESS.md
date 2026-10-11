@@ -14,6 +14,48 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-10-11 — Cerrar el N+1 de las dos últimas colecciones lazy sin `@BatchSize` (adjuntos de corrida + items de remisión), ambas del detalle de orden
+**Archivos:** `TestRun.attachments` y `Referral.items` (cada `@OneToMany` lazy ahora con
+`@BatchSize(50)`; `Referral` suma el import de `org.hibernate.annotations.BatchSize`).
+**Problema:** completa la auditoría de N+1 en mapeos a DTO. Tras batchear las cuatro
+colecciones del historial (2026-09-06) quedaban **las dos únicas** colecciones `@OneToMany`
+del modelo **sin `@BatchSize`**, y ambas se recorren al armar el **detalle de la orden**
+(pantalla de MÁS tráfico):
+- **`TestRun.attachments`:** `TestRunServiceImp.toDTO` lee `run.getAttachments()` para
+  **toda** corrida. `getRunsByOrder` (endpoint por lote `GET /orders/{orderId}/runs`, que
+  alimentan el detalle y la impresión de la orden) trae las corridas con
+  `LEFT JOIN FETCH results + parameter` en una sola consulta, pero la colección `attachments`
+  quedaba lazy **sin batch**: inicializarla disparaba **una consulta por corrida** (N+1).
+  Una orden con N corridas = N consultas extra solo por los adjuntos.
+- **`Referral.items`:** `ReferralServiceImp.toDTO` recorre `referral.getItems()` para cada
+  remisión. `getReferralsByOrder` (`GET /orders/{id}/referrals`, usado por el detalle de la
+  orden) mapea todas las remisiones de la orden → **una consulta por remisión** (N+1).
+**Cambio:** `@BatchSize(50)` en ambas colecciones — **el mismo idioma ya usado** en las otras
+ocho colecciones del repo (`TestRun.results`, `LabOrder.tests`/`tags`, `LabTest.runs`,
+`TestConfig.configParameters`, `JournalEntry.lines`, `Invoice.items`, `Quote.items`).
+Hibernate agrupa la inicialización de muchos padres en `ceil(N/50)` consultas por nivel en
+vez de una por padre. **No cambia el resultado observable:** mismas filas y mismo orden —
+`toDTO` re-ordena los adjuntos en Java por `displayOrder` (independiente del orden de la BD) y
+los items de remisión se mapean en el orden de la colección, que `@BatchSize` conserva
+(misma consulta, solo `IN (...)` en vez de `=`). No toca DTO, contrato HTTP ni `schema.sql`.
+**Impacto esperado:** por apertura del detalle/impresión de una orden, la carga de las
+corridas baja de **≈ 1 (fetch join) + N (adjuntos)** a **≈ 1 + ceil(N/50)** consultas a
+Postgres (N = corridas de la orden) y el listado de remisiones de **≈ 1 + R** a
+**≈ 1 + ceil(R/50)** (R = remisiones). Para una orden de 8 corridas con adjuntos: de ~9 a ~2
+consultas por los adjuntos (**≈ −7 round-trips a Postgres**); el ahorro escala con el tamaño
+de la orden. **No cambia** la cantidad de requests HTTP/invocaciones de Cloudflare (mismos
+endpoints), pero reduce los round-trips a Postgres y la contención del contenedor de 1 vCPU.
+**Acople de despliegue:** **ninguno.** Cambio interno de la API (solo *cómo* Hibernate carga
+dos colecciones lazy); el contrato HTTP y los DTO no cambian, desplegable independiente del
+front.
+**Verificación:** cambio aislado y de bajo riesgo (dos anotaciones `@BatchSize`, idénticas en
+forma a las otras ocho del repo, más un import ya presente en los demás modelos); verificado
+por inspección y por el `git diff`. **La suite Maven NO pudo correr en este entorno:** la
+política de red deniega los repositorios Maven (`repo.maven.apache.org` y `maven.aliyun.com`
+responden 403/host no resoluble) y `~/.m2` está vacío, así que no se pudieron descargar las
+dependencias para compilar/testear. Pendiente de correr `mvn test "-Dtest=!LabflowapiApplicationTests"`
+y de confirmar latencia real en un entorno con acceso a Maven + API + BD (confirmación humana).
+
 ### 2026-09-13 — Identidad del paciente embebida en `LabOrderDTO` (habilita eliminar `GET /customers/{id}` en impresión/sobre) · cross-repo
 **Archivos:** `LabOrderDTO` (`customerNationalId`), `LabOrderServiceImp.toDTO`,
 `OrderTestLockTest` (+1 test).
@@ -283,8 +325,10 @@ humana (no hay entorno con API + BD para medir).
   `@EntityGraph` (ver «Hecho»). **Historial del paciente hecho 2026-09-06** — el N+1
   profundo (`orden→exámenes→corridas→resultados` + `findApplicable` en bucles) se cortó
   con `@BatchSize(50)` en las cuatro colecciones lazy y memoria por llamada de los rangos
-  (ver «Hecho»); el diario (`JournalEntry.lines`) ya estaba batcheado. Pendiente auditar
-  remisiones (`Referral.items`, `@OneToMany` lazy sin `@BatchSize`: N+1 al listar las
-  remisiones de una orden, aunque suelen ser pocas por orden) con la misma lupa.
+  (ver «Hecho»); el diario (`JournalEntry.lines`) ya estaba batcheado. **Remisiones y
+  adjuntos hechos 2026-10-11** — las dos últimas colecciones `@OneToMany` sin `@BatchSize`
+  (`Referral.items` y `TestRun.attachments`, ambas recorridas por el detalle de orden) ahora
+  lo tienen (ver «Hecho»). Con esto **todas** las colecciones `@OneToMany` del modelo están
+  batcheadas; auditoría de N+1 por colección lazy cerrada.
 - [ ] **Config HikariCP/JPA:** revisar `spring.jpa.open-in-view`, tamaño del pool y
   `default_batch_fetch_size`/`@BatchSize` para instancia única de 1 vCPU.
