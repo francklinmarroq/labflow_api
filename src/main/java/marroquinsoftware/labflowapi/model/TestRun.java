@@ -47,7 +47,12 @@ public class TestRun {
     // Fotos/escaneos del reporte del equipo, para exámenes cuyo perfil permite
     // adjuntos (TestConfig.allowResultAttachments). Independiente de results:
     // una corrida puede traer resultados, adjuntos, o ambos.
+    // El mapeo a DTO (TestRunServiceImp.toDTO) recorre esta colección para toda
+    // corrida; al listar las corridas de una orden (GET /orders/{id}/runs, usado
+    // por el detalle y la impresión de la orden) sin el @BatchSize sería una
+    // consulta por corrida al inicializar esta colección lazy (N+1).
     @OneToMany(mappedBy = "testRun", cascade = CascadeType.ALL, orphanRemoval = true)
+    @BatchSize(size = 50)
     @ToString.Exclude
     @EqualsAndHashCode.Exclude
     private List<TestRunAttachment> attachments;
