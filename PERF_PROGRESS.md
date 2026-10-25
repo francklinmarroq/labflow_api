@@ -14,6 +14,51 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-10-25 — Exámenes de la orden embebidos en el DETALLE (`GET /orders/{id}`): el front deja de pedir `GET /orders/{id}/tests` (2→1 llamada en detalle e impresión) · cross-repo
+**Archivos:** `LabOrderDTO` (campo `tests`, solo lectura), `LabOrderServiceImp`
+(`getOrderById` puebla `tests` + inyección de `LabTestService`),
+`OrderTestLockTest` (+2 tests).
+**Problema:** el detalle de la orden (`ordenes/[id]/index.vue`, la pantalla de MÁS
+tráfico) y su impresión (`ordenes/[id]/imprimir.vue`, alto tráfico) montaban pidiendo
+**dos** llamadas: `GET /orders/{id}` (la orden) y, por separado, `GET /orders/{id}/tests`
+(sus exámenes). Aunque iban en paralelo dentro del `Promise.all` de montaje, la segunda es
+**otra invocación** Worker→Durable Object→contenedor (piso de ~0.7 s) y otra invocación de
+Cloudflare por cada apertura de esas dos pantallas de alto tráfico.
+**Cambio:** `LabOrderDTO` expone `tests` (`List<LabTestDTO>`), embebido de **solo lectura**
+y **solo en el detalle**: `getOrderById` lo puebla reutilizando **el mismo mapeo** que
+`GET /orders/{id}/tests` (`labTestService.getTestsByOrder(id)`), así trae **exactamente los
+mismos exámenes y en el mismo orden** que el endpoint por separado. En el **listado**
+(`getAllOrders`, que mapea el mismo DTO) queda **`null` a propósito**: embeber los exámenes
+por fila inflaría la página y dispararía un N+1 por orden, justo lo que este repo evita. Se
+**ignora al crear/actualizar** (igual que `customerName`/`testsLocked`: los exámenes se dan
+de alta con `testIds` al crear o por `POST /orders/{id}/tests` en una orden existente). El
+endpoint `GET /orders/{id}/tests` se **conserva** intacto (lo usa el respaldo del front y
+otros flujos). No hay ciclo de beans: `LabTestServiceImp` no depende de `LabOrderService`.
+**Impacto esperado:** habilita que el front elimine `GET /orders/{id}/tests` en el detalle y
+en la impresión de la orden: **2→1 llamada** al API en el montaje de cada una (**−1
+invocación de Cloudflare por apertura** en las dos pantallas de más tráfico del sistema).
+Del lado de Postgres: **0 consultas nuevas de fondo** — es exactamente el mismo
+`findByOrder_Id` + mapeo que el front ya pagaba por el endpoint aparte, ahora en la misma
+petición HTTP en vez de una segunda (más un `existsById` trivial e indexado que hace
+`getTestsByOrder`; la orden ya está cargada). El listado de órdenes **no cambia** (sigue sin
+exámenes embebidos).
+**Acople de despliegue:** **API primero.** El consumidor (`labflow_frontend`, rama
+`claude/awesome-bell-ug7fpj`) lee `order.tests` del DTO del detalle y mantiene **respaldo** a
+`GET /orders/{id}/tests` mientras la API vieja no lo envíe (`tests === undefined`); para
+eliminar la llamada en producción esta API debe desplegarse **antes** que el front. Ver PR
+del front.
+**Verificación:** `OrderTestLockTest` suma dos pruebas:
+`orderDetailEmbedsTestsMatchingTheSeparateEndpoint` (el detalle embebe los exámenes, con los
+mismos ids y en el mismo orden que `getTestsByOrder`) y `orderListingDoesNotEmbedTests` (el
+listado NO los embebe). ⚠️ **No se pudieron compilar ni correr los tests en esta sesión:** la
+política de red del entorno **bloquea los repositorios Maven** (`maven.aliyun.com` —el mirror
+del `settings.xml`— y `repo.maven.apache.org` devuelven **403** por el proxy de egreso) y el
+`~/.m2` del contenedor no tiene cacheadas las dependencias de Spring Boot 4.0.6, así que
+`mvn test` no puede resolver el POM padre. El cambio es **aditivo** (un campo de solo lectura
+poblado solo en el detalle, reutilizando un mapeo existente) y queda cubierto por los dos
+tests nuevos; **compilación y suite pendientes de CI / confirmación humana**, junto con la
+latencia real (no hay entorno con API + BD para medir).
+
 ### 2026-10-11 — Cerrar el N+1 de las dos últimas colecciones lazy sin `@BatchSize` (adjuntos de corrida + items de remisión), ambas del detalle de orden
 **Archivos:** `TestRun.attachments` y `Referral.items` (cada `@OneToMany` lazy ahora con
 `@BatchSize(50)`; `Referral` suma el import de `org.hibernate.annotations.BatchSize`).

@@ -5,6 +5,7 @@ import marroquinsoftware.labflowapi.model.*;
 import marroquinsoftware.labflowapi.payload.InvoiceDTO;
 import marroquinsoftware.labflowapi.payload.InvoiceRequest;
 import marroquinsoftware.labflowapi.payload.LabOrderDTO;
+import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 import marroquinsoftware.labflowapi.payload.LabTestDTO;
 import marroquinsoftware.labflowapi.payload.TestResultDTO;
 import marroquinsoftware.labflowapi.payload.TestRunDTO;
@@ -180,6 +181,44 @@ class OrderTestLockTest {
         assertEquals(Sex.FEMALE, dto.getCustomerSex());
         assertEquals(Integer.valueOf(30 * 365), dto.getCustomerAgeInDays());
         assertEquals("0801-1990-01234", dto.getCustomerNationalId());
+    }
+
+    // --- Exámenes embebidos en el DETALLE de la orden (sin 2.ª llamada), no en el listado ---
+
+    @Test
+    void orderDetailEmbedsTestsMatchingTheSeparateEndpoint() {
+        LabOrder order = newOrder(hemograma, glucosa);
+
+        LabOrderDTO dto = labOrderService.getOrderById(order.getId());
+
+        // El detalle y la impresión leen `tests` del DTO de la orden en vez de pedir
+        // GET /orders/{id}/tests en una 2.ª llamada: debe traer exactamente los mismos
+        // exámenes y en el mismo orden que ese endpoint.
+        assertNotNull(dto.getTests(), "El detalle debe embeber los exámenes de la orden");
+        List<LabTestDTO> fromEndpoint = labTestService.getTestsByOrder(order.getId());
+        assertEquals(fromEndpoint.size(), dto.getTests().size());
+        assertEquals(
+                fromEndpoint.stream().map(LabTestDTO::getTestId).toList(),
+                dto.getTests().stream().map(LabTestDTO::getTestId).toList(),
+                "Mismos exámenes y en el mismo orden que GET /orders/{id}/tests");
+        // Los ids de examen solicitados coinciden con los de la orden.
+        assertEquals(
+                List.of(hemograma.getId(), glucosa.getId()),
+                dto.getTests().stream().map(LabTestDTO::getTestId).toList());
+    }
+
+    @Test
+    void orderListingDoesNotEmbedTests() {
+        newOrder(hemograma, glucosa);
+
+        LabOrderResponse listing = labOrderService.getAllOrders(0, 10, "id", "desc", null, null);
+
+        // En el LISTADO `tests` viene null a propósito: embeberlos por fila inflaría la
+        // página y dispararía un N+1 por orden. Solo el detalle los embebe.
+        assertFalse(listing.getContent().isEmpty(), "El listado debe traer la orden creada");
+        for (LabOrderDTO row : listing.getContent()) {
+            assertNull(row.getTests(), "El listado no debe embeber los exámenes de cada orden");
+        }
     }
 
     // --- 3.2 El candado ---

@@ -97,4 +97,16 @@ public class LabOrderDTO {
     // rechazo al hacer clic, sin una segunda consulta por las facturas de la orden.
     // Primitivo a propósito: ausente significa falso para clientes viejos.
     private boolean testsLocked;
+
+    // Exámenes de la orden, embebidos de SOLO LECTURA y SOLO en el detalle
+    // (GET /orders/{id}, ver LabOrderServiceImp.getOrderById). En el LISTADO viene
+    // `null` a propósito: embeberlos por fila inflaría la página y dispararía un N+1
+    // por orden. Se ignora al crear/actualizar (los exámenes se dan de alta con
+    // `testIds` al crear, o por POST /orders/{id}/tests en una orden ya existente).
+    // Trae exactamente la misma data y el mismo orden que GET /orders/{id}/tests
+    // (se reutiliza ese mapeo), de modo que el detalle y la impresión de la orden
+    // obtienen la orden y sus exámenes en UNA sola llamada en vez de dos. `null` =
+    // listado o API vieja que aún no los embebe (el front cae a GET /orders/{id}/tests
+    // como respaldo).
+    private List<LabTestDTO> tests;
 }
