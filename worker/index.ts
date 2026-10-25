@@ -53,6 +53,11 @@ export class LabflowApiContainer extends Container<Env> {
   override onError(error: unknown) {
     console.error("labflow-api: error del contenedor", error);
   }
+
+  override async onActivityExpired(): Promise<void> {
+    console.log("labflow-api: inactivo, deteniendo contenedor...")
+    await this.stop()
+  }
 }
 
 export default {
