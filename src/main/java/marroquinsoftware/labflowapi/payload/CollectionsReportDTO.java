@@ -33,6 +33,8 @@ public class CollectionsReportDTO {
     public static class Summary {
         private long count;
         private BigDecimal total;
+        /** Parte de {@code total} cobrada sobre documentos sin CAI; 0 si no hubo. */
+        private BigDecimal nonFiscalTotal;
     }
 
     @Data

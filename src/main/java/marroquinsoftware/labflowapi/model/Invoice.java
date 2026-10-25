@@ -15,7 +15,8 @@ import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Factura CAI (SAR Honduras) emitida desde una orden. Es un documento fiscal:
+ * Factura CAI (SAR Honduras) emitida desde una orden, o documento sin CAI
+ * cuando el laboratorio factura sin CAI (ver {@link #fiscal}). Es un documento fiscal:
  * todo lo que se imprime queda congelado al emitir — el número con su CAI,
  * rango autorizado y fecha límite, los datos del emisor, el destinatario, y el
  * nombre y precio de cada examen con el descuento por edad vigente. Nunca se
@@ -50,9 +51,18 @@ public class Invoice {
     @Column(name = "laboratory_id", updatable = false)
     private Long laboratoryId;
 
-    // Snapshot del CAI con el que se emitió (para reimprimir aunque cambie la
-    // configuración del laboratorio).
+    /**
+     * ¿Documento fiscal? true = factura CAI; false = documento sin CAI ("factura
+     * sin membrete"), emitido porque el laboratorio tenía encendido
+     * {@code invoiceWithoutCai}. Se congela al emitir y nunca cambia: la
+     * impresión, la contabilidad y los reportes lo leen de aquí, no del ajuste
+     * actual del laboratorio. Las facturas anteriores a este campo son fiscales.
+     */
     @Column(nullable = false)
+    private boolean fiscal = true;
+
+    // Snapshot del CAI con el que se emitió (para reimprimir aunque cambie la
+    // configuración del laboratorio). Nulo solo en los documentos no fiscales.
     private String cai;
     private String caiRangeFrom;
     private String caiRangeTo;

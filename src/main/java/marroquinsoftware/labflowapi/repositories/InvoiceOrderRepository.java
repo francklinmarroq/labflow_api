@@ -59,6 +59,7 @@ public interface InvoiceOrderRepository extends JpaRepository<InvoiceOrder, Long
             select io.invoice.id, io.order.id, io.order.orderNumber, io.agePercent
             from InvoiceOrder io
             where io.invoice.issuedAt >= :from and io.invoice.issuedAt < :to
+              and io.invoice.fiscal = true
             order by io.invoice.id asc, io.order.orderNumber asc
             """)
     List<Object[]> registerOrderRows(@Param("from") Instant from, @Param("to") Instant to);

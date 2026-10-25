@@ -75,6 +75,22 @@ public class Laboratory {
     // Nulo ⇒ el frontend usa 'classic' (la distribución actual).
     private String envelopeLayout;
 
+    // ¿Factura sin CAI? Encendido ⇒ toda factura se emite como documento no fiscal
+    // ("factura sin membrete"), aunque haya un CAI vigente: no gasta números del
+    // SAR ni genera partidas contables. Nulo ⇒ apagado, lo de siempre.
+    private Boolean invoiceWithoutCai = Boolean.FALSE;
+
+    // Papel en que se imprime la factura: uno de InvoicePaperSize. Se guarda como
+    // texto (no @Enumerated) por la misma razón que envelopeLayout: el
+    // check-constraint del enum se desfasa al agregar valores. Nulo ⇒ A5 horizontal,
+    // el único formato que existía antes de esta columna.
+    private String invoicePaperSize = InvoicePaperSize.A5_LANDSCAPE.name();
+
+    // Siguiente correlativo de los documentos sin CAI, independiente de los dos
+    // CAI. Nulo ⇒ 1. Avanza bajo el mismo bloqueo de escritura que la numeración
+    // CAI (LaboratoryRepository.findWithLockById) y nunca viaja en el DTO.
+    private Long nonFiscalNextNumber;
+
     // CAI 1
     private String cai1;
     private LocalDate cai1ExpirationDate;

@@ -621,3 +621,31 @@ select i.laboratory_id, i.id, i.order_id, i.customer_id, coalesce(i.patient_name
 from invoices i
 where i.order_id is not null
   and not exists (select 1 from invoice_orders io where io.invoice_id = i.id);
+
+-- Opciones de facturación (cambio invoice-billing-options):
+--
+-- laboratory.invoice_without_cai: interruptor "Facturar sin CAI". Encendido, toda
+-- factura se emite como documento no fiscal ("factura sin membrete") aunque haya
+-- un CAI vigente. Nace apagado: los laboratorios que ya existían siguen emitiendo
+-- facturas CAI igual que siempre (el código igual trata nulo como apagado).
+--
+-- laboratory.invoice_paper_size: papel de la factura (A5_LANDSCAPE | THERMAL_80 |
+-- THERMAL_58). Texto y no enum de Postgres, como envelope_layout. Nulo ⇒ A5.
+--
+-- laboratory.non_fiscal_next_number: siguiente correlativo de los documentos sin
+-- CAI, independiente de los CAI. Nulo ⇒ 1.
+--
+-- invoices.fiscal: tipo congelado de cada documento. Toda factura existente es
+-- fiscal (default + backfill) y recién después se exige not null.
+--
+-- invoices.cai deja de ser obligatorio: un documento sin CAI no lo tiene. Sin este
+-- drop not null, emitir el primer documento sin CAI en prod revienta con
+-- "null value in column cai".
+alter table if exists laboratory add column if not exists invoice_without_cai boolean default false;
+update laboratory set invoice_without_cai = false where invoice_without_cai is null;
+alter table if exists laboratory add column if not exists invoice_paper_size varchar(32);
+alter table if exists laboratory add column if not exists non_fiscal_next_number bigint;
+alter table if exists invoices add column if not exists fiscal boolean default true;
+update invoices set fiscal = true where fiscal is null;
+alter table if exists invoices alter column fiscal set not null;
+alter table if exists invoices alter column cai drop not null;

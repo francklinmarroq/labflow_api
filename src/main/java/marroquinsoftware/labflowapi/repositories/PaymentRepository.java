@@ -18,9 +18,12 @@ public interface PaymentRepository extends JpaRepository<Payment, Long> {
     // servicio). La agregación por día se hace en el servicio, en zona de
     // Honduras, para no depender de funciones de fecha propias de cada motor.
 
-    /** Filas [paidAt, amount, method] de los pagos activos recibidos en el rango. */
+    /**
+     * Filas [paidAt, amount, method, fiscal] de los pagos activos recibidos en el
+     * rango; {@code fiscal} es el de su factura, para reportar lo cobrado sin CAI.
+     */
     @Query("""
-            select p.paidAt, p.amount, p.method
+            select p.paidAt, p.amount, p.method, p.invoice.fiscal
             from Payment p
             where p.paidAt >= :from and p.paidAt < :to and p.annulled = false
             """)

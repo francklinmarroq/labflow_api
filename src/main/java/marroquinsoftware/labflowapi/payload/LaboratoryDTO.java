@@ -73,6 +73,16 @@ public class LaboratoryDTO {
     @Pattern(regexp = "^(classic|centered|window)$", message = "El diseño de sobre no es válido")
     private String envelopeLayout;
 
+    // ¿Factura sin CAI? Nunca se responde nulo (false si no se ha tocado). En un PUT,
+    // omitirlo conserva lo guardado.
+    private Boolean invoiceWithoutCai;
+
+    // Papel de la factura: A5_LANDSCAPE | THERMAL_80 | THERMAL_58. Nunca se responde
+    // nulo (A5_LANDSCAPE si no se ha tocado). En un PUT, omitirlo conserva lo
+    // guardado y un valor desconocido se rechaza.
+    @Pattern(regexp = "^(A5_LANDSCAPE|THERMAL_80|THERMAL_58)$", message = "El tamaño de papel de la factura no es válido")
+    private String invoicePaperSize;
+
     private String cai1;
     private LocalDate cai1ExpirationDate;
     private String cai1RangeFrom;

@@ -90,6 +90,8 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
         BigDecimal discount = BigDecimal.ZERO;
         BigDecimal otherDiscount = BigDecimal.ZERO;
         BigDecimal total = BigDecimal.ZERO;
+        long nonFiscalCount = 0;
+        BigDecimal nonFiscalTotal = BigDecimal.ZERO;
         Map<String, BigDecimal[]> byPeriod = new TreeMap<>();          // bucket -> [total, count]
         Map<String, BigDecimal[]> byCustomer = new LinkedHashMap<>();  // customerName -> [amount, count]
 
@@ -100,8 +102,13 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
             BigDecimal rowOther = nz((BigDecimal) r[3]);
             BigDecimal rowTotal = nz((BigDecimal) r[4]);
             String customerName = r[5] != null ? (String) r[5] : "—";
+            boolean fiscal = !Boolean.FALSE.equals(r[6]);
 
             count++;
+            if (!fiscal) {
+                nonFiscalCount++;
+                nonFiscalTotal = nonFiscalTotal.add(rowTotal);
+            }
             subtotal = subtotal.add(rowSubtotal);
             discount = discount.add(rowDiscount);
             otherDiscount = otherDiscount.add(rowOther);
@@ -145,7 +152,7 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
         tests.sort(Comparator.comparing(SalesReportDTO.TestSales::getAmount).reversed());
 
         SalesReportDTO.Summary summary = new SalesReportDTO.Summary(
-                count, subtotal, discount, otherDiscount, total);
+                count, subtotal, discount, otherDiscount, total, nonFiscalCount, nonFiscalTotal);
         return new SalesReportDTO(from, to, granularity, summary, periods, tests, customers);
     }
 
@@ -156,6 +163,7 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
 
         long count = 0;
         BigDecimal total = BigDecimal.ZERO;
+        BigDecimal nonFiscalTotal = BigDecimal.ZERO;
         Map<PaymentMethod, BigDecimal[]> byMethod = new LinkedHashMap<>(); // method -> [total, count]
         Map<String, BigDecimal> byDay = new TreeMap<>();                   // day -> total
 
@@ -166,6 +174,7 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
 
             count++;
             total = total.add(amount);
+            if (Boolean.FALSE.equals(r[3])) nonFiscalTotal = nonFiscalTotal.add(amount);
 
             BigDecimal[] m = byMethod.computeIfAbsent(method, k -> new BigDecimal[]{BigDecimal.ZERO, BigDecimal.ZERO});
             m[0] = m[0].add(amount);
@@ -187,7 +196,7 @@ public class AnalyticsReportServiceImp implements AnalyticsReportService {
             days.add(new CollectionsReportDTO.DayBucket(e.getKey(), e.getValue()));
         }
 
-        CollectionsReportDTO.Summary summary = new CollectionsReportDTO.Summary(count, total);
+        CollectionsReportDTO.Summary summary = new CollectionsReportDTO.Summary(count, total, nonFiscalTotal);
         return new CollectionsReportDTO(from, to, summary, methods, days, invoiceRepository.totalReceivable());
     }
 

@@ -203,14 +203,9 @@ public class InvoiceServiceImp implements InvoiceService {
             throw new APIException("La fecha de la factura no puede ser futura.");
         }
 
-        // Número fiscal y snapshot del CAI y del emisor con los que se imprimió.
-        CaiNumberService.IssuedCaiNumber issued = caiNumberService.next(laboratory);
+        // Número (fiscal o interno) y snapshot del emisor con los que se imprimió.
+        assignNumber(invoice, laboratory);
         laboratoryRepository.save(laboratory);
-        invoice.setInvoiceNumber(issued.invoiceNumber());
-        invoice.setCai(issued.cai());
-        invoice.setCaiRangeFrom(issued.rangeFrom());
-        invoice.setCaiRangeTo(issued.rangeTo());
-        invoice.setCaiExpirationDate(issued.expirationDate());
         invoice.setLabName(laboratory.getName());
         invoice.setLabTaxName(laboratory.getTaxName());
         invoice.setLabRtn(laboratory.getRtn());
@@ -238,7 +233,10 @@ public class InvoiceServiceImp implements InvoiceService {
         invoice.setStatus(total.compareTo(BigDecimal.ZERO) == 0 ? InvoiceStatus.PAGADA : InvoiceStatus.PENDIENTE);
         invoice = invoiceRepository.save(invoice);
 
-        postIssueEntry(invoice, issueDate);
+        // Un documento sin CAI no entra a la contabilidad: ni emisión ni pagos.
+        if (invoice.isFiscal()) {
+            postIssueEntry(invoice, issueDate);
+        }
 
         // Contado: el pago completo entra en la misma transacción. Crédito: el
         // abono inicial es opcional. El pago inicial hereda la fecha de la factura.
@@ -634,7 +632,8 @@ public class InvoiceServiceImp implements InvoiceService {
         // diario quede espejo exacto de lo que había.
         for (Payment payment : paymentRepository.findByInvoiceIdOrderByPaidAtAsc(invoiceId)) {
             if (payment.isAnnulled()) continue;
-            journalService.reverse(
+            // Sin CAI no hubo partida del pago, así que no hay nada que revertir.
+            if (invoice.isFiscal()) journalService.reverse(
                     journalService.findSourceEntry(JournalSourceType.PAGO, payment.getId()),
                     JournalSourceType.ANULACION_PAGO,
                     payment.getId(),
@@ -648,8 +647,8 @@ public class InvoiceServiceImp implements InvoiceService {
         }
 
         // Una factura de cortesía sin valor puede no tener partida de emisión;
-        // en ese caso no hay nada que revertir.
-        journalService.findSourceEntryIfExists(JournalSourceType.FACTURA, invoice.getId())
+        // en ese caso no hay nada que revertir. Un documento sin CAI nunca la tiene.
+        if (invoice.isFiscal()) journalService.findSourceEntryIfExists(JournalSourceType.FACTURA, invoice.getId())
                 .ifPresent(entry -> journalService.reverse(
                         entry,
                         JournalSourceType.ANULACION_FACTURA,
@@ -696,7 +695,9 @@ public class InvoiceServiceImp implements InvoiceService {
             throw new APIException("Este pago ya está anulado.");
         }
 
-        journalService.reverse(
+        // Sin CAI no hubo partida del pago. En una fiscal la búsqueda sigue siendo
+        // estricta: un pago fiscal sin su partida es un error de datos.
+        if (invoice.isFiscal()) journalService.reverse(
                 journalService.findSourceEntry(JournalSourceType.PAGO, payment.getId()),
                 JournalSourceType.ANULACION_PAGO,
                 payment.getId(),
@@ -834,7 +835,7 @@ public class InvoiceServiceImp implements InvoiceService {
         payment.setReceivedByUsername(currentUsername());
         payment = paymentRepository.save(payment);
 
-        journalService.post(
+        if (invoice.isFiscal()) journalService.post(
                 entryDate,
                 "Pago factura Nº " + invoice.getInvoiceNumber() + " (recibo Nº " + payment.getPaymentNumber() + ")",
                 JournalSourceType.PAGO,
@@ -846,6 +847,38 @@ public class InvoiceServiceImp implements InvoiceService {
         invoice.setPaidAmount(invoice.getPaidAmount().add(amount).setScale(2, RoundingMode.HALF_UP));
         invoice.setStatus(statusFor(invoice));
         invoiceRepository.save(invoice);
+    }
+
+    /**
+     * Numera la factura según el modo del laboratorio, que se lee aquí y no viene
+     * en la petición: el cliente nunca elige el tipo de documento.
+     *
+     * <p>Factura sin CAI apagada (lo de siempre): siguiente número del CAI y
+     * snapshot del CAI; si no hay uno vigente, {@code CaiNumberService} rechaza la
+     * emisión. Encendida: documento no fiscal con el correlativo interno del
+     * laboratorio, aunque haya un CAI vigente — no se gasta ningún número del SAR.
+     * El número interno va en 8 dígitos sin guiones, así nunca choca con uno del
+     * SAR (que siempre los lleva) en la restricción de unicidad.
+     *
+     * <p>El laboratorio viene bloqueado ({@code findWithLockById}) y el caller lo
+     * guarda en la misma transacción: dos emisiones simultáneas no repiten número
+     * y, si algo falla después, el correlativo vuelve atrás con el rollback.
+     */
+    private void assignNumber(Invoice invoice, Laboratory laboratory) {
+        if (Boolean.TRUE.equals(laboratory.getInvoiceWithoutCai())) {
+            long next = laboratory.getNonFiscalNextNumber() != null ? laboratory.getNonFiscalNextNumber() : 1L;
+            invoice.setFiscal(false);
+            invoice.setInvoiceNumber(String.format("%08d", next));
+            laboratory.setNonFiscalNextNumber(next + 1);
+            return;
+        }
+        CaiNumberService.IssuedCaiNumber issued = caiNumberService.next(laboratory);
+        invoice.setFiscal(true);
+        invoice.setInvoiceNumber(issued.invoiceNumber());
+        invoice.setCai(issued.cai());
+        invoice.setCaiRangeFrom(issued.rangeFrom());
+        invoice.setCaiRangeTo(issued.rangeTo());
+        invoice.setCaiExpirationDate(issued.expirationDate());
     }
 
     /**
@@ -1031,7 +1064,8 @@ public class InvoiceServiceImp implements InvoiceService {
                 itemDTOs,
                 paymentDTOs,
                 orderTags(invoiceOrders),
-                orderDTOs);
+                orderDTOs,
+                invoice.isFiscal());
     }
 
     /**

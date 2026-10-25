@@ -36,6 +36,10 @@ public class SalesReportDTO {
         private BigDecimal discountAmount;
         private BigDecimal otherDiscountAmount;
         private BigDecimal total;
+        /** Cuántas de las facturas contadas son documentos sin CAI. */
+        private long nonFiscalCount;
+        /** Parte de {@code total} que vino de documentos sin CAI; 0 si no hubo. */
+        private BigDecimal nonFiscalTotal;
     }
 
     @Data

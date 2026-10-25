@@ -90,9 +90,13 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
     // hace en el servicio (en zona horaria de Honduras), evitando funciones de
     // fecha propias de cada motor (H2 en tests vs PostgreSQL en prod).
 
-    /** Filas [issuedAt, subtotal, discountAmount, otherDiscountAmount, total, customerName] de las facturas emitidas en el rango. */
+    /**
+     * Filas [issuedAt, subtotal, discountAmount, otherDiscountAmount, total,
+     * customerName, fiscal] de las facturas emitidas en el rango. Incluye los
+     * documentos sin CAI; {@code fiscal} permite reportar cuánto vino de ellos.
+     */
     @Query("""
-            select i.issuedAt, i.subtotal, i.discountAmount, i.otherDiscountAmount, i.total, i.customerName
+            select i.issuedAt, i.subtotal, i.discountAmount, i.otherDiscountAmount, i.total, i.customerName, i.fiscal
             from Invoice i
             where i.issuedAt >= :from and i.issuedAt < :to
               and i.status <> marroquinsoftware.labflowapi.model.InvoiceStatus.ANULADA
@@ -118,14 +122,16 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
 
     /**
      * Filas [id, issuedAt, invoiceNumber, status, customerName, discountAmount,
-     * otherDiscountAmount, total] de todas las facturas emitidas en el rango,
-     * anuladas incluidas, por fecha y número.
+     * otherDiscountAmount, total] de todas las facturas FISCALES emitidas en el
+     * rango, anuladas incluidas, por fecha y número. Los documentos sin CAI no van
+     * en el registro de ventas: no son facturas del SAR.
      */
     @Query("""
             select i.id, i.issuedAt, i.invoiceNumber, i.status, i.customerName,
                    i.discountAmount, i.otherDiscountAmount, i.total
             from Invoice i
             where i.issuedAt >= :from and i.issuedAt < :to
+              and i.fiscal = true
             order by i.issuedAt asc, i.invoiceNumber asc
             """)
     List<Object[]> registerInvoiceRows(@Param("from") Instant from, @Param("to") Instant to);
@@ -138,6 +144,7 @@ public interface InvoiceRepository extends JpaRepository<Invoice, Long>, JpaSpec
             select ii.invoice.id, ii.testId, ii.itemType, ii.testName, ii.listPrice, ii.price, ii.quantity
             from InvoiceItem ii
             where ii.invoice.issuedAt >= :from and ii.invoice.issuedAt < :to
+              and ii.invoice.fiscal = true
             order by ii.invoice.id asc, ii.id asc
             """)
     List<Object[]> registerItemRows(@Param("from") Instant from, @Param("to") Instant to);

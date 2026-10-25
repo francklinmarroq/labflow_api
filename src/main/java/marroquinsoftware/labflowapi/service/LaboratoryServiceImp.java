@@ -3,6 +3,7 @@ package marroquinsoftware.labflowapi.service;
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Laboratory;
+import marroquinsoftware.labflowapi.model.InvoicePaperSize;
 import marroquinsoftware.labflowapi.model.OnboardingSeedStatus;
 import marroquinsoftware.labflowapi.payload.LaboratoryDTO;
 import marroquinsoftware.labflowapi.repositories.LaboratoryRepository;
@@ -81,6 +82,14 @@ public class LaboratoryServiceImp implements LaboratoryService {
         // nulo (cliente viejo, o un cuerpo parcial). Como modelMapper copia los nulos
         // encima, se guarda antes para reponerlo y no borrar la preferencia sin querer.
         Boolean showRangeFlags = laboratory.getShowReportRangeFlags();
+        // Mismo criterio para las opciones de facturación. El correlativo de los
+        // documentos sin CAI ni siquiera viaja en el DTO: se repone siempre.
+        Boolean invoiceWithoutCai = laboratory.getInvoiceWithoutCai();
+        String invoicePaperSize = laboratory.getInvoicePaperSize();
+        Long nonFiscalNextNumber = laboratory.getNonFiscalNextNumber();
+        if (dto.getInvoicePaperSize() != null && !InvoicePaperSize.isValid(dto.getInvoicePaperSize())) {
+            throw new APIException("El tamaño de papel de la factura no es válido.");
+        }
         modelMapper.map(dto, laboratory);
         laboratory.setId(id);
         // Ni el logo ni el sello viajan en el DTO (solo sus URL firmadas, que son de
@@ -92,6 +101,13 @@ public class LaboratoryServiceImp implements LaboratoryService {
         if (dto.getShowReportRangeFlags() == null) {
             laboratory.setShowReportRangeFlags(showRangeFlags);
         }
+        if (dto.getInvoiceWithoutCai() == null) {
+            laboratory.setInvoiceWithoutCai(invoiceWithoutCai);
+        }
+        if (dto.getInvoicePaperSize() == null) {
+            laboratory.setInvoicePaperSize(invoicePaperSize);
+        }
+        laboratory.setNonFiscalNextNumber(nonFiscalNextNumber);
         return toDto(laboratoryRepository.save(laboratory));
     }
 
@@ -235,6 +251,9 @@ public class LaboratoryServiceImp implements LaboratoryService {
         // para que ningún cliente tenga que conocer el valor por defecto ni recibir null.
         Boolean showRangeFlags = laboratory.getShowReportRangeFlags();
         dto.setShowReportRangeFlags(showRangeFlags == null || showRangeFlags);
+        // Igual con las opciones de facturación: nulo ⇒ apagado y A5 horizontal.
+        dto.setInvoiceWithoutCai(Boolean.TRUE.equals(laboratory.getInvoiceWithoutCai()));
+        dto.setInvoicePaperSize(InvoicePaperSize.orDefault(laboratory.getInvoicePaperSize()).name());
         return dto;
     }
 

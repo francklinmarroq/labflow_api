@@ -102,4 +102,10 @@ public class InvoiceDTO {
      * {@code orderNumber} de arriba siguen llenándose cuando hay exactamente una.
      */
     private List<InvoiceOrderDTO> orders;
+
+    /**
+     * true = factura CAI; false = documento sin CAI (sin datos fiscales, que no
+     * entra a la contabilidad). Congelado al emitir; solo lectura.
+     */
+    private boolean fiscal;
 }
