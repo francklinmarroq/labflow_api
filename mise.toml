@@ -1,0 +1,8 @@
+[tools]
+# Java 25: el pom compila con release 25 y Lombok no funciona en JDK 27, que
+# elimino com.sun.tools.javac.tree.EndPosTable (su procesador de anotaciones
+# revienta con ClassNotFoundException al inicializar lombok.javac.Javac).
+# Sin este pin, un `java = "latest"` en la config global de mise gana y el build
+# falla con "Fatal error compiling: ExceptionInInitializerError".
+java = "25"
+maven = "3.9.16"
