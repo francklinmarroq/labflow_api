@@ -66,6 +66,12 @@ public class LabOrderServiceImp implements LabOrderService {
     @Autowired
     private ReferringPhysicianService referringPhysicianService;
 
+    // Para embeber los exámenes en el detalle de la orden reutilizando exactamente
+    // el mismo mapeo que GET /orders/{id}/tests (misma data, mismo orden). No crea
+    // ciclo de beans: LabTestServiceImp no depende de LabOrderService.
+    @Autowired
+    private LabTestService labTestService;
+
     @Override
     @Transactional(readOnly = true)
     public LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
@@ -209,7 +215,15 @@ public class LabOrderServiceImp implements LabOrderService {
     public LabOrderDTO getOrderById(Long id) {
         LabOrder order = labOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", id));
-        return toDTO(order, lockedOrderIds(List.of(order.getId())));
+        LabOrderDTO dto = toDTO(order, lockedOrderIds(List.of(order.getId())));
+        // Exámenes embebidos SOLO en el detalle (no en el listado, que mapea el mismo
+        // DTO sin poblar este campo). Se reutiliza el mismo mapeo que
+        // GET /orders/{id}/tests, así el front trae la orden y sus exámenes en UNA
+        // sola llamada en vez de dos (detalle e impresión de la orden son pantallas de
+        // alto tráfico, y cada request paga el piso de ~0.7 s + una invocación de
+        // Cloudflare). Mismos datos y mismo orden que el endpoint por separado.
+        dto.setTests(labTestService.getTestsByOrder(id));
+        return dto;
     }
 
     @Override
