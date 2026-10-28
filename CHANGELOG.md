@@ -2,6 +2,18 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.14.0](https://github.com/francklinmarroq/labflow_api/compare/v1.12.0...v1.14.0) (2026-10-28)
+
+### Funcionalidades
+
+* compras a proveedores con cuentas por pagar ([171e607](https://github.com/francklinmarroq/labflow_api/commit/171e6076e753b8e19cef3fd0064574eb49171943))
+* estados financieros y cierre de período contable ([12b8b87](https://github.com/francklinmarroq/labflow_api/commit/12b8b879a11b7b0f26c63e84fdad1261d9d08515))
+* facturar sin CAI y tamaño de papel de la factura ([d95eb39](https://github.com/francklinmarroq/labflow_api/commit/d95eb3914dd91600fb87dbaf34ecd65a53cc1cc2))
+* facturas de varias órdenes o sin orden y registro de ventas detallado ([e623f81](https://github.com/francklinmarroq/labflow_api/commit/e623f81851069ab57d544adc20ef2dac5bd6c6e1))
+
+### Rendimiento
+
+* batchear adjuntos de corrida e items de remisión (cierra N+1 del detalle de orden) ([2ee0d97](https://github.com/francklinmarroq/labflow_api/commit/2ee0d970003adfe61bd81deacbde0b15f5500985))
 ## [1.12.0](https://github.com/francklinmarroq/labflow_api/compare/v1.11.0...v1.12.0) (2026-09-21)
 
 ### Funcionalidades
