@@ -773,12 +773,30 @@ public class InvoiceServiceImp implements InvoiceService {
         List<Event> events = new ArrayList<>();
         BigDecimal totalInvoiced = BigDecimal.ZERO;
         BigDecimal totalPaid = BigDecimal.ZERO;
+        // Antes se pedían los pagos factura por factura dentro del bucle (N+1):
+        // una consulta por factura del titular. Se traen TODOS los pagos de las
+        // facturas del titular en una sola consulta y se agrupan por factura en
+        // memoria. La consulta devuelve los pagos ordenados por `paidAt` asc, y
+        // `computeIfAbsent` los agrega en ese mismo orden, así cada lista por
+        // factura queda idéntica a la de la variante por factura; el orden de
+        // inserción en `events` (factura, luego sus pagos por `paidAt`) no cambia,
+        // y el `events.sort` final por fecha es estable, así que las filas y los
+        // totales son exactamente los mismos.
+        List<Long> invoiceIds = invoices.stream().map(Invoice::getId).toList();
+        Map<Long, List<Payment>> paymentsByInvoice = new HashMap<>();
+        if (!invoiceIds.isEmpty()) {
+            for (Payment payment : paymentRepository.findByInvoiceIdInOrderByPaidAtAsc(invoiceIds)) {
+                paymentsByInvoice
+                        .computeIfAbsent(payment.getInvoice().getId(), k -> new ArrayList<>())
+                        .add(payment);
+            }
+        }
         for (Invoice invoice : invoices) {
             if (invoice.getStatus() == InvoiceStatus.ANULADA) continue;
             events.add(new Event(invoice.getIssuedAt(),
                     "Factura Nº " + invoice.getInvoiceNumber(), invoice.getTotal(), null));
             totalInvoiced = totalInvoiced.add(invoice.getTotal());
-            for (Payment payment : paymentRepository.findByInvoiceIdOrderByPaidAtAsc(invoice.getId())) {
+            for (Payment payment : paymentsByInvoice.getOrDefault(invoice.getId(), List.of())) {
                 if (payment.isAnnulled()) continue;
                 events.add(new Event(payment.getPaidAt(),
                         "Recibo Nº " + payment.getPaymentNumber() + " — Factura Nº " + invoice.getInvoiceNumber(),
