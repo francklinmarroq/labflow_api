@@ -490,6 +490,55 @@ class InvoiceAccountingTest {
     }
 
     @Test
+    void customerStatementAttributesEachPaymentToItsInvoiceInOneBatch() {
+        // Dos facturas del mismo titular, cada una con su abono. El estado de
+        // cuenta ahora trae los pagos de TODAS las facturas en una sola consulta
+        // y los agrupa por factura en memoria (antes: una consulta por factura,
+        // N+1). Este test fija el comportamiento observable: el conjunto de filas,
+        // la atribución de cada abono a SU factura, el orden cronológico y los
+        // totales deben ser idénticos.
+        LabOrder orderA = newOrder(customer, "Hemograma", "500.00");
+        InvoiceDTO a = invoiceService.createInvoice(credito(orderA.getId()));
+        a = invoiceService.registerPayment(a.getId(),
+                new PaymentRequest(new BigDecimal("200.00"), PaymentMethod.EFECTIVO, null));
+
+        LabOrder orderB = newOrder(customer, "Glucosa", "300.00");
+        InvoiceDTO b = invoiceService.createInvoice(credito(orderB.getId()));
+        b = invoiceService.registerPayment(b.getId(),
+                new PaymentRequest(new BigDecimal("100.00"), PaymentMethod.TARJETA, "V-9"));
+
+        var statement = invoiceService.getCustomerStatement(customer.getId());
+
+        // 2 cargos + 2 abonos activos.
+        assertEquals(4, statement.getRows().size());
+        assertEquals(0, statement.getTotalInvoiced().compareTo(new BigDecimal("800.00")));
+        assertEquals(0, statement.getTotalPaid().compareTo(new BigDecimal("300.00")));
+        assertEquals(0, statement.getBalance().compareTo(new BigDecimal("500.00")));
+
+        // Cada abono queda atribuido a SU factura (clave del fix: agrupar por
+        // payment.getInvoice().getId(), no mezclar los pagos entre facturas).
+        var paymentA = statement.getRows().stream()
+                .filter(r -> r.getPayment() != null
+                        && r.getPayment().compareTo(new BigDecimal("200.00")) == 0)
+                .findFirst().orElseThrow();
+        var paymentB = statement.getRows().stream()
+                .filter(r -> r.getPayment() != null
+                        && r.getPayment().compareTo(new BigDecimal("100.00")) == 0)
+                .findFirst().orElseThrow();
+        assertTrue(paymentA.getDescription().contains(a.getInvoiceNumber()),
+                "el abono de 200 debe referir a la factura A");
+        assertTrue(paymentB.getDescription().contains(b.getInvoiceNumber()),
+                "el abono de 100 debe referir a la factura B");
+
+        // Filas en orden cronológico ascendente (lo garantiza el sort final).
+        for (int i = 1; i < statement.getRows().size(); i++) {
+            assertFalse(statement.getRows().get(i).getDate()
+                            .isBefore(statement.getRows().get(i - 1).getDate()),
+                    "las filas deben quedar ordenadas por fecha ascendente");
+        }
+    }
+
+    @Test
     void cancelledOrEmptyOrdersCannotBeInvoiced() {
         LabOrder cancelled = newOrder(customer, "Hemograma", "100.00");
         cancelled.setStatus(OrderStatus.CANCELLED);
