@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.14.1](https://github.com/francklinmarroq/labflow_api/compare/v1.14.0...v1.14.1) (2026-11-02)
+
+### Rendimiento
+
+* el estado de cuenta trae los pagos en una sola consulta (corta un N+1) ([93be02b](https://github.com/francklinmarroq/labflow_api/commit/93be02b4b7487f0382af19611335da11fcb7739c))
 ## [1.14.0](https://github.com/francklinmarroq/labflow_api/compare/v1.12.0...v1.14.0) (2026-10-28)
 
 ### Funcionalidades
