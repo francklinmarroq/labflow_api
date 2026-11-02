@@ -1,35 +1,37 @@
-// Actualizador del tag de imagen del contenedor de PRODUCCION en wrangler.jsonc,
-// para commit-and-tag-version.
+// Actualizador del tag de imagen del contenedor en wrangler.jsonc, para
+// commit-and-tag-version.
 //
 // Reemplazo de texto, nunca JSON.parse + JSON.stringify: el archivo es JSONC y
 // sus comentarios explican la colocacion del contenedor, las migraciones de los
 // Durable Objects y el caveat de la imagen de develop. Un round-trip por JSON los
 // borraria todos.
 //
-// Solo la entrada de produccion. La de develop es
-// "labflow_backend:vX.Y.Z-develop" y el propio wrangler.jsonc dice que las
-// builds de develop deben usar tags develop-<sha>, no la serie vX.Y.Z. La comilla
-// de cierre en el patron es lo que la excluye: sin ella, "v1.7.0" tambien haria
-// match dentro de "v1.7.0-develop" y se tocarian las dos.
-const PROD_IMAGE =
+// Mientras develop no tenga imagen propia reutiliza la de produccion (lo dice el
+// propio wrangler.jsonc), asi que las entradas de la serie vX.Y.Z son dos y se
+// suben juntas: la release se prueba primero en develop con esa misma imagen.
+// Una imagen develop-<sha> no entra en el patron (la comilla de cierre exige que
+// el tag termine en X.Y.Z) y no se toca. Si las entradas vX.Y.Z apuntan a
+// versiones distintas no hay forma segura de saber cual es la de produccion:
+// se aborta.
+const RELEASE_IMAGE =
   /("image":\s*"docker\.io\/luciaelabs\/labflow_backend:v)(\d+\.\d+\.\d+)(")/g;
 
-function singleMatchOrThrow(contents) {
-  const matches = [...contents.matchAll(PROD_IMAGE)];
-  if (matches.length !== 1) {
+function sharedVersionOrThrow(contents) {
+  const versions = new Set([...contents.matchAll(RELEASE_IMAGE)].map(m => m[2]));
+  if (versions.size !== 1) {
     throw new Error(
-      `wrangler.jsonc: se esperaba exactamente 1 imagen de produccion y se encontraron ${matches.length}. ` +
-        'Fallar es preferible a bumpear la entrada equivocada (o ninguna) en silencio.',
+      `wrangler.jsonc: se esperaba una sola version de imagen vX.Y.Z y se encontraron ${versions.size} ` +
+        `(${[...versions].join(', ') || 'ninguna'}). Fallar es preferible a bumpear la entrada equivocada en silencio.`,
     );
   }
-  return matches[0];
+  return [...versions][0];
 }
 
 module.exports.readVersion = function readVersion(contents) {
-  return singleMatchOrThrow(contents)[2];
+  return sharedVersionOrThrow(contents);
 };
 
 module.exports.writeVersion = function writeVersion(contents, version) {
-  singleMatchOrThrow(contents);
-  return contents.replace(PROD_IMAGE, `$1${version}$3`);
+  sharedVersionOrThrow(contents);
+  return contents.replace(RELEASE_IMAGE, `$1${version}$3`);
 };

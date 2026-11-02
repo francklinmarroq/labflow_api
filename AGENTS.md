@@ -84,9 +84,9 @@ A release writes the version to **three** places, via `bumpFiles` in `.versionrc
 
 - `package.json` — the tool's anchor. Note this file describes the *Worker*, not the Spring Boot app; it holds the version because the tool needs a native anchor it understands.
 - `pom.xml` — the project's own `<version>`, through `.release/updaters/pom-version.cjs`.
-- `wrangler.jsonc` — the **prod** `containers[].image` tag only, through `.release/updaters/wrangler-image.cjs`.
+- `wrangler.jsonc` — every `containers[].image` tag in the `vX.Y.Z` series (prod, and develop while it reuses the prod image), through `.release/updaters/wrangler-image.cjs`.
 
-Both updaters are hand-written text replacements, on purpose. The built-in `maven` updater reparses the XML and reformats the entire `pom.xml` (measured: 379 lines of diff on a 199-line file, 14 lines lost, the `<?xml?>` declaration and the inline `<!-- lookup parent from repository -->` comment destroyed). A JSON updater on `wrangler.jsonc` would delete every comment in it. Each updater throws rather than bumping the wrong line or none at all. The develop image entry is deliberately untouched — per that file's own comment, develop builds use `develop-<sha>` tags, not the `vX.Y.Z` series.
+Both updaters are hand-written text replacements, on purpose. The built-in `maven` updater reparses the XML and reformats the entire `pom.xml` (measured: 379 lines of diff on a 199-line file, 14 lines lost, the `<?xml?>` declaration and the inline `<!-- lookup parent from repository -->` comment destroyed). A JSON updater on `wrangler.jsonc` would delete every comment in it. Each updater throws rather than bumping the wrong line or none at all. Develop has no image of its own and reuses the prod one, so its entry carries the same `vX.Y.Z` tag and is bumped with it (the release is proven on develop first, with that same image); the updater aborts if the `vX.Y.Z` entries disagree. A `develop-<sha>` tag, if develop ever gets its own build, falls outside the pattern and is left alone.
 
 ### Lockstep with the frontend
 
