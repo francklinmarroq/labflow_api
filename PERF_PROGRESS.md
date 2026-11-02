@@ -14,6 +14,56 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-11-01 — Estado de cuenta (paciente / cliente de facturación): cortar el N+1 de pagos (N consultas → 1)
+**Archivos:** `PaymentRepository.findByInvoiceIdInOrderByPaidAtAsc` (consulta por lote
+nueva), `InvoiceServiceImp.statementOf` (agrupa en memoria), `InvoiceAccountingTest`
+(+1 test de atribución multi-factura).
+**Problema:** `GET /api/v1/reports/customer-statement?customerId=` y
+`GET /api/v1/reports/billing-client-statement?billingClientId=` (estado de cuenta, lo
+comparten los dos reportes vía `statementOf`) traían las facturas del titular en 1 consulta
+y luego, **dentro
+del bucle de facturas**, pedían los pagos de **cada factura por separado** con
+`paymentRepository.findByInvoiceIdOrderByPaidAtAsc(invoice.getId())` — un N+1 clásico:
+**1 (facturas) + N (pagos, una por factura)** consultas a Postgres por apertura. Para un
+titular con, p. ej., 20 facturas, una sola apertura hacía **~21 consultas** contra el
+contenedor de 1 vCPU e instancia única. (El `default_batch_fetch_size=50` global no cubre
+este caso: no es inicializar una colección lazy, son llamadas explícitas al repositorio en
+un bucle.)
+**Cambio:** se agrega `findByInvoiceIdInOrderByPaidAtAsc(Collection<Long>)` que trae **todos**
+los pagos de las facturas del titular en **una sola consulta** (`where invoice.id in (…)
+order by paidAt asc`), y `statementOf` los agrupa por `invoice.id` en un `Map` con
+`computeIfAbsent`. Como la consulta devuelve los pagos ordenados por `paidAt` asc y el
+agrupado conserva ese orden de encuentro, cada lista por factura queda **idéntica** a la de
+la variante por factura; el orden de inserción en `events` (la factura y luego sus pagos por
+`paidAt`) **no cambia**, y el `events.sort` final por fecha es estable, así que **las filas,
+su orden cronológico, la atribución de cada abono a su factura y los totales
+(facturado/pagado/saldo) son exactamente los mismos**. Se descartan igual los pagos anulados.
+El método por factura `findByInvoiceIdOrderByPaidAtAsc` se conserva (lo usan el detalle de la
+factura y la reversa al anular). El `@TenantId` de `Payment` lo sigue filtrando Hibernate,
+igual que antes, y los `invoiceIds` ya vienen acotados al tenant (son las facturas del
+titular); además esas facturas ya están en el contexto de persistencia (las cargó el llamador),
+así que `payment.getInvoice().getId()` se resuelve sin consultas nuevas.
+**Impacto esperado:** el estado de cuenta baja de **≈ 1 + N** a **≈ 1 + 1 = 2** consultas a
+Postgres por apertura (**−N round-trips**, N = cantidad de facturas del titular): para un
+titular con 20 facturas, de **~21 a 2 consultas** (**≈ −19**, ~10×); el ahorro crece con el
+historial de facturación del titular. **No cambia** la cantidad de requests HTTP/invocaciones
+de Cloudflare (es un solo endpoint), pero reduce fuertemente los round-trips a Postgres y la
+contención del contenedor de 1 vCPU, acelerando cada respuesta del estado de cuenta.
+**Acople de despliegue:** **ninguno.** Cambio interno de la API; el contrato HTTP y los DTO
+no cambian, desplegable de forma independiente del front.
+**Verificación:** **el build/tests NO se pudieron ejecutar en este entorno**: la política de
+red bloquea los repositorios Maven (`maven.aliyun.com` y `repo.maven.apache.org` responden 403
+por el proxy) y el `~/.m2` está vacío, así que `mvn` no puede resolver dependencias. El cambio
+se revisó de forma estática: la consulta derivada sigue el mismo patrón que la ya existente
+(`…In…` + parámetro `Collection<Long>`), `Payment`/`Invoice` son `@Data` (getters generados),
+y no se agregan asociaciones to-one lazy (prohibidas por el native image, ver AGENTS.md). Se
+agregó `InvoiceAccountingTest.customerStatementAttributesEachPaymentToItsInvoiceInOneBatch`
+que fija el comportamiento observable con **dos facturas** del mismo titular (conjunto de
+filas, atribución de cada abono a su factura, orden cronológico y totales). **Pendiente de
+confirmación humana / CI:** correr `mvn -B --settings .mvn/settings.xml test
+"-Dtest=!LabflowapiApplicationTests"` donde Maven tenga red. Latencia real también pendiente
+(no hay entorno con API + BD para medir).
+
 ### 2026-10-11 — Cerrar el N+1 de las dos últimas colecciones lazy sin `@BatchSize` (adjuntos de corrida + items de remisión), ambas del detalle de orden
 **Archivos:** `TestRun.attachments` y `Referral.items` (cada `@OneToMany` lazy ahora con
 `@BatchSize(50)`; `Referral` suma el import de `org.hibernate.annotations.BatchSize`).
