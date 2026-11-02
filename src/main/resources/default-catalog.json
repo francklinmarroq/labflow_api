@@ -103,6 +103,14 @@
     {
       "id": 202,
       "unit_symbol": "mmol/L"
+    },
+    {
+      "id": 203,
+      "unit_symbol": "mL"
+    },
+    {
+      "id": 204,
+      "unit_symbol": "U/mL"
     }
   ],
   "ageRanges": [
@@ -540,14 +548,14 @@
       "id": 373,
       "name": "Tp",
       "section": null,
-      "value_type": "QUALITATIVE",
+      "value_type": "QUANTITATIVE",
       "unit_id": 37
     },
     {
       "id": 374,
       "name": "TPT",
       "section": null,
-      "value_type": "QUALITATIVE",
+      "value_type": "QUANTITATIVE",
       "unit_id": 37
     },
     {
@@ -582,42 +590,42 @@
       "id": 412,
       "name": "Leucocitos",
       "section": "MICROSCOPIC",
-      "value_type": "QUANTITATIVE",
+      "value_type": "QUALITATIVE",
       "unit_id": null
     },
     {
       "id": 413,
       "name": "Eritrocitos",
       "section": "MICROSCOPIC",
-      "value_type": "QUANTITATIVE",
+      "value_type": "QUALITATIVE",
       "unit_id": null
     },
     {
       "id": 414,
       "name": "Cristales",
       "section": "MICROSCOPIC",
-      "value_type": "QUANTITATIVE",
+      "value_type": "QUALITATIVE",
       "unit_id": null
     },
     {
       "id": 415,
       "name": "Cilindros",
       "section": "MICROSCOPIC",
-      "value_type": "QUANTITATIVE",
+      "value_type": "QUALITATIVE",
       "unit_id": null
     },
     {
       "id": 416,
       "name": "Mucus",
       "section": "MICROSCOPIC",
-      "value_type": "QUANTITATIVE",
+      "value_type": "QUALITATIVE",
       "unit_id": null
     },
     {
       "id": 417,
       "name": "Trichomonas vaginalis",
       "section": "MICROSCOPIC",
-      "value_type": "QUANTITATIVE",
+      "value_type": "QUALITATIVE",
       "unit_id": null
     },
     {
@@ -757,7 +765,7 @@
       "id": 557,
       "name": "Células Epiteliales",
       "section": "MICROSCOPIC",
-      "value_type": "QUANTITATIVE",
+      "value_type": "QUALITATIVE",
       "unit_id": null
     },
     {
@@ -1298,6 +1306,251 @@
       "section": null,
       "value_type": "QUALITATIVE",
       "unit_id": null
+    },
+    {
+      "id": 2037,
+      "name": "Tiempo de coagulación",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 38
+    },
+    {
+      "id": 2038,
+      "name": "Vitamina B12",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 183
+    },
+    {
+      "id": 2039,
+      "name": "Ácido fólico",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 150
+    },
+    {
+      "id": 2040,
+      "name": "Ferritina",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 150
+    },
+    {
+      "id": 2041,
+      "name": "Hierro sérico",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 185
+    },
+    {
+      "id": 2042,
+      "name": "Capacidad total de fijación de hierro (TIBC)",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 185
+    },
+    {
+      "id": 2043,
+      "name": "Transferrina",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 2
+    },
+    {
+      "id": 2044,
+      "name": "PSA libre",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 150
+    },
+    {
+      "id": 2045,
+      "name": "GGT",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 200
+    },
+    {
+      "id": 2046,
+      "name": "IgE total",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 120
+    },
+    {
+      "id": 2047,
+      "name": "Proteínas en orina de 24 horas",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 201
+    },
+    {
+      "id": 2048,
+      "name": "Volumen de orina de 24 horas",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 203
+    },
+    {
+      "id": 2049,
+      "name": "CEA",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 150
+    },
+    {
+      "id": 2050,
+      "name": "AFP",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 150
+    },
+    {
+      "id": 2051,
+      "name": "CA 125",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 204
+    },
+    {
+      "id": 2052,
+      "name": "CA 15-3",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 204
+    },
+    {
+      "id": 2053,
+      "name": "CA 19-9",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 204
+    },
+    {
+      "id": 2054,
+      "name": "Anti-CCP",
+      "section": null,
+      "value_type": "QUANTITATIVE",
+      "unit_id": 204
+    },
+    {
+      "id": 2055,
+      "name": "Anticuerpos antinucleares (ANA)",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2056,
+      "name": "Anticuerpos anti-Trypanosoma cruzi",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2057,
+      "name": "Salmonella typhi O",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2058,
+      "name": "Salmonella typhi H",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2059,
+      "name": "Salmonella paratyphi A",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2060,
+      "name": "Salmonella paratyphi B",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2061,
+      "name": "Proteus OX-19",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2062,
+      "name": "Brucella abortus",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2063,
+      "name": "Brucella melitensis",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2064,
+      "name": "Examen directo con KOH",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2065,
+      "name": "Crecimiento",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2066,
+      "name": "Hongo aislado",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2067,
+      "name": "Serie roja",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2068,
+      "name": "Serie blanca",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2069,
+      "name": "Serie plaquetaria",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2070,
+      "name": "Rotavirus",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
+    },
+    {
+      "id": 2071,
+      "name": "Adenovirus",
+      "section": null,
+      "value_type": "QUALITATIVE",
+      "unit_id": null
     }
   ],
   "referenceRanges": [
@@ -1536,13 +1789,13 @@
       "age_range_id": null,
       "min_age_days": null,
       "max_age_days": null,
-      "lower_limit": null,
+      "lower_limit": 1,
       "lower_exclusive": false,
-      "upper_limit": null,
+      "upper_limit": 3,
       "upper_exclusive": false,
       "critical_low": null,
       "critical_high": null,
-      "interpretation_text": "1-3 minutos",
+      "interpretation_text": null,
       "context_kind": "NONE",
       "context_label": null,
       "context_min": null,
@@ -1821,9 +2074,9 @@
       "age_range_id": 37,
       "min_age_days": null,
       "max_age_days": null,
-      "lower_limit": 20,
+      "lower_limit": 0.8,
       "lower_exclusive": false,
-      "upper_limit": 40,
+      "upper_limit": 4,
       "upper_exclusive": false,
       "critical_low": null,
       "critical_high": null,
@@ -2125,13 +2378,13 @@
       "age_range_id": null,
       "min_age_days": null,
       "max_age_days": null,
-      "lower_limit": null,
+      "lower_limit": 10,
       "lower_exclusive": false,
-      "upper_limit": null,
+      "upper_limit": 14,
       "upper_exclusive": false,
       "critical_low": null,
       "critical_high": null,
-      "interpretation_text": "10-14",
+      "interpretation_text": null,
       "context_kind": "NONE",
       "context_label": null,
       "context_min": null,
@@ -2144,13 +2397,13 @@
       "age_range_id": null,
       "min_age_days": null,
       "max_age_days": null,
-      "lower_limit": null,
+      "lower_limit": 20,
       "lower_exclusive": false,
-      "upper_limit": null,
+      "upper_limit": 35,
       "upper_exclusive": false,
       "critical_low": null,
       "critical_high": null,
-      "interpretation_text": "20-35",
+      "interpretation_text": null,
       "context_kind": "NONE",
       "context_label": null,
       "context_min": null,
@@ -4245,6 +4498,481 @@
       "context_label": null,
       "context_min": null,
       "context_max": null
+    },
+    {
+      "id": 3039,
+      "parameter_id": 306,
+      "sex": "MALE",
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 15,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3040,
+      "parameter_id": 306,
+      "sex": "FEMALE",
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 20,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3041,
+      "parameter_id": 306,
+      "sex": "FEMALE",
+      "age_range_id": 71,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 30,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3042,
+      "parameter_id": 1,
+      "sex": null,
+      "age_range_id": 37,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 100,
+      "lower_exclusive": false,
+      "upper_limit": 125,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": "Prediabetes",
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3043,
+      "parameter_id": 1,
+      "sex": null,
+      "age_range_id": 37,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 126,
+      "lower_exclusive": false,
+      "upper_limit": null,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": "Diabetes",
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3044,
+      "parameter_id": 2038,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 197,
+      "lower_exclusive": false,
+      "upper_limit": 835,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3045,
+      "parameter_id": 2039,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 3,
+      "lower_exclusive": false,
+      "upper_limit": 17,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3046,
+      "parameter_id": 2040,
+      "sex": "MALE",
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 30,
+      "lower_exclusive": false,
+      "upper_limit": 400,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3047,
+      "parameter_id": 2040,
+      "sex": "FEMALE",
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 13,
+      "lower_exclusive": false,
+      "upper_limit": 150,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3048,
+      "parameter_id": 2041,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 50,
+      "lower_exclusive": false,
+      "upper_limit": 170,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3049,
+      "parameter_id": 2042,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 250,
+      "lower_exclusive": false,
+      "upper_limit": 450,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3050,
+      "parameter_id": 2043,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 200,
+      "lower_exclusive": false,
+      "upper_limit": 360,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3051,
+      "parameter_id": 2045,
+      "sex": "MALE",
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 11,
+      "lower_exclusive": false,
+      "upper_limit": 61,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3052,
+      "parameter_id": 2045,
+      "sex": "FEMALE",
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 9,
+      "lower_exclusive": false,
+      "upper_limit": 39,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3053,
+      "parameter_id": 2046,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": 0,
+      "max_age_days": 364,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 15,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3054,
+      "parameter_id": 2046,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": 365,
+      "max_age_days": 2189,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 60,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3055,
+      "parameter_id": 2046,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": 2190,
+      "max_age_days": 3649,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 90,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3056,
+      "parameter_id": 2046,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": 3650,
+      "max_age_days": 5839,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 200,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3057,
+      "parameter_id": 2046,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": 5840,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 100,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3058,
+      "parameter_id": 2047,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 150,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3059,
+      "parameter_id": 2049,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 5,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3060,
+      "parameter_id": 2050,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 10,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3061,
+      "parameter_id": 2051,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 35,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3062,
+      "parameter_id": 2052,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 35,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
+    },
+    {
+      "id": 3063,
+      "parameter_id": 2053,
+      "sex": null,
+      "age_range_id": null,
+      "min_age_days": null,
+      "max_age_days": null,
+      "lower_limit": 0,
+      "lower_exclusive": false,
+      "upper_limit": 37,
+      "upper_exclusive": false,
+      "critical_low": null,
+      "critical_high": null,
+      "interpretation_text": null,
+      "context_kind": "NONE",
+      "context_label": null,
+      "context_min": null,
+      "context_max": null
     }
   ],
   "tests": [
@@ -4260,14 +4988,14 @@
       "name": "Prueba de Embarazo en Sangre",
       "price": 100,
       "cost": 0,
-      "area": null
+      "area": "SEROLOGIA"
     },
     {
       "id": 3,
       "name": "Tipo Rh",
       "price": 100,
       "cost": 0,
-      "area": null
+      "area": "HEMATOLOGIA"
     },
     {
       "id": 4,
@@ -4337,7 +5065,7 @@
       "name": "SANGRE OCULTA EN HECES",
       "price": 200,
       "cost": 0,
-      "area": null
+      "area": "PARASITOLOGIA"
     },
     {
       "id": 141,
@@ -4351,7 +5079,7 @@
       "name": "Toxoplasmosis",
       "price": 350,
       "cost": 0,
-      "area": null
+      "area": "SEROLOGIA"
     },
     {
       "id": 143,
@@ -4407,14 +5135,14 @@
       "name": "Dengue",
       "price": 400,
       "cost": 0,
-      "area": null
+      "area": "SEROLOGIA"
     },
     {
       "id": 183,
-      "name": "Drogas combo",
+      "name": "Panel de drogas",
       "price": 500,
       "cost": 0,
-      "area": null
+      "area": "PRUEBAS_ESPECIALES"
     },
     {
       "id": 184,
@@ -4425,7 +5153,7 @@
     },
     {
       "id": 217,
-      "name": "CULTIVO DE ORINA",
+      "name": "Urocultivo",
       "price": 300,
       "cost": 0,
       "area": "BACTERIOLOGIA"
@@ -4467,7 +5195,7 @@
     },
     {
       "id": 255,
-      "name": "Glucosa post-pandrial",
+      "name": "Glucosa posprandial 2 horas",
       "price": 180,
       "cost": 0,
       "area": "QUIMICA"
@@ -4512,28 +5240,28 @@
       "name": "Hepatitis B",
       "price": 350,
       "cost": 0,
-      "area": null
+      "area": "SEROLOGIA"
     },
     {
       "id": 295,
       "name": "Hepatitis A",
       "price": 350,
       "cost": 0,
-      "area": null
+      "area": "SEROLOGIA"
     },
     {
       "id": 296,
       "name": "Hepatitis C",
       "price": 350,
       "cost": 0,
-      "area": null
+      "area": "SEROLOGIA"
     },
     {
       "id": 297,
       "name": "VIH",
       "price": 300,
       "cost": 0,
-      "area": null
+      "area": "SEROLOGIA"
     },
     {
       "id": 298,
@@ -4586,7 +5314,7 @@
     },
     {
       "id": 305,
-      "name": "PSA",
+      "name": "PSA total",
       "price": 500,
       "cost": 0,
       "area": "PRUEBAS_ESPECIALES"
@@ -4659,14 +5387,14 @@
       "name": "COLORACIÓN WRIGHT",
       "price": 100,
       "cost": 0,
-      "area": null
+      "area": "PARASITOLOGIA"
     },
     {
       "id": 318,
       "name": "Indice de HOMA",
       "price": 280,
       "cost": 0,
-      "area": null
+      "area": "PRUEBAS_ESPECIALES"
     },
     {
       "id": 319,
@@ -4680,7 +5408,7 @@
       "name": "Microalbuminuria",
       "price": 430,
       "cost": 0,
-      "area": null
+      "area": "UROANALISIS"
     },
     {
       "id": 321,
@@ -4719,7 +5447,7 @@
     },
     {
       "id": 326,
-      "name": "BILLIRUBINA",
+      "name": "Bilirrubinas",
       "price": 240,
       "cost": 0,
       "area": "QUIMICA"
@@ -4733,10 +5461,10 @@
     },
     {
       "id": 328,
-      "name": "FOSFORO",
+      "name": "Fósforo",
       "price": 260,
       "cost": 0,
-      "area": null
+      "area": "QUIMICA"
     },
     {
       "id": 329,
@@ -4756,13 +5484,6 @@
       "id": 332,
       "name": "VLDL",
       "price": 110,
-      "cost": 0,
-      "area": "QUIMICA"
-    },
-    {
-      "id": 333,
-      "name": "Glucosa en sangre",
-      "price": 90,
       "cost": 0,
       "area": "QUIMICA"
     },
@@ -4877,6 +5598,216 @@
       "price": 450,
       "cost": 0,
       "area": "QUIMICA"
+    },
+    {
+      "id": 2504,
+      "name": "Sodio",
+      "price": 220,
+      "cost": 0,
+      "area": "QUIMICA"
+    },
+    {
+      "id": 2505,
+      "name": "Potasio",
+      "price": 220,
+      "cost": 0,
+      "area": "QUIMICA"
+    },
+    {
+      "id": 2506,
+      "name": "Cloro",
+      "price": 260,
+      "cost": 0,
+      "area": "QUIMICA"
+    },
+    {
+      "id": 2507,
+      "name": "Troponina I",
+      "price": 700,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2508,
+      "name": "Insulina posprandial",
+      "price": 850,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2509,
+      "name": "Tiempo de sangrado",
+      "price": 100,
+      "cost": 0,
+      "area": "HEMATOLOGIA"
+    },
+    {
+      "id": 2510,
+      "name": "Coprocultivo",
+      "price": 350,
+      "cost": 0,
+      "area": "BACTERIOLOGIA"
+    },
+    {
+      "id": 2511,
+      "name": "Tiempo de coagulación",
+      "price": 100,
+      "cost": 0,
+      "area": "HEMATOLOGIA"
+    },
+    {
+      "id": 2512,
+      "name": "Vitamina B12",
+      "price": 1100,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2513,
+      "name": "Ácido fólico",
+      "price": 1100,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2514,
+      "name": "Ferritina",
+      "price": 800,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2515,
+      "name": "Hierro sérico",
+      "price": 600,
+      "cost": 0,
+      "area": "QUIMICA"
+    },
+    {
+      "id": 2516,
+      "name": "Transferrina",
+      "price": 750,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2517,
+      "name": "PSA libre",
+      "price": 880,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2518,
+      "name": "GGT",
+      "price": 400,
+      "cost": 0,
+      "area": "QUIMICA"
+    },
+    {
+      "id": 2519,
+      "name": "Inmunoglobulina E (IgE)",
+      "price": 700,
+      "cost": 0,
+      "area": "INMUNOLOGIA"
+    },
+    {
+      "id": 2520,
+      "name": "Proteínas en orina de 24 horas",
+      "price": 220,
+      "cost": 0,
+      "area": "UROANALISIS"
+    },
+    {
+      "id": 2521,
+      "name": "Antígeno carcinoembrionario (CEA)",
+      "price": 800,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2522,
+      "name": "Alfafetoproteína (AFP)",
+      "price": 800,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2523,
+      "name": "CA 125",
+      "price": 800,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2524,
+      "name": "CA 15-3",
+      "price": 800,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2525,
+      "name": "CA 19-9",
+      "price": 800,
+      "cost": 0,
+      "area": "PRUEBAS_ESPECIALES"
+    },
+    {
+      "id": 2526,
+      "name": "Anti-CCP",
+      "price": 1000,
+      "cost": 0,
+      "area": "INMUNOLOGIA"
+    },
+    {
+      "id": 2527,
+      "name": "Anticuerpos antinucleares (ANA)",
+      "price": 1200,
+      "cost": 0,
+      "area": "INMUNOLOGIA"
+    },
+    {
+      "id": 2528,
+      "name": "Chagas",
+      "price": 300,
+      "cost": 0,
+      "area": "SEROLOGIA"
+    },
+    {
+      "id": 2529,
+      "name": "Antígenos febriles",
+      "price": 300,
+      "cost": 0,
+      "area": "SEROLOGIA"
+    },
+    {
+      "id": 2530,
+      "name": "KOH",
+      "price": 200,
+      "cost": 0,
+      "area": "MICROBIOLOGIA"
+    },
+    {
+      "id": 2531,
+      "name": "Cultivo de hongos",
+      "price": 500,
+      "cost": 0,
+      "area": "MICROBIOLOGIA"
+    },
+    {
+      "id": 2532,
+      "name": "Frotis de sangre periférica",
+      "price": 250,
+      "cost": 0,
+      "area": "HEMATOLOGIA"
+    },
+    {
+      "id": 2533,
+      "name": "Rotavirus y adenovirus",
+      "price": 400,
+      "cost": 0,
+      "area": "PARASITOLOGIA"
     }
   ],
   "testConfigs": [
@@ -5154,15 +6085,6 @@
       "id": 289,
       "test_id": 297,
       "name": "VIH",
-      "active": true,
-      "chart_type": null,
-      "chart_x_axis_label": null,
-      "result_layout": null
-    },
-    {
-      "id": 322,
-      "test_id": 333,
-      "name": "Glucosa en sangre",
       "active": true,
       "chart_type": null,
       "chart_x_axis_label": null,
@@ -5689,6 +6611,276 @@
       "chart_type": "NONE",
       "chart_x_axis_label": "",
       "result_layout": "STANDARD"
+    },
+    {
+      "id": 2034,
+      "test_id": 2504,
+      "name": "Sodio",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2035,
+      "test_id": 2505,
+      "name": "Potasio",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2036,
+      "test_id": 2506,
+      "name": "Cloro",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2037,
+      "test_id": 2507,
+      "name": "Troponina I",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2038,
+      "test_id": 2508,
+      "name": "Insulina posprandial",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2039,
+      "test_id": 2509,
+      "name": "Tiempo de sangrado",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2040,
+      "test_id": 2510,
+      "name": "Coprocultivo",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2041,
+      "test_id": 2511,
+      "name": "Tiempo de coagulación",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2042,
+      "test_id": 2512,
+      "name": "Vitamina B12",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2043,
+      "test_id": 2513,
+      "name": "Ácido fólico",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2044,
+      "test_id": 2514,
+      "name": "Ferritina",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2045,
+      "test_id": 2515,
+      "name": "Hierro sérico",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2046,
+      "test_id": 2516,
+      "name": "Transferrina",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2047,
+      "test_id": 2517,
+      "name": "PSA libre",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2048,
+      "test_id": 2518,
+      "name": "GGT",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2049,
+      "test_id": 2519,
+      "name": "Inmunoglobulina E (IgE)",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2050,
+      "test_id": 2520,
+      "name": "Proteínas en orina de 24 horas",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2051,
+      "test_id": 2521,
+      "name": "Antígeno carcinoembrionario (CEA)",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2052,
+      "test_id": 2522,
+      "name": "Alfafetoproteína (AFP)",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2053,
+      "test_id": 2523,
+      "name": "CA 125",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2054,
+      "test_id": 2524,
+      "name": "CA 15-3",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2055,
+      "test_id": 2525,
+      "name": "CA 19-9",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2056,
+      "test_id": 2526,
+      "name": "Anti-CCP",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2057,
+      "test_id": 2527,
+      "name": "Anticuerpos antinucleares (ANA)",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2058,
+      "test_id": 2528,
+      "name": "Chagas",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2059,
+      "test_id": 2529,
+      "name": "Antígenos febriles",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2060,
+      "test_id": 2530,
+      "name": "KOH",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2061,
+      "test_id": 2531,
+      "name": "Cultivo de hongos",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2062,
+      "test_id": 2532,
+      "name": "Frotis de sangre periférica",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
+    },
+    {
+      "id": 2063,
+      "test_id": 2533,
+      "name": "Rotavirus y adenovirus",
+      "active": true,
+      "chart_type": null,
+      "chart_x_axis_label": null,
+      "result_layout": "STANDARD"
     }
   ],
   "testConfigParameters": [
@@ -6211,12 +7403,6 @@
     {
       "test_config_id": 289,
       "parameter_id": 559,
-      "display_order": 0,
-      "chart_x_value": null
-    },
-    {
-      "test_config_id": 322,
-      "parameter_id": 1,
       "display_order": 0,
       "chart_x_value": null
     },
@@ -6866,6 +8052,276 @@
       "test_config_id": 2033,
       "parameter_id": 101,
       "display_order": 5,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 43,
+      "parameter_id": 477,
+      "display_order": 23,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2034,
+      "parameter_id": 2024,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2035,
+      "parameter_id": 2025,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2036,
+      "parameter_id": 2026,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2037,
+      "parameter_id": 2012,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2038,
+      "parameter_id": 376,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2038,
+      "parameter_id": 772,
+      "display_order": 1,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2039,
+      "parameter_id": 139,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2040,
+      "parameter_id": 666,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2040,
+      "parameter_id": 667,
+      "display_order": 1,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2041,
+      "parameter_id": 2037,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2042,
+      "parameter_id": 2038,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2043,
+      "parameter_id": 2039,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2044,
+      "parameter_id": 2040,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2045,
+      "parameter_id": 2041,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2045,
+      "parameter_id": 2042,
+      "display_order": 1,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2046,
+      "parameter_id": 2043,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2047,
+      "parameter_id": 2044,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2048,
+      "parameter_id": 2045,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2049,
+      "parameter_id": 2046,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2050,
+      "parameter_id": 2048,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2050,
+      "parameter_id": 2047,
+      "display_order": 1,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2051,
+      "parameter_id": 2049,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2052,
+      "parameter_id": 2050,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2053,
+      "parameter_id": 2051,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2054,
+      "parameter_id": 2052,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2055,
+      "parameter_id": 2053,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2056,
+      "parameter_id": 2054,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2057,
+      "parameter_id": 2055,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2058,
+      "parameter_id": 2056,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2059,
+      "parameter_id": 2057,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2059,
+      "parameter_id": 2058,
+      "display_order": 1,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2059,
+      "parameter_id": 2059,
+      "display_order": 2,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2059,
+      "parameter_id": 2060,
+      "display_order": 3,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2059,
+      "parameter_id": 2061,
+      "display_order": 4,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2059,
+      "parameter_id": 2062,
+      "display_order": 5,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2059,
+      "parameter_id": 2063,
+      "display_order": 6,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2060,
+      "parameter_id": 2064,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2061,
+      "parameter_id": 2065,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2061,
+      "parameter_id": 2066,
+      "display_order": 1,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2062,
+      "parameter_id": 2067,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2062,
+      "parameter_id": 2068,
+      "display_order": 1,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2062,
+      "parameter_id": 2069,
+      "display_order": 2,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2063,
+      "parameter_id": 2070,
+      "display_order": 0,
+      "chart_x_value": null
+    },
+    {
+      "test_config_id": 2063,
+      "parameter_id": 2071,
+      "display_order": 1,
       "chart_x_value": null
     }
   ]

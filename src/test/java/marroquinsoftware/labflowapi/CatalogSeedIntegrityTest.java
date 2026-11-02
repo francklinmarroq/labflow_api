@@ -88,4 +88,38 @@ class CatalogSeedIntegrityTest {
         catalogSeeder.seedDefaultCatalog();
         assertEquals(unitsAfterFirst, unitRepository.count(), "el seeder no es idempotente");
     }
+
+    /**
+     * Defectos que los laboratorios tuvieron que corregir a mano en su copia del
+     * catálogo inicial (cambio improve-default-catalog). Cada uno es una regla
+     * general, no una lista de exámenes: un examen nuevo en el JSON también la cumple.
+     */
+    @Test
+    void seededCatalogNeedsNoManualFixesToReport() {
+        TenantContext.setLaboratoryId(1L);
+        catalogSeeder.seedDefaultCatalog();
+        em.flush();
+
+        // Sin área el examen no cae en ninguna sección del reporte ni de los filtros.
+        assertEquals(0L, count("SELECT count(*) FROM tests WHERE area IS NULL"), "exámenes sin área");
+
+        // Dos exámenes con el mismo nombre obligan a adivinar cuál pedir.
+        assertEquals(0L, count("SELECT count(*) FROM (SELECT lower(name) FROM tests GROUP BY lower(name) HAVING count(*) > 1) d"),
+                "exámenes con nombre repetido");
+
+        // Un rango solo de texto ("10-14") en un parámetro numérico nunca marca un
+        // resultado fuera de rango: así venían TP y TPT.
+        assertEquals(0L, count("SELECT count(*) FROM reference_range r JOIN parameter p ON p.id = r.parameter_id " +
+                        "WHERE p.value_type = 'QUANTITATIVE' AND r.lower_limit IS NULL AND r.upper_limit IS NULL"),
+                "parámetros numéricos con rango sin límites");
+
+        // El microscópico se reporta en texto ("2-4 x campo", "Escasas"): uno
+        // cuantitativo no acepta lo que el laboratorio realmente escribe.
+        assertEquals(0L, count("SELECT count(*) FROM parameter WHERE section = 'MICROSCOPIC' AND value_type = 'QUANTITATIVE'"),
+                "parámetros microscópicos cuantitativos");
+    }
+
+    private long count(String sql) {
+        return ((Number) em.createNativeQuery(sql).getSingleResult()).longValue();
+    }
 }
