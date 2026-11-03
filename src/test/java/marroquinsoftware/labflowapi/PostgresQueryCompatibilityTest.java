@@ -197,6 +197,17 @@ class PostgresQueryCompatibilityTest {
         });
     }
 
+    // La exportación de órdenes a Excel: las órdenes por ids con sus exámenes
+    // (entity graph sobre una colección) y las facturas vigentes de esas órdenes
+    // con un join fetch, el `in` de ids y el orden por fecha de emisión.
+    @Test
+    void readsTheOrdersToExport() {
+        assertDoesNotThrow(() -> {
+            labOrderRepository.findWithTestsByIdIn(List.of(1L, 2L, 3L));
+            invoiceOrderRepository.findLiveByOrderIds(List.of(1L, 2L, 3L));
+        });
+    }
+
     // Los estados financieros: agregados por cuenta con un `not in` sobre el enum
     // de origen (estado de resultados y cierre), sin límite inferior (balance), y
     // por origen sobre un `in` de cuentas (flujo de efectivo).

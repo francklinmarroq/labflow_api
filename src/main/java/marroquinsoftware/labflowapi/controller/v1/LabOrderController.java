@@ -7,6 +7,8 @@ import marroquinsoftware.labflowapi.payload.AnnulRequest;
 import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
 import marroquinsoftware.labflowapi.payload.LabTestDTO;
+import marroquinsoftware.labflowapi.payload.OrderExportRequest;
+import marroquinsoftware.labflowapi.payload.OrderExportRowDTO;
 import marroquinsoftware.labflowapi.payload.TestRunDTO;
 import marroquinsoftware.labflowapi.payload.UninvoicedOrderResponse;
 import marroquinsoftware.labflowapi.service.InvoiceService;
@@ -69,6 +71,14 @@ public class LabOrderController {
             @RequestParam(required = false) @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate to) {
         return new ResponseEntity<>(
                 invoiceService.getUninvoicedOrders(pageNumber, pageSize, customerId, from, to), HttpStatus.OK);
+    }
+
+    // Exámenes y total a pagar de las órdenes filtradas en la pantalla, para
+    // exportarlas a Excel. Es POST porque la lista de ids puede no caber en una URL.
+    @PostMapping("/export")
+    @PreAuthorize("hasAuthority('ORDERS_VIEW')")
+    public ResponseEntity<List<OrderExportRowDTO>> exportOrders(@Valid @RequestBody OrderExportRequest request) {
+        return new ResponseEntity<>(labOrderService.exportOrders(request.getOrderIds()), HttpStatus.OK);
     }
 
     // Las pantallas de detalle/impresión solo necesitan una orden. Antes bajaban

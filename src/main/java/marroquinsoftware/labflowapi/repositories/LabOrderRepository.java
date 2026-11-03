@@ -1,11 +1,13 @@
 package marroquinsoftware.labflowapi.repositories;
 
 import marroquinsoftware.labflowapi.model.LabOrder;
+import org.springframework.data.jpa.repository.EntityGraph;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -17,6 +19,12 @@ public interface LabOrderRepository extends JpaRepository<LabOrder, Long>, JpaSp
     // Orden por token del enlace público. El @TenantId sigue filtrando: se usa una
     // vez que el TenantContext ya quedó fijado con el laboratorio del token.
     Optional<LabOrder> findByPublicToken(String publicToken);
+
+    // Órdenes por ids con sus exámenes y el examen del catálogo de cada uno, en una
+    // sola consulta, para la exportación a Excel. @TenantId deja fuera las de otro
+    // laboratorio: un id ajeno simplemente no aparece.
+    @EntityGraph(attributePaths = {"tests", "tests.test"})
+    List<LabOrder> findWithTestsByIdIn(Collection<Long> ids);
 
     // Solo el id del laboratorio dueño del token, con SQL nativo para saltarse el
     // filtro de @TenantId (el endpoint público llega sin tenant). Se usa para fijar

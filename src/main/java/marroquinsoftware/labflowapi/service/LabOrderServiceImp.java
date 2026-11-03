@@ -4,6 +4,7 @@ import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.Customer;
 import marroquinsoftware.labflowapi.model.Invoice;
+import marroquinsoftware.labflowapi.model.InvoiceOrder;
 import marroquinsoftware.labflowapi.model.LabOrder;
 import marroquinsoftware.labflowapi.model.LabOrderCounter;
 import marroquinsoftware.labflowapi.model.LabTest;
@@ -13,6 +14,7 @@ import marroquinsoftware.labflowapi.model.Permission;
 import marroquinsoftware.labflowapi.model.Test;
 import marroquinsoftware.labflowapi.payload.LabOrderDTO;
 import marroquinsoftware.labflowapi.payload.LabOrderResponse;
+import marroquinsoftware.labflowapi.payload.OrderExportRowDTO;
 import marroquinsoftware.labflowapi.payload.OrderTagDTO;
 import marroquinsoftware.labflowapi.repositories.CustomerRepository;
 import marroquinsoftware.labflowapi.repositories.InvoiceOrderRepository;
@@ -31,11 +33,18 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Comparator;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.UUID;
 
@@ -219,6 +228,79 @@ public class LabOrderServiceImp implements LabOrderService {
         LabOrder order = labOrderRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("LabOrder", "orderId", id));
         return toDTO(order, lockedOrderIds(List.of(order.getId())));
+    }
+
+    @Override
+    @Transactional(readOnly = true)
+    public List<OrderExportRowDTO> exportOrders(List<Long> orderIds) {
+        // Dos consultas para todas las órdenes: las órdenes con sus exámenes y las
+        // filas de factura vigente. Preguntar orden por orden serían cientos de
+        // consultas al exportar una etiqueta como IHSS.
+        Map<Long, LabOrder> orders = new HashMap<>();
+        for (LabOrder order : labOrderRepository.findWithTestsByIdIn(orderIds)) {
+            orders.put(order.getId(), order);
+        }
+        // Vienen de la factura más reciente a la más vieja: la primera que se ve de
+        // cada orden es la que vale. Emitir ya impide dos facturas vigentes por
+        // orden; esto solo decide si datos viejos las tuvieran.
+        Map<Long, InvoiceOrder> invoiced = new HashMap<>();
+        if (!orders.isEmpty()) {
+            for (InvoiceOrder io : invoiceOrderRepository.findLiveByOrderIds(orders.keySet())) {
+                invoiced.putIfAbsent(io.getOrder().getId(), io);
+            }
+        }
+
+        List<OrderExportRowDTO> rows = new ArrayList<>();
+        Set<Long> seen = new HashSet<>();
+        for (Long id : orderIds) {
+            LabOrder order = orders.get(id);
+            if (order == null || !seen.add(id)) continue;
+            rows.add(toExportRow(order, invoiced.get(id)));
+        }
+        return rows;
+    }
+
+    private OrderExportRowDTO toExportRow(LabOrder order, InvoiceOrder invoiceOrder) {
+        // Por id: es el orden en que se agregaron los exámenes a la orden.
+        List<LabTest> tests = order.getTests() == null ? List.of() : order.getTests().stream()
+                .sorted(Comparator.comparing(LabTest::getId, Comparator.nullsLast(Comparator.naturalOrder())))
+                .toList();
+        List<String> names = tests.stream()
+                .map(lt -> lt.getTest() != null ? lt.getTest().getName() : null)
+                .filter(Objects::nonNull)
+                .toList();
+
+        OrderExportRowDTO row = new OrderExportRowDTO();
+        row.setOrderId(order.getId());
+        row.setTestNames(names);
+        row.setTestCount(tests.size());
+        if (invoiceOrder != null) {
+            // Lo que la factura cobra por esta orden: lo cobrado por sus exámenes
+            // menos su descuento por edad. Los descuentos a nivel de factura no se
+            // reparten entre órdenes.
+            BigDecimal charged = invoiceOrder.getChargedAmount() != null
+                    ? invoiceOrder.getChargedAmount() : BigDecimal.ZERO;
+            BigDecimal ageDiscount = invoiceOrder.getAgeDiscountAmount() != null
+                    ? invoiceOrder.getAgeDiscountAmount() : BigDecimal.ZERO;
+            Invoice invoice = invoiceOrder.getInvoice();
+            row.setTotal(charged.subtract(ageDiscount).setScale(2, RoundingMode.HALF_UP));
+            row.setTotalSource(OrderExportRowDTO.TotalSource.INVOICED);
+            row.setInvoiceNumber(invoice.getInvoiceNumber());
+            if (invoice.getStatus() != null) {
+                row.setInvoiceStatus(invoice.getStatus().name());
+                row.setInvoiceStatusLabel(invoice.getStatus().getLabel());
+            }
+        } else {
+            // Sin factura vigente: precios de hoy del catálogo, igual que la lista de
+            // órdenes pendientes de facturar.
+            row.setTotal(tests.stream()
+                    .map(lt -> lt.getTest() != null && lt.getTest().getPrice() != null
+                            ? lt.getTest().getPrice() : BigDecimal.ZERO)
+                    .reduce(BigDecimal.ZERO, BigDecimal::add)
+                    .setScale(2, RoundingMode.HALF_UP));
+            row.setTotalSource(OrderExportRowDTO.TotalSource.CATALOG);
+        }
+        return row;
     }
 
     @Override

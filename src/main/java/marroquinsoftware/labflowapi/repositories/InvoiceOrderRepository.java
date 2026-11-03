@@ -47,6 +47,19 @@ public interface InvoiceOrderRepository extends JpaRepository<InvoiceOrder, Long
             """)
     List<Long> findOrderIdsWithLiveInvoice(@Param("orderIds") Collection<Long> orderIds);
 
+    /**
+     * Filas de factura vigente (no anulada) de las órdenes indicadas, con su
+     * factura cargada y la más reciente primero. Es lo que cobra cada orden para
+     * la exportación a Excel, en UNA consulta para todas las órdenes.
+     */
+    @Query("""
+            select io from InvoiceOrder io join fetch io.invoice i
+            where io.order.id in :orderIds
+              and i.status <> marroquinsoftware.labflowapi.model.InvoiceStatus.ANULADA
+            order by i.issuedAt desc
+            """)
+    List<InvoiceOrder> findLiveByOrderIds(@Param("orderIds") Collection<Long> orderIds);
+
     long countByInvoiceId(Long invoiceId);
 
     /**
