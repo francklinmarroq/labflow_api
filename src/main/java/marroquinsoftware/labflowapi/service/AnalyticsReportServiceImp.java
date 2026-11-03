@@ -1,5 +1,7 @@
 package marroquinsoftware.labflowapi.service;
 
+import marroquinsoftware.labflowapi.config.AppConstants;
+
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.model.InvoiceItemType;
 import marroquinsoftware.labflowapi.model.InvoiceStatus;
@@ -43,7 +45,7 @@ import java.util.TreeMap;
 public class AnalyticsReportServiceImp implements AnalyticsReportService {
 
     // Misma zona que usa la facturación para interpretar los rangos de fecha.
-    private static final ZoneId LAB_ZONE = ZoneId.of("America/Tegucigalpa");
+    private static final ZoneId LAB_ZONE = AppConstants.LAB_ZONE;
 
     @Autowired
     private LabTestRepository labTestRepository;

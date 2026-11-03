@@ -4,9 +4,11 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import marroquinsoftware.labflowapi.model.AgeDiscountKind;
+import marroquinsoftware.labflowapi.model.QuoteStatus;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 
 @Data
@@ -32,4 +34,25 @@ public class QuoteDTO {
     private BigDecimal discountAmount;
     private BigDecimal total;
     private List<QuoteItemDTO> items;
+
+    /** Estado calculado al momento de la consulta (hora de Honduras). */
+    private QuoteStatus status;
+    /** Etiqueta lista para mostrar del estado (ej. "Vigente"). */
+    private String statusLabel;
+    private Integer validityDays;
+    /** Último día en que se respetan los precios cotizados. */
+    private LocalDate validUntil;
+    /** Orden creada a partir de la cotización (si está convertida). */
+    private Long orderId;
+    private Long orderNumber;
+    /** Cotización que la reemplazó (si está recotizada). */
+    private Long requotedById;
+    private Long requotedByNumber;
+    /** Cotización vencida de la que salió esta (si es una recotización). */
+    private Long requotedFromId;
+    private Long requotedFromNumber;
+    private Instant updatedAt;
+    private String updatedByUsername;
+    /** Nombre de quien la modificó por última vez (o el correo si no tiene nombre). */
+    private String updatedByName;
 }

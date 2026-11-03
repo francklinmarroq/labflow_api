@@ -1,5 +1,7 @@
 package marroquinsoftware.labflowapi.service;
 
+import marroquinsoftware.labflowapi.config.AppConstants;
+
 import marroquinsoftware.labflowapi.exceptions.APIException;
 import marroquinsoftware.labflowapi.exceptions.ResourceNotFoundException;
 import marroquinsoftware.labflowapi.model.*;
@@ -36,7 +38,7 @@ public class InvoiceServiceImp implements InvoiceService {
     // Honduras (UTC-6, sin horario de verano). "Hoy" y los rangos de fecha se
     // resuelven en esta zona; con UTC, una factura emitida de tarde caía en el
     // día siguiente y se perdía en los filtros por fecha.
-    private static final ZoneId LAB_ZONE = ZoneId.of("America/Tegucigalpa");
+    private static final ZoneId LAB_ZONE = AppConstants.LAB_ZONE;
 
     @Autowired private InvoiceRepository invoiceRepository;
     @Autowired private PaymentRepository paymentRepository;

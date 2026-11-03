@@ -6,6 +6,7 @@ import marroquinsoftware.labflowapi.payload.AgeDiscountDTO;
 import marroquinsoftware.labflowapi.payload.QuoteDTO;
 import marroquinsoftware.labflowapi.payload.QuoteRequest;
 import marroquinsoftware.labflowapi.payload.QuoteResponse;
+import marroquinsoftware.labflowapi.payload.RequoteResultDTO;
 import marroquinsoftware.labflowapi.service.QuoteService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpStatus;
@@ -40,6 +41,20 @@ public class QuoteController {
     @PreAuthorize("hasAuthority('QUOTES_CREATE')")
     public ResponseEntity<QuoteDTO> createQuote(@Valid @RequestBody QuoteRequest request) {
         return new ResponseEntity<>(quoteService.createQuote(request), HttpStatus.CREATED);
+    }
+
+    // Solo cotizaciones vigentes; los exámenes que ya estaban conservan su precio.
+    @PutMapping("/{quoteId}")
+    @PreAuthorize("hasAuthority('QUOTES_CREATE')")
+    public ResponseEntity<QuoteDTO> updateQuote(@PathVariable Long quoteId, @Valid @RequestBody QuoteRequest request) {
+        return new ResponseEntity<>(quoteService.updateQuote(quoteId, request), HttpStatus.OK);
+    }
+
+    // Solo cotizaciones vencidas: crea una nueva a precios actuales y cierra la vencida.
+    @PostMapping("/{quoteId}/requote")
+    @PreAuthorize("hasAuthority('QUOTES_CREATE')")
+    public ResponseEntity<RequoteResultDTO> requoteQuote(@PathVariable Long quoteId) {
+        return new ResponseEntity<>(quoteService.requoteQuote(quoteId), HttpStatus.CREATED);
     }
 
     @DeleteMapping("/{quoteId}")

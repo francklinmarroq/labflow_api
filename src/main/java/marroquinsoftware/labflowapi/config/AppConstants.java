@@ -1,6 +1,14 @@
 package marroquinsoftware.labflowapi.config;
 
+import java.time.ZoneId;
+
 public class AppConstants {
+    /**
+     * Zona horaria del negocio: los días (fecha de una factura, vencimiento de una
+     * cotización, rangos de los reportes) se cuentan en hora de Honduras.
+     */
+    public static final ZoneId LAB_ZONE = ZoneId.of("America/Tegucigalpa");
+
     public static final String PAGE_NUMBER = "0";
     public static final String PAGE_SIZE = "50";
     public static final String SORT_DIR = "ASC";

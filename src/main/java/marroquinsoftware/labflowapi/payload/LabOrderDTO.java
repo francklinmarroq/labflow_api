@@ -97,4 +97,8 @@ public class LabOrderDTO {
     // rechazo al hacer clic, sin una segunda consulta por las facturas de la orden.
     // Primitivo a propósito: ausente significa falso para clientes viejos.
     private boolean testsLocked;
+    // Cotización de la que sale la orden (solo al crear; se ignora al actualizar).
+    // Si viene, la cotización queda convertida en la misma transacción; si ya no
+    // está vigente, la orden no se crea.
+    private Long quoteId;
 }

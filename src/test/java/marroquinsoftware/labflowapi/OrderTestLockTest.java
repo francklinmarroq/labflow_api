@@ -43,7 +43,9 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-@Import({LabTestServiceImp.class, LabOrderServiceImp.class, OrderTagServiceImp.class,
+@Import({LabTestServiceImp.class, LabOrderServiceImp.class,
+        // Lo necesita LabOrderServiceImp para cerrar la cotización de la que sale una orden.
+        QuoteServiceImp.class, OrderTagServiceImp.class,
         // Lo necesita LabOrderServiceImp para resolver el médico solicitante al guardar.
         ReferringPhysicianServiceImp.class,
         // Lo necesita LabTestServiceImp para resolver el método del examen contra el

@@ -649,3 +649,34 @@ alter table if exists invoices add column if not exists fiscal boolean default t
 update invoices set fiscal = true where fiscal is null;
 alter table if exists invoices alter column fiscal set not null;
 alter table if exists invoices alter column cai drop not null;
+
+-- Cotizaciones con vigencia, edición y cierre (change editar-cotizaciones-abiertas).
+--
+-- quotes.validity_days / valid_until: días de vigencia y último día (hora de
+-- Honduras) en que se respetan los precios cotizados. El estado de la cotización
+-- (vigente, vencida, convertida, recotizada) no es columna: se deriva de
+-- valid_until y de los vínculos de abajo.
+--
+-- quotes.order_id / order_number: orden creada a partir de la cotización.
+-- quotes.requoted_by_* / requoted_from_*: cotización que la reemplazó al
+-- recotizarla y cotización vencida de la que salió. Ids planos sin FK, como
+-- quote_item.test_id.
+--
+-- quotes.updated_at / updated_by_username: última modificación.
+--
+-- Las cotizaciones anteriores a esto quedan con 15 días contados desde su emisión
+-- (backfill idempotente: solo toca las que no tienen valid_until).
+--
+-- laboratory.quote_validity_days: vigencia por defecto (1–365). Nulo ⇒ 15.
+alter table if exists quotes add column if not exists validity_days integer;
+alter table if exists quotes add column if not exists valid_until date;
+alter table if exists quotes add column if not exists order_id bigint;
+alter table if exists quotes add column if not exists order_number bigint;
+alter table if exists quotes add column if not exists requoted_by_id bigint;
+alter table if exists quotes add column if not exists requoted_by_number bigint;
+alter table if exists quotes add column if not exists requoted_from_id bigint;
+alter table if exists quotes add column if not exists requoted_from_number bigint;
+alter table if exists quotes add column if not exists updated_at timestamp(6) with time zone;
+alter table if exists quotes add column if not exists updated_by_username varchar(255);
+update quotes set validity_days = 15, valid_until = (quoted_at at time zone 'America/Tegucigalpa')::date + 15 where valid_until is null and quoted_at is not null;
+alter table if exists laboratory add column if not exists quote_validity_days integer;

@@ -9,6 +9,7 @@ import lombok.ToString;
 
 import java.math.BigDecimal;
 import java.time.Instant;
+import java.time.LocalDate;
 import java.util.List;
 import org.hibernate.annotations.BatchSize;
 import org.hibernate.annotations.TenantId;
@@ -26,6 +27,10 @@ import org.hibernate.annotations.TenantId;
  * <p>El paciente puede ser uno del expediente ({@code customer}) o alguien que
  * todavía no está registrado, del que solo se pidió nombre y edad para saber si
  * cae en el descuento.
+ *
+ * <p>El estado (vigente, vencida, convertida, recotizada) no se guarda: sale de
+ * {@code validUntil} y de los vínculos a la orden o a la cotización que la
+ * reemplazó. Ver {@link QuoteStatus#of(Quote)}.
  */
 @Entity
 @Table(name = "quotes", uniqueConstraints = @UniqueConstraint(
@@ -87,6 +92,32 @@ public class Quote {
 
     // El listado devuelve cada cotización con sus exámenes; sin el @BatchSize
     // eso sería una consulta por cotización al recorrer la página.
+    /** Días de vigencia con que se emitió (o los que se fijaron al editarla). */
+    private Integer validityDays;
+
+    /**
+     * Último día (hora de Honduras) en que se respetan los precios cotizados:
+     * fecha de emisión + {@code validityDays}.
+     */
+    private LocalDate validUntil;
+
+    // Orden creada a partir de esta cotización. Id y número planos, sin FK, como
+    // QuoteItem.testId: solo se muestran y el número de una orden nunca cambia.
+    private Long orderId;
+    private Long orderNumber;
+
+    /** Cotización nueva que reemplazó a esta al recotizarla. */
+    private Long requotedById;
+    private Long requotedByNumber;
+
+    /** Cotización vencida de la que salió esta al recotizar. */
+    private Long requotedFromId;
+    private Long requotedFromNumber;
+
+    /** Última modificación (null si nunca se editó). */
+    private Instant updatedAt;
+    private String updatedByUsername;
+
     @OneToMany(mappedBy = "quote", cascade = CascadeType.ALL, orphanRemoval = true)
     @BatchSize(size = 50)
     @ToString.Exclude

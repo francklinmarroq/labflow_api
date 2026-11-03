@@ -10,7 +10,9 @@ import marroquinsoftware.labflowapi.repositories.LaboratoryRepository;
 import marroquinsoftware.labflowapi.repositories.ReferringPhysicianRepository;
 import marroquinsoftware.labflowapi.service.InvoiceService;
 import marroquinsoftware.labflowapi.service.LabOrderService;
+import marroquinsoftware.labflowapi.service.AgeDiscountCalculator;
 import marroquinsoftware.labflowapi.service.LabOrderServiceImp;
+import marroquinsoftware.labflowapi.service.QuoteServiceImp;
 import marroquinsoftware.labflowapi.service.OrderTagServiceImp;
 import marroquinsoftware.labflowapi.service.ReferringPhysicianService;
 import marroquinsoftware.labflowapi.service.ReferringPhysicianServiceImp;
@@ -35,7 +37,9 @@ import static org.junit.jupiter.api.Assertions.*;
  */
 @DataJpaTest
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.ANY)
-@Import({LabOrderServiceImp.class, OrderTagServiceImp.class, ReferringPhysicianServiceImp.class,
+@Import({LabOrderServiceImp.class,
+        // Lo necesita LabOrderServiceImp para cerrar la cotización de la que sale una orden.
+        QuoteServiceImp.class, AgeDiscountCalculator.class, OrderTagServiceImp.class, ReferringPhysicianServiceImp.class,
         TenantIdentifierResolver.class})
 @TestPropertySource(properties = {
         "spring.jpa.properties.hibernate.dialect=org.hibernate.dialect.H2Dialect",

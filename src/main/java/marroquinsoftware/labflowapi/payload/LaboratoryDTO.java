@@ -109,4 +109,9 @@ public class LaboratoryDTO {
     @DecimalMin(value = "0.0", message = "El descuento de cuarta edad no puede ser negativo")
     @DecimalMax(value = "100.0", message = "El descuento de cuarta edad no puede pasar de 100%")
     private BigDecimal fourthAgeDiscountPercent;
+
+    // Vigencia por defecto de las cotizaciones, en días. Nulo = 15.
+    @Min(value = 1, message = "La vigencia de las cotizaciones debe ser de al menos 1 día")
+    @Max(value = 365, message = "La vigencia de las cotizaciones no puede pasar de 365 días")
+    private Integer quoteValidityDays;
 }

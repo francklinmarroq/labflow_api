@@ -1,5 +1,7 @@
 package marroquinsoftware.labflowapi.payload;
 
+import jakarta.validation.constraints.Max;
+import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotEmpty;
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -29,4 +31,12 @@ public class QuoteRequest {
     private List<Long> testIds;
 
     private String notes;
+
+    /**
+     * Días de vigencia. Al crear, nulo = la vigencia por defecto del laboratorio;
+     * al editar, nulo = se conserva la que tenía.
+     */
+    @Min(value = 1, message = "La vigencia de la cotización debe ser de al menos 1 día")
+    @Max(value = 365, message = "La vigencia de la cotización no puede pasar de 365 días")
+    private Integer validityDays;
 }

@@ -115,6 +115,21 @@ public class Laboratory {
     @Column(precision = 5, scale = 2)
     private BigDecimal fourthAgeDiscountPercent;
 
+    /** Cotización sin vigencia configurada: dura 15 días. */
+    public static final int DEFAULT_QUOTE_VALIDITY_DAYS = 15;
+
+    /**
+     * Días que dura una cotización si al emitirla no se indican otros (1–365).
+     * Nulo = {@link #DEFAULT_QUOTE_VALIDITY_DAYS}. Cambiarlo no mueve la vigencia
+     * de las cotizaciones ya emitidas.
+     */
+    private Integer quoteValidityDays;
+
+    /** Vigencia por defecto de las cotizaciones, resolviendo el nulo. */
+    public int effectiveQuoteValidityDays() {
+        return quoteValidityDays != null ? quoteValidityDays : DEFAULT_QUOTE_VALIDITY_DAYS;
+    }
+
     /**
      * Decisión de datos de inicio (ver {@link OnboardingSeedStatus}). Config
      * "invisible" para el usuario: no se edita en la pantalla del laboratorio, solo

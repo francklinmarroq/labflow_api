@@ -66,6 +66,9 @@ public class LabOrderServiceImp implements LabOrderService {
     @Autowired
     private ReferringPhysicianService referringPhysicianService;
 
+    @Autowired
+    private QuoteService quoteService;
+
     @Override
     @Transactional(readOnly = true)
     public LabOrderResponse getAllOrders(Integer pageNumber, Integer pageSize, String sortBy, String sortDir,
@@ -120,8 +123,14 @@ public class LabOrderServiceImp implements LabOrderService {
         // toda la creación es UN solo request. Mismos datos y mismo orden que el alta
         // por examen (sin perfil/notas/muestra); el detalle se recarga aparte.
         attachTests(order, dto.getTestIds());
+        LabOrder saved = labOrderRepository.save(order);
+        // La cotización se cierra en esta misma transacción: si ya no está vigente
+        // lanza una excepción y la orden tampoco queda creada.
+        if (dto.getQuoteId() != null) {
+            quoteService.closeWithOrder(dto.getQuoteId(), saved.getId(), saved.getOrderNumber());
+        }
         // Sin consulta: una orden que acaba de nacer no puede tener factura todavía.
-        return toDTO(labOrderRepository.save(order), Set.of());
+        return toDTO(saved, Set.of());
     }
 
     /**
