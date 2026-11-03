@@ -2,6 +2,13 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.15.0](https://github.com/francklinmarroq/labflow_api/compare/v1.14.1...v1.15.0) (2026-11-03)
+
+### Funcionalidades
+
+* cotizaciones con vigencia, edición, recotización y conversión a orden ([663fe90](https://github.com/francklinmarroq/labflow_api/commit/663fe907ab6ec679215dbd79d0026c337c90c94d))
+* exportar a Excel las órdenes filtradas ([a6dc3f0](https://github.com/francklinmarroq/labflow_api/commit/a6dc3f024281c61844472bef290c30fc02462eb2))
+* mejorar el catálogo inicial de exámenes ([c2c0107](https://github.com/francklinmarroq/labflow_api/commit/c2c01071dba4ea973fc0a674e1dae217a4df5d3e))
 ## [1.14.1](https://github.com/francklinmarroq/labflow_api/compare/v1.14.0...v1.14.1) (2026-11-02)
 
 ### Rendimiento
