@@ -3,9 +3,12 @@
 - [x] 1.1 Apply the corrections of proposal.md to `default-catalog.json` (numeric PT/PTT/bleeding-time ranges, qualitative microscopic parameters, yeasts in urinalysis, ESR and Lymph# ranges, glucose interpretations, areas, names, removal of "Glucosa en sangre"); verify ids stay unique and every reference resolves
 - [x] 1.2 Add the 30 exams of proposal.md, reusing existing parameters where design.md says so; verify 119 exams and 119 profiles
 
+- [x] 1.3 Reduce the age groups to Neonatos, Niños, Adolescentes and Adultos and remap their ranges as design.md says; verify no range points at a removed group
+
 ## 2. Tests
 
 - [x] 2.1 Add `seededCatalogNeedsNoManualFixesToReport` to `CatalogSeedIntegrityTest` covering the scenarios of "The initial catalog is usable without manual fixes"; verify it fails against the previous JSON and passes against the new one
+- [x] 2.3 Extend it with the "Age groups" scenario
 - [x] 2.2 Run `mvn -B --settings .mvn/settings.xml test -Dtest=CatalogSeedIntegrityTest`
 
 ## 3. Review and rollout

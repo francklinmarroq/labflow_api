@@ -16,7 +16,7 @@ A laboratory that accepts the initial catalog during onboarding SHALL receive th
 
 ### Requirement: The initial catalog is usable without manual fixes
 
-Every exam in the default catalog SHALL have an area. No two exams SHALL share a name, compared without regard to case. A quantitative parameter SHALL NOT have a reference range with neither a lower nor an upper limit. A parameter of the microscopic section SHALL be qualitative.
+Every exam in the default catalog SHALL have an area. No two exams SHALL share a name, compared without regard to case. A quantitative parameter SHALL NOT have a reference range with neither a lower nor an upper limit. A parameter of the microscopic section SHALL be qualitative. The age groups SHALL be exactly Neonatos, Niños, Adolescentes and Adultos, covering every age from birth without gaps or overlaps.
 
 #### Scenario: Exam areas
 
@@ -27,6 +27,11 @@ Every exam in the default catalog SHALL have an area. No two exams SHALL share a
 
 - **WHEN** the default catalog is seeded
 - **THEN** every reference range of a quantitative parameter has at least one numeric limit
+
+#### Scenario: Age groups
+
+- **WHEN** the default catalog is seeded
+- **THEN** its age groups are exactly Neonatos (from birth), Niños, Adolescentes and Adultos (no upper age), in that order, each starting the day after the previous one ends
 
 #### Scenario: Microscopic results are text
 

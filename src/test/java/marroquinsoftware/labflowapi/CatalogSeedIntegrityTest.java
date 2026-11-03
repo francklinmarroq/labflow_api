@@ -17,6 +17,8 @@ import org.springframework.test.context.TestPropertySource;
 import tools.jackson.databind.ObjectMapper;
 import tools.jackson.databind.json.JsonMapper;
 
+import java.util.List;
+
 import static org.junit.jupiter.api.Assertions.*;
 
 /**
@@ -117,6 +119,21 @@ class CatalogSeedIntegrityTest {
         // cuantitativo no acepta lo que el laboratorio realmente escribe.
         assertEquals(0L, count("SELECT count(*) FROM parameter WHERE section = 'MICROSCOPIC' AND value_type = 'QUANTITATIVE'"),
                 "parámetros microscópicos cuantitativos");
+
+        // Los grupos de edad son los cuatro de siempre, seguidos y sin solaparse:
+        // cualquier otro ("Adulto Mayor", "mayores de 50") deja edades con dos
+        // rangos o con ninguno. Un corte puntual va en la fila ("desde"), no aquí.
+        @SuppressWarnings("unchecked")
+        List<Object[]> groups = em.createNativeQuery(
+                "SELECT name, min_age_days, max_age_days FROM age_range ORDER BY min_age_days").getResultList();
+        assertEquals(List.of("Neonatos", "Niños", "Adolescentes", "Adultos"),
+                groups.stream().map(g -> (String) g[0]).toList(), "grupos de edad");
+        assertEquals(0, ((Number) groups.get(0)[1]).intValue(), "el primer grupo empieza al nacer");
+        for (int i = 1; i < groups.size(); i++) {
+            assertEquals(((Number) groups.get(i - 1)[2]).intValue() + 1, ((Number) groups.get(i)[1]).intValue(),
+                    "hueco o solape antes de " + groups.get(i)[0]);
+        }
+        assertNull(groups.get(groups.size() - 1)[2], "el último grupo no tiene edad máxima");
     }
 
     private long count(String sql) {

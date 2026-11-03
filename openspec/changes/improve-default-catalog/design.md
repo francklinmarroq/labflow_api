@@ -29,6 +29,8 @@ Data source: read-only queries against production on 2026-10-28, over the four l
 
 **Known defects left as they are.** Hemoglobin and hematocrit have the same range for men and women (11–15 g/dL, 37–47 %). It is wrong, but no laboratory corrected it in the data and choosing values is a clinical decision; it is reported rather than changed. Methods (`test_methods`) are not seeded: they depend on each laboratory's equipment, and the seeder does not handle them.
 
+**Four age groups, and a range keeps applying to the ages it applied to.** The old "Adulto" had no limits, so its ranges applied to every age. Where a parameter has no other age-specific range (hemogram, chemistry, most of the catalog) those ranges become "all ages" rather than "Adultos", or children and adolescents would lose them. Where the parameter does have a table by age, they become "Adultos" and are copied to "Adolescentes" (adult values: fasting glucose "Normal", uric acid by sex, CSF glucose); "Pediátrico/Niño" becomes "Niños". The ESR cut-off at 50 is kept as a per-row "from 50 years" (`min_age_days`), the mechanism the catalog already has for one-off age cut-offs, so it needs no named group. The two "Adulto Mayor" ranges are dropped: in triglycerides it repeated the all-ages ≤150, and in fasting glucose (74–115, no label) it contradicted the ADA interpretations the same parameter already carries.
+
 **The JSON is edited, not regenerated.** It was exported from a reference database that no longer matches it; a scripted edit keeps the diff reviewable and the existing ids stable.
 
 ## Risks
