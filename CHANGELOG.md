@@ -2,6 +2,15 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.15.1](https://github.com/francklinmarroq/labflow_api/compare/v1.15.0...v1.15.1) (2026-11-04)
+
+### Funcionalidades
+
+* catálogo inicial con cuatro grupos de edad sin solaparse ([3163b21](https://github.com/francklinmarroq/labflow_api/commit/3163b21ec24bbc5be1cb474df7e8f6864abcbc6f))
+
+### Correcciones
+
+* la exportación de órdenes a Excel fallaba en la imagen nativa ([0c4b784](https://github.com/francklinmarroq/labflow_api/commit/0c4b784db9b267b2fb5c227ce73d00f7599d78af))
 ## [1.15.0](https://github.com/francklinmarroq/labflow_api/compare/v1.14.1...v1.15.0) (2026-11-03)
 
 ### Funcionalidades
