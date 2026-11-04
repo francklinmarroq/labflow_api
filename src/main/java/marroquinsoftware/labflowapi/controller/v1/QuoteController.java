@@ -64,10 +64,12 @@ public class QuoteController {
         return new ResponseEntity<>(HttpStatus.NO_CONTENT);
     }
 
-    // Le dice a la pantalla de cotización qué descuento le tocaría al paciente
-    // antes de guardar, para que la regla de edades viva solo en la API.
+    // Le dice a la pantalla de cotización —y a Nueva orden, que muestra el mismo
+    // descuento en su resumen— qué descuento le tocaría al paciente antes de
+    // guardar, para que la regla de edades viva solo en la API. Por eso lo puede
+    // pedir también quien solo crea órdenes.
     @GetMapping("/discount")
-    @PreAuthorize("hasAnyAuthority('QUOTES_CREATE','QUOTES_VIEW')")
+    @PreAuthorize("hasAnyAuthority('QUOTES_CREATE','QUOTES_VIEW','ORDERS_CREATE')")
     public ResponseEntity<AgeDiscountDTO> previewDiscount(@RequestParam Integer ageInDays) {
         return new ResponseEntity<>(quoteService.previewDiscount(ageInDays), HttpStatus.OK);
     }
