@@ -2,6 +2,11 @@
 
 All notable changes to this project will be documented in this file. See [commit-and-tag-version](https://github.com/absolute-version/commit-and-tag-version) for commit guidelines.
 
+## [1.15.2](https://github.com/francklinmarroq/labflow_api/compare/v1.15.1...v1.15.2) (2026-11-04)
+
+### Correcciones
+
+* quien crea órdenes puede consultar el descuento por edad ([ed03fec](https://github.com/francklinmarroq/labflow_api/commit/ed03fece83d5e7bad1b2f0fe7903b26b4dabde92))
 ## [1.15.1](https://github.com/francklinmarroq/labflow_api/compare/v1.15.0...v1.15.1) (2026-11-04)
 
 ### Funcionalidades
