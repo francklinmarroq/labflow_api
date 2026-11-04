@@ -23,7 +23,14 @@ public interface LabOrderRepository extends JpaRepository<LabOrder, Long>, JpaSp
     // Órdenes por ids con sus exámenes y el examen del catálogo de cada uno, en una
     // sola consulta, para la exportación a Excel. @TenantId deja fuera las de otro
     // laboratorio: un id ajeno simplemente no aparece.
-    @EntityGraph(attributePaths = {"tests", "tests.test"})
+    //
+    // LOAD y no el FETCH por defecto: un fetchgraph vuelve LAZY toda asociación que
+    // no nombre (paciente, médico, perfil y método del examen), y una to-one LAZY
+    // es un proxy que la imagen nativa no puede generar ("Generation of
+    // HibernateProxy instances at runtime is not allowed"). Así tumbó la
+    // exportación en develop con la suite en verde. Con LOAD lo no nombrado se
+    // carga como está mapeado (EAGER, ver NativeImageLazyAssociationTest).
+    @EntityGraph(attributePaths = {"tests", "tests.test"}, type = EntityGraph.EntityGraphType.LOAD)
     List<LabOrder> findWithTestsByIdIn(Collection<Long> ids);
 
     // Solo el id del laboratorio dueño del token, con SQL nativo para saltarse el

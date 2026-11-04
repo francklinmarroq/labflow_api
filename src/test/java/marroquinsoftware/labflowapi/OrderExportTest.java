@@ -26,6 +26,7 @@ import marroquinsoftware.labflowapi.service.QuoteServiceImp;
 import marroquinsoftware.labflowapi.service.ReferringPhysicianServiceImp;
 import marroquinsoftware.labflowapi.tenant.TenantContext;
 import marroquinsoftware.labflowapi.tenant.TenantIdentifierResolver;
+import org.hibernate.proxy.HibernateProxy;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -44,6 +45,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
 import static org.junit.jupiter.api.Assertions.assertNull;
 
 /**
@@ -206,6 +208,28 @@ class OrderExportTest {
 
         assertEquals(List.of(mine.getId()), rows.stream().map(OrderExportRowDTO::getOrderId).toList(),
                 "la orden del otro laboratorio no aparece, ni siquiera vacía");
+    }
+
+    /**
+     * La consulta de la exportación no puede dejar asociaciones como proxy: la
+     * imagen nativa no genera proxies de Hibernate y revienta con un 500 (así pasó
+     * en develop con un fetchgraph, que vuelve LAZY lo que no nombra). En la JVM
+     * el proxy funciona, así que se comprueba la condición y no el síntoma.
+     */
+    @Test
+    void exportQueryLeavesNoHibernateProxies() {
+        LabOrder order = newOrder(hemograma, glucosa);
+        flushAndClear();
+
+        List<LabOrder> loaded = labOrderRepository.findWithTestsByIdIn(List.of(order.getId()));
+
+        assertEquals(1, loaded.size());
+        LabOrder o = loaded.get(0);
+        assertFalse(o.getCustomer() instanceof HibernateProxy, "el paciente quedó como proxy");
+        for (LabTest lt : o.getTests()) {
+            assertFalse(lt.getTest() instanceof HibernateProxy, "el examen del catálogo quedó como proxy");
+            assertFalse(lt.getOrder() instanceof HibernateProxy, "la orden del examen quedó como proxy");
+        }
     }
 
     // --- Utilidades ---
