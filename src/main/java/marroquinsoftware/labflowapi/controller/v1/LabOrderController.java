@@ -14,12 +14,15 @@ import marroquinsoftware.labflowapi.payload.UninvoicedOrderResponse;
 import marroquinsoftware.labflowapi.service.InvoiceService;
 import marroquinsoftware.labflowapi.service.LabOrderService;
 import marroquinsoftware.labflowapi.service.LabTestService;
+import marroquinsoftware.labflowapi.service.ReferralService;
 import marroquinsoftware.labflowapi.service.TestRunService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDate;
@@ -40,6 +43,9 @@ public class LabOrderController {
 
     @Autowired
     private TestRunService testRunService;
+
+    @Autowired
+    private ReferralService referralService;
 
     @GetMapping
     @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT')")
@@ -85,8 +91,35 @@ public class LabOrderController {
     // el listado completo para hacer un find() en el cliente.
     @GetMapping("/{orderId}")
     @PreAuthorize("hasAnyAuthority('ORDERS_VIEW','ORDERS_PRINT','ORDERS_ENTER_RESULTS')")
-    public ResponseEntity<LabOrderDTO> getOrderById(@PathVariable Long orderId) {
-        return new ResponseEntity<>(labOrderService.getOrderById(orderId), HttpStatus.OK);
+    public ResponseEntity<LabOrderDTO> getOrderById(@PathVariable Long orderId, Authentication authentication) {
+        LabOrderDTO dto = labOrderService.getOrderById(orderId);
+        // Las remisiones de la orden se embeben en el detalle para ahorrarle al front
+        // una 2.ª llamada a GET /orders/{id}/referrals: una invocación menos de
+        // Worker→Durable Object→contenedor (piso de ~0.7 s) por apertura del detalle,
+        // la pantalla de más tráfico del sistema. Reusa referralService.getReferralsByOrder,
+        // así que trae EXACTAMENTE las mismas filas y el mismo orden que ese endpoint.
+        //
+        // Se embeben SOLO si el usuario tiene la misma autoridad que exige ese endpoint
+        // (ORDERS_VIEW o ORDERS_REFER): este detalle también lo pueden abrir roles con
+        // solo ORDERS_PRINT/ORDERS_ENTER_RESULTS, y a esos no se les deben exponer las
+        // remisiones (hoy su llamada al endpoint daría 403). Si no están autorizados,
+        // `referrals` queda en null y el front cae a su llamada —ya condicionada por el
+        // mismo permiso—, de modo que quién ve qué no cambia.
+        if (hasAnyAuthority(authentication, "ORDERS_VIEW", "ORDERS_REFER")) {
+            dto.setReferrals(referralService.getReferralsByOrder(orderId));
+        }
+        return new ResponseEntity<>(dto, HttpStatus.OK);
+    }
+
+    /** ¿El usuario autenticado tiene alguna de las autoridades indicadas? */
+    private static boolean hasAnyAuthority(Authentication authentication, String... required) {
+        if (authentication == null || authentication.getAuthorities() == null) return false;
+        for (GrantedAuthority granted : authentication.getAuthorities()) {
+            for (String authority : required) {
+                if (authority.equals(granted.getAuthority())) return true;
+            }
+        }
+        return false;
     }
 
     @PostMapping

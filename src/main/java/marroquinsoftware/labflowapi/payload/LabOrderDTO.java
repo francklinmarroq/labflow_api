@@ -101,4 +101,15 @@ public class LabOrderDTO {
     // Si viene, la cotización queda convertida en la misma transacción; si ya no
     // está vigente, la orden no se crea.
     private Long quoteId;
+    // Remisiones de la orden, embebidas de SOLO LECTURA SOLO en el detalle
+    // (GET /orders/{id}); en el LISTADO viene `null` a propósito (no se usa ahí, y
+    // resolverlas por fila convertiría una página en una consulta por orden). Se
+    // ignora al crear/actualizar: las remisiones se crean/borran por sus propios
+    // endpoints. Permite que el detalle de la orden traiga la orden y sus
+    // remisiones SIN una 2.ª llamada a GET /orders/{id}/referrals. Trae exactamente
+    // las mismas filas y el mismo orden que ese endpoint (reusa
+    // getReferralsByOrder). `null`/ausente = API vieja que aún no las embebe: el
+    // front cae a GET /orders/{id}/referrals como respaldo. Ver
+    // LabOrderServiceImp.getOrderById.
+    private List<ReferralDTO> referrals;
 }
