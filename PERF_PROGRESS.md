@@ -14,6 +14,54 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-11-08 — Detalle de orden: embeber las remisiones en `GET /orders/{id}` para eliminar `GET /orders/{id}/referrals` (2→1 llamada) · cross-repo
+**Archivos:** `LabOrderDTO` (`referrals`), `LabOrderController.getOrderById`
+(embebido condicional por permiso + helper `hasAnyAuthority`),
+`LabOrderControllerReferralsTest` (+3 tests).
+**Problema:** el detalle de la orden (`ordenes/[id]/index.vue`, la pantalla de MÁS
+tráfico del sistema) monta una ola de cargas en paralelo que incluye
+`GET /orders/{id}/referrals` para listar las remisiones de la orden. Aunque va en
+paralelo con las otras cargas, es **otra invocación** Worker→Durable Object→contenedor
+(piso de ~0.7 s) y otra invocación de Cloudflare en cada apertura de esa pantalla. El
+mismo patrón que ya se resolvió embebiendo los exámenes (`order.tests`) y la identidad
+del paciente en el DTO del detalle.
+**Cambio:** `LabOrderDTO` gana un campo `referrals` (`List<ReferralDTO>`), de **solo
+lectura** y embebido **SOLO en el detalle** (`GET /orders/{id}`), nunca en el listado
+(que comparte `toDTO`: resolver las remisiones por fila convertiría una página de
+cientos de órdenes en una consulta por orden). El embebido se hace en el **controlador**
+(no en `toDTO` ni en el servicio) por dos razones: (1) no meter una dependencia de
+`ReferralService` dentro de `LabOrderServiceImp`, que arrastraría a todos los
+`@DataJpaTest` que importan ese servicio a importar también el grafo de remisiones/diario;
+(2) el detalle lo pueden abrir roles con solo `ORDERS_PRINT`/`ORDERS_ENTER_RESULTS`, y a
+esos **no** se les deben exponer las remisiones. Por eso el controlador solo embebe
+`referrals` cuando el usuario tiene la **misma** autoridad que exige el endpoint dedicado
+(`ORDERS_VIEW` o `ORDERS_REFER`); si no, `referrals` queda `null` y el front cae a su
+propia llamada (ya condicionada por ese mismo permiso). Reusa
+`referralService.getReferralsByOrder`, así que trae **exactamente** las mismas filas y el
+mismo orden que `GET /orders/{id}/referrals` — sin cambio observable.
+**Impacto esperado:** el montaje del detalle de la orden baja de **2 → 1** llamadas al
+API para traer la orden + sus remisiones: **−1 request ≈ −1 invocación de Cloudflare por
+apertura** de la pantalla de más tráfico. Del lado de Postgres **no agrega consultas
+netas** frente al flujo previo de dos llamadas: el endpoint dedicado ya corría esas mismas
+consultas (existencia de la orden + remisiones con sus items por `@BatchSize`), ahora solo
+van dentro del mismo request. Sin cambio de comportamiento observable (mismas remisiones,
+mismo orden, misma visibilidad por permiso).
+**Acople de despliegue:** **API primero.** El consumidor (`labflow_frontend`, rama
+`claude/awesome-bell-ylclwu`) lee `order.referrals` del DTO y mantiene respaldo a
+`GET /orders/{id}/referrals` mientras la API vieja no lo envíe (campo `undefined`) o no lo
+mande por permisos (`null`); para eliminar la llamada en producción esta API debe
+desplegarse **antes** que el front. Ver PR del front.
+**Verificación:** `mvn test "-Dtest=!LabflowapiApplicationTests" -Dmaven.compiler.release=21`
+→ **332 tests, 0 fallos, 0 errores, BUILD SUCCESS**. `LabOrderControllerReferralsTest`
+verifica que el detalle embebe las remisiones para `ORDERS_VIEW` y `ORDERS_REFER`, y que
+**no** las embebe (ni consulta el servicio) para un usuario con solo
+`ORDERS_PRINT`/`ORDERS_ENTER_RESULTS`. (En este entorno solo hay JDK 21; el pom apunta a
+Java 25, así que se compiló con `-Dmaven.compiler.release=21` sin tocar el pom; agregar un
+campo de solo lectura y orquestar en el controlador es 100% compatible con ambos targets.
+El mirror Aliyun del `.mvn/settings.xml` no resuelve DNS en este sandbox, así que se usó
+Maven Central por defecto.) Latencia real pendiente de confirmación humana (no hay entorno
+con API + BD para medir).
+
 ### 2026-11-01 — Estado de cuenta (paciente / cliente de facturación): cortar el N+1 de pagos (N consultas → 1)
 **Archivos:** `PaymentRepository.findByInvoiceIdInOrderByPaidAtAsc` (consulta por lote
 nueva), `InvoiceServiceImp.statementOf` (agrupa en memoria), `InvoiceAccountingTest`
