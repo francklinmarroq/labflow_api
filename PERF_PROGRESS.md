@@ -14,6 +14,56 @@ Principios que NO se deben deshacer:
 
 ## Hecho
 
+### 2026-11-15 — Listado de cotizaciones: memoizar el nombre para mostrar (N+1 de consultas de usuario → 1 por usuario distinto)
+**Archivos:** `QuoteServiceImp` (`displayName` ahora con `nameCache`, `fetchName`,
+sobrecarga `toDTO(Quote, Map)`, `getAllQuotes` comparte una sola memoria),
+`QuoteListDisplayNameTest` (+1 test).
+**Problema:** `GET /api/v1/quotes` (listado de cotizaciones, que el front baja con
+`pageSize=1000` en `cotizaciones/index.vue`) mapea **cada** cotización a DTO resolviendo el
+**nombre para mostrar** de quien la creó (`createdByName`) y de quien la editó
+(`updatedByName`). Cada resolución llamaba `displayName`, que ejecuta
+`userRepository.findNameByUsernameAndLaboratoryId(username, labId)` — **una consulta a
+Postgres por cotización por campo**. Como todo el listado es de un solo laboratorio con un
+**puñado** de usuarios (recepción, laboratoristas…), esas consultas repetían una y otra vez
+la **misma** proyección para el mismo username: un N+1 clásico de *consultas repetidas por
+request* (el mismo patrón que el N+1 de pagos del 2026-11-01). Para una página de N
+cotizaciones, **hasta 2N** consultas de nombre (las recién creadas traen `updatedByUsername`
+nulo y no consultan; las editadas consultan las dos). Una página de 200 cotizaciones de 3
+usuarios distintos hacía **~200–400 consultas de nombre** contra el contenedor de 1 vCPU e
+instancia única, todas para resolver 3 nombres. (El `default_batch_fetch_size=50` global no
+cubre este caso: no es inicializar una colección/asociación lazy, son llamadas **explícitas**
+al repositorio dentro del mapeo.)
+**Cambio:** se memoiza `displayName` **por llamada** con un `Map<String,String>` (clave =
+username): `displayName(username, nameCache)` hace `computeIfAbsent(username, this::fetchName)`,
+y `fetchName` conserva exactamente la consulta y el fallback previos (nombre del usuario, o el
+propio username si está vacío/ausente). `getAllQuotes` crea **una sola** memoria y la comparte
+entre **todas** las filas de la página (`toDTO(q, nameCache)`), así cada usuario distinto se
+consulta **una vez**. Las rutas de detalle/escritura (`getQuote`, `createQuote`, …) usan la
+sobrecarga `toDTO(Quote)` con una memoria fresca: resuelven uno o dos nombres, mismo
+comportamiento que antes. Es el mismo idioma de «memoria por llamada» ya usado en
+`PatientHistoryServiceImp` (2026-09-06). **Mismos DTO, mismos nombres, mismo orden**: solo se
+evita repetir la consulta.
+**Impacto esperado:** el listado de cotizaciones baja de **hasta ~2N** a **≈ D** consultas de
+nombre a Postgres por apertura (D = usuarios distintos de la página, típicamente 2–5): para
+una página de 200 cotizaciones de 3 usuarios, de **~200–400 a ~3 consultas**
+(**≈ −200 a −397 round-trips** a la base). **No cambia** la cantidad de requests
+HTTP/invocaciones de Cloudflare (es un solo endpoint), pero reduce fuertemente los round-trips
+a Postgres y la contención del contenedor de 1 vCPU, acelerando cada respuesta del listado.
+**Acople de despliegue:** **ninguno.** Cambio interno de la API; el contrato HTTP y los DTO
+no cambian (mismos campos, mismos valores), desplegable de forma independiente del front.
+**Verificación:** `mvn -B test "-Dtest=!LabflowapiApplicationTests" -Dmaven.compiler.release=21`
+→ **330 tests, BUILD SUCCESS** (en este entorno `maven.aliyun.com` del `.mvn/settings.xml` no
+resuelve, pero **Maven Central sí pasa por el proxy**, así que se construyó y testeó sin
+`--settings`, cayendo al mirror por defecto). El nuevo `QuoteListDisplayNameTest` crea 7
+cotizaciones de 2 usuarios (uno con nombre registrado, otro sin nombre → fallback al username)
+y verifica que (a) cada fila trae el **nombre correcto** de su creador y (b) las consultas
+ejecutadas **no escalan** con la cantidad de cotizaciones (vía `Statistics`: sin memoria
+serían ≥ 7 solo por nombres; con memoria queda muy por debajo). Sigue solo JDK 21 en el
+entorno; el pom apunta a Java 25 y se compiló con `-Dmaven.compiler.release=21` **sin** tocar
+el pom (el cambio —`Map`, `computeIfAbsent`, una sobrecarga— es 100% compatible con ambos
+targets). Latencia real pendiente de confirmación humana (no hay entorno con API + BD para
+medir).
+
 ### 2026-11-01 — Estado de cuenta (paciente / cliente de facturación): cortar el N+1 de pagos (N consultas → 1)
 **Archivos:** `PaymentRepository.findByInvoiceIdInOrderByPaidAtAsc` (consulta por lote
 nueva), `InvoiceServiceImp.statementOf` (agrupa en memoria), `InvoiceAccountingTest`
@@ -379,6 +429,13 @@ humana (no hay entorno con API + BD para medir).
   adjuntos hechos 2026-10-11** — las dos últimas colecciones `@OneToMany` sin `@BatchSize`
   (`Referral.items` y `TestRun.attachments`, ambas recorridas por el detalle de orden) ahora
   lo tienen (ver «Hecho»). Con esto **todas** las colecciones `@OneToMany` del modelo están
-  batcheadas; auditoría de N+1 por colección lazy cerrada.
+  batcheadas; auditoría de N+1 por colección lazy cerrada. **Nombres de usuario en listados
+  hecho (parcial) 2026-11-15** — otro N+1 **de consultas repetidas** (no de colección): el
+  mapeo a DTO resolvía el nombre para mostrar (`createdByName`/`updatedByName`) con una
+  consulta `findNameByUsernameAndLaboratoryId` **por fila**. El **listado de cotizaciones**
+  (`QuoteServiceImp.getAllQuotes`) ya lo memoiza por llamada (ver «Hecho»). **Pendiente el
+  mismo patrón en facturas** (`InvoiceServiceImp.displayName`, usado en `getAllInvoices`
+  —`pageSize=500` desde el front— y en las cuentas por cobrar): aplicar la misma memoria por
+  llamada.
 - [ ] **Config HikariCP/JPA:** revisar `spring.jpa.open-in-view`, tamaño del pool y
   `default_batch_fetch_size`/`@BatchSize` para instancia única de 1 vCPU.
