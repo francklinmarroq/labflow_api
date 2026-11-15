@@ -75,11 +75,27 @@ public class QuoteServiceImp implements QuoteService {
     private UserRepository userRepository;
 
     /**
-     * Nombre para mostrar de quien elaboró la cotización: el nombre de la persona, o
-     * el correo si no tiene nombre (usuarios antiguos) o ya no existe.
+     * Nombre para mostrar de un usuario, memoizado POR LLAMADA. El listado
+     * (`getAllQuotes`) mapea cada cotización leyendo el nombre de quien la creó
+     * (y de quien la editó): sin memoria, eso dispara una consulta
+     * `findNameByUsernameAndLaboratoryId` POR cotización POR campo (2N round-trips
+     * a Postgres para una página de N), repitiendo la MISMA consulta para el puñado
+     * de usuarios del laboratorio. El `nameCache` (un `Map` local a la llamada)
+     * colapsa esas consultas en una por usuario DISTINTO. Mismo nombre resuelto
+     * (misma consulta, mismo fallback al username), solo que una sola vez por
+     * usuario. Es el mismo idioma de «memoria por llamada» ya usado en
+     * `PatientHistoryServiceImp` para los rangos.
      */
-    private String displayName(String username) {
+    private String displayName(String username, Map<String, String> nameCache) {
         if (username == null) return null;
+        return nameCache.computeIfAbsent(username, this::fetchName);
+    }
+
+    /**
+     * Resuelve el nombre para mostrar de quien elaboró/editó la cotización: el nombre
+     * de la persona, o el correo si no tiene nombre (usuarios antiguos) o ya no existe.
+     */
+    private String fetchName(String username) {
         return userRepository.findNameByUsernameAndLaboratoryId(username, TenantContext.getLaboratoryId())
                 .filter(n -> !n.isBlank())
                 .orElse(username);
@@ -92,7 +108,11 @@ public class QuoteServiceImp implements QuoteService {
         // El laboratorio (tenant) lo filtra Hibernate por @TenantId.
         Page<Quote> page = quoteRepository.findAll(pageable);
         QuoteResponse response = new QuoteResponse();
-        response.setContent(page.getContent().stream().map(this::toDTO).toList());
+        // Una sola memoria de nombres para toda la página: los nombres de
+        // creador/editor se resuelven una vez por usuario distinto, no una vez por
+        // cotización (ver displayName). Mismos DTO, mismos nombres.
+        Map<String, String> nameCache = new HashMap<>();
+        response.setContent(page.getContent().stream().map(q -> toDTO(q, nameCache)).toList());
         response.setPageNumber(page.getNumber());
         response.setPageSize(page.getSize());
         response.setTotalElements(page.getTotalElements());
@@ -437,7 +457,17 @@ public class QuoteServiceImp implements QuoteService {
         return auth != null ? auth.getName() : null;
     }
 
+    /**
+     * Mapea una sola cotización, con su propia memoria de nombres. Las rutas de
+     * detalle/escritura (`getQuote`, `createQuote`, …) resuelven a lo sumo uno o dos
+     * nombres, así que una memoria fresca no cambia nada; el ahorro vive en el
+     * listado, que comparte UNA memoria entre todas las filas.
+     */
     private QuoteDTO toDTO(Quote quote) {
+        return toDTO(quote, new HashMap<>());
+    }
+
+    private QuoteDTO toDTO(Quote quote, Map<String, String> nameCache) {
         List<QuoteItemDTO> itemDTOs = (quote.getItems() == null ? List.<QuoteItem>of() : quote.getItems())
                 .stream()
                 .map(i -> new QuoteItemDTO(i.getId(), i.getTestId(), i.getTestName(), i.getPrice()))
@@ -453,7 +483,7 @@ public class QuoteServiceImp implements QuoteService {
         dto.setQuotedAt(quote.getQuotedAt());
         dto.setNotes(quote.getNotes());
         dto.setCreatedByUsername(quote.getCreatedByUsername());
-        dto.setCreatedByName(displayName(quote.getCreatedByUsername()));
+        dto.setCreatedByName(displayName(quote.getCreatedByUsername(), nameCache));
         dto.setDiscountKind(kind);
         dto.setDiscountLabel(kind.getLabel());
         dto.setDiscountPercent(quote.getDiscountPercent());
@@ -473,7 +503,7 @@ public class QuoteServiceImp implements QuoteService {
         dto.setRequotedFromNumber(quote.getRequotedFromNumber());
         dto.setUpdatedAt(quote.getUpdatedAt());
         dto.setUpdatedByUsername(quote.getUpdatedByUsername());
-        dto.setUpdatedByName(displayName(quote.getUpdatedByUsername()));
+        dto.setUpdatedByName(displayName(quote.getUpdatedByUsername(), nameCache));
         return dto;
     }
 }
